@@ -110,9 +110,19 @@ configure:2680: checking location of HTSlib source tree
 configure:2701: result: htslib-1.3
 configure:2919: checking for NcursesW wide-character library
 configure:2943: gcc -o conftest -g -O2   conftest.c  -lncursesw >&5
-/usr/bin/ld: cannot find -lncursesw
-collect2: error: ld returned 1 exit status
-configure:2943: $? = 1
+configure:2943: $? = 0
+configure:2952: result: yes
+configure:2972: checking for working ncursesw/curses.h
+configure:3005: gcc -o conftest -g -O2   conftest.c  -lncursesw >&5
+configure:3005: $? = 0
+configure:3014: result: yes
+configure:3036: checking for working ncursesw.h
+configure:3069: gcc -o conftest -g -O2   conftest.c  -lncursesw >&5
+conftest.c:17:46: fatal error: ncursesw.h: No such file or directory
+                         #include <ncursesw.h>
+                                              ^
+compilation terminated.
+configure:3069: $? = 1
 configure: failed program was:
 | /* confdefs.h */
 | #define PACKAGE_NAME "Samtools"
@@ -121,93 +131,71 @@ configure: failed program was:
 | #define PACKAGE_STRING "Samtools 1.3"
 | #define PACKAGE_BUGREPORT "samtools-help@lists.sourceforge.net"
 | #define PACKAGE_URL "http://www.htslib.org/"
+| #define HAVE_NCURSESW 1
+| #define HAVE_CURSES 1
+| #define HAVE_CURSES_ENHANCED 1
+| #define HAVE_CURSES_COLOR 1
+| #define HAVE_CURSES_OBSOLETE 1
+| #define HAVE_NCURSESW_CURSES_H 1
 | /* end confdefs.h.  */
 | 
-| /* Override any GCC internal prototype to avoid an error.
-|    Use char because int might match the return type of a GCC
-|    builtin and then its argument prototype would still apply.  */
-| #ifdef __cplusplus
-| extern "C"
-| #endif
-| char initscr ();
+|                         #define _XOPEN_SOURCE_EXTENDED 1
+|                         #include <ncursesw.h>
+| 
 | int
 | main ()
 | {
-| return initscr ();
-|   ;
-|   return 0;
-| }
-configure:2952: result: no
-configure:3181: checking for Ncurses library
-configure:3205: gcc -o conftest -g -O2   conftest.c  -lncurses >&5
-/usr/bin/ld: cannot find -lncurses
-collect2: error: ld returned 1 exit status
-configure:3205: $? = 1
-configure: failed program was:
-| /* confdefs.h */
-| #define PACKAGE_NAME "Samtools"
-| #define PACKAGE_TARNAME "samtools"
-| #define PACKAGE_VERSION "1.3"
-| #define PACKAGE_STRING "Samtools 1.3"
-| #define PACKAGE_BUGREPORT "samtools-help@lists.sourceforge.net"
-| #define PACKAGE_URL "http://www.htslib.org/"
-| /* end confdefs.h.  */
 | 
-| /* Override any GCC internal prototype to avoid an error.
-|    Use char because int might match the return type of a GCC
-|    builtin and then its argument prototype would still apply.  */
-| #ifdef __cplusplus
-| extern "C"
-| #endif
-| char initscr ();
-| int
-| main ()
-| {
-| return initscr ();
-|   ;
-|   return 0;
-| }
-configure:3214: result: no
-configure:3367: checking for Curses library
-configure:3391: gcc -o conftest -g -O2   conftest.c  -lcurses >&5
-/usr/bin/ld: cannot find -lcurses
-collect2: error: ld returned 1 exit status
-configure:3391: $? = 1
-configure: failed program was:
-| /* confdefs.h */
-| #define PACKAGE_NAME "Samtools"
-| #define PACKAGE_TARNAME "samtools"
-| #define PACKAGE_VERSION "1.3"
-| #define PACKAGE_STRING "Samtools 1.3"
-| #define PACKAGE_BUGREPORT "samtools-help@lists.sourceforge.net"
-| #define PACKAGE_URL "http://www.htslib.org/"
-| /* end confdefs.h.  */
+|                         chtype a = A_BOLD;
+|                         int b = KEY_LEFT;
+|                         chtype c = COLOR_PAIR(1) & A_COLOR;
+|                         attr_t d = WA_NORMAL;
+|                         cchar_t e;
+|                         wint_t f;
+|                         int g = getattrs(stdscr);
+|                         int h = getcurx(stdscr) + getmaxx(stdscr);
+|                         initscr();
+|                         init_pair(1, COLOR_WHITE, COLOR_RED);
+|                         wattr_set(stdscr, d, 0, NULL);
+|                         wget_wch(stdscr, &f);
 | 
-| /* Override any GCC internal prototype to avoid an error.
-|    Use char because int might match the return type of a GCC
-|    builtin and then its argument prototype would still apply.  */
-| #ifdef __cplusplus
-| extern "C"
-| #endif
-| char initscr ();
-| int
-| main ()
-| {
-| return initscr ();
 |   ;
 |   return 0;
 | }
-configure:3400: result: no
-configure:3643: error: curses development files not found
+configure:3078: result: no
+configure:3100: checking for working ncurses.h
+configure:3133: gcc -o conftest -g -O2   conftest.c  -lncursesw >&5
+configure:3133: $? = 0
+configure:3142: result: yes
+configure:3658: checking for zlib.h
+configure:3658: gcc -c -g -O2  conftest.c >&5
+configure:3658: $? = 0
+configure:3658: result: yes
+configure:3667: checking for inflate in -lz
+configure:3692: gcc -o conftest -g -O2   conftest.c -lz   >&5
+configure:3692: $? = 0
+configure:3701: result: yes
+configure:3843: creating ./config.status
 
-The 'samtools tview' command uses the curses text user interface library.
-Building samtools with tview requires curses/ncurses/etc development files
-to be installed on the build machine; you may need to ensure a package such
-as libncurses5-dev (on Debian or Ubuntu Linux) or ncurses-devel (on RPM-based
-Linux distributions) is installed.
+## ---------------------- ##
+## Running config.status. ##
+## ---------------------- ##
 
-FAILED.  Either configure --without-curses or resolve this error to build
-samtools successfully.
+This file was extended by Samtools config.status 1.3, which was
+generated by GNU Autoconf 2.69.  Invocation command line was
+
+  CONFIG_FILES    = 
+  CONFIG_HEADERS  = 
+  CONFIG_LINKS    = 
+  CONFIG_COMMANDS = 
+  $ ./config.status 
+
+on asgard
+
+config.status:803: creating config.mk
+config.status:803: creating config.h
+configure:5068: === configuring in htslib-1.3 (/home/stsmith/Projects/rna-seq/src/samtools-1.3/htslib-1.3)
+configure:5131: running /bin/sh ./configure --disable-option-checking '--prefix=/usr/local'  --cache-file=/dev/null --srcdir=.
 
 ## ---------------- ##
 ## Cache variables. ##
@@ -232,20 +220,23 @@ ac_cv_env_host_alias_set=
 ac_cv_env_host_alias_value=
 ac_cv_env_target_alias_set=
 ac_cv_env_target_alias_value=
+ac_cv_header_zlib_h=yes
+ac_cv_lib_z_inflate=yes
 ac_cv_objext=o
 ac_cv_prog_ac_ct_CC=gcc
 ac_cv_prog_cc_c89=
 ac_cv_prog_cc_g=yes
-ax_cv_curses=no
-ax_cv_curses_color=no
-ax_cv_curses_enhanced=no
-ax_cv_curses_obsolete=no
-ax_cv_curses_which=no
+ax_cv_curses=yes
+ax_cv_curses_color=yes
+ax_cv_curses_enhanced=yes
+ax_cv_curses_obsolete=yes
+ax_cv_curses_which=ncursesw
+ax_cv_header_ncurses_h_with_ncursesw=yes
+ax_cv_header_ncursesw_curses_h=yes
+ax_cv_header_ncursesw_h=no
 ax_cv_htslib=yes
 ax_cv_htslib_which=source
-ax_cv_ncurses=no
-ax_cv_ncursesw=no
-ax_cv_plaincurses=no
+ax_cv_ncursesw=yes
 
 ## ----------------- ##
 ## Output variables. ##
@@ -254,8 +245,8 @@ ax_cv_plaincurses=no
 CC='gcc'
 CFLAGS='-g -O2'
 CPPFLAGS=''
-CURSES_LIB=''
-DEFS=''
+CURSES_LIB='-lncursesw'
+DEFS='-DHAVE_CONFIG_H'
 ECHO_C=''
 ECHO_N='-n'
 ECHO_T=''
@@ -285,7 +276,7 @@ datadir='${datarootdir}'
 datarootdir='${prefix}/share'
 docdir='${datarootdir}/doc/${PACKAGE_TARNAME}'
 dvidir='${docdir}'
-exec_prefix='NONE'
+exec_prefix='${prefix}'
 host_alias=''
 htmldir='${docdir}'
 includedir='${prefix}/include'
@@ -297,7 +288,7 @@ localstatedir='${prefix}/var'
 mandir='${datarootdir}/man'
 oldincludedir='/usr/include'
 pdfdir='${docdir}'
-prefix='NONE'
+prefix='/usr/local'
 program_transform_name='s,x,x,'
 psdir='${docdir}'
 sbindir='${exec_prefix}/sbin'
@@ -317,5 +308,16 @@ target_alias=''
 #define PACKAGE_STRING "Samtools 1.3"
 #define PACKAGE_BUGREPORT "samtools-help@lists.sourceforge.net"
 #define PACKAGE_URL "http://www.htslib.org/"
+#define HAVE_NCURSESW 1
+#define HAVE_CURSES 1
+#define HAVE_CURSES_ENHANCED 1
+#define HAVE_CURSES_COLOR 1
+#define HAVE_CURSES_OBSOLETE 1
+#define HAVE_NCURSESW_CURSES_H 1
+#define HAVE_CURSES_ENHANCED 1
+#define HAVE_CURSES_COLOR 1
+#define HAVE_CURSES_OBSOLETE 1
+#define HAVE_NCURSES_H 1
+#define HAVE_LIBZ 1
 
-configure: exit 1
+configure: exit 0

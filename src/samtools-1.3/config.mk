@@ -22,20 +22,31 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-# This is @configure_input@
+# This is config.mk.  Generated from config.mk.in by configure.
 #
 # If you use configure, this file overrides variables and augments rules
 # in the Makefile to reflect your configuration choices.  If you don't run
 # configure, the main Makefile contains suitable conservative defaults.
 
+prefix       = /usr/local
+exec_prefix  = ${prefix}
+bindir       = ${exec_prefix}/bin
+datarootdir  = ${prefix}/share
+mandir       = ${datarootdir}/man
+
+CC       = gcc
+CPPFLAGS = 
+CFLAGS   = -g -O2
+LDFLAGS  = 
+LIBS     = 
 
 HTSDIR = htslib-1.3
 include $(HTSDIR)/htslib.mk
 HTSLIB = $(HTSDIR)/libhts.a
 HTSLIB_LIB = $(HTSLIB)
 BGZIP = $(HTSDIR)/bgzip
-HTSLIB_CPPFLAGS = -I$(HTSDIR)
-#HTSLIB_LDFLAGS = @HTSLIB_LDFLAGS@
+HTSLIB_CPPFLAGS = -Ihtslib-1.3
+#HTSLIB_LDFLAGS = -Lhtslib-1.3
 #HTSLIB_LIB = -lhts
 
-CURSES_LIB = -lcurses
+CURSES_LIB = -lncursesw
