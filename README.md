@@ -1,4 +1,4 @@
-# task-template
+# rna-seq
 * /build directory is ignored
 
 * SeqTK added as a submodule.  Use these additional commands during a clone:
