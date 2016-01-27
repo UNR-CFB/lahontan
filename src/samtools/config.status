@@ -434,7 +434,7 @@ Copyright (C) 2012 Free Software Foundation, Inc.
 This config.status script is free software; the Free Software Foundation
 gives unlimited permission to copy, distribute and modify it."
 
-ac_pwd='/home/stsmith/Projects/rna-seq/src/samtools-1.3'
+ac_pwd='/home/rltillett/rna-seq/src/samtools'
 srcdir='.'
 test -n "$AWK" || AWK=awk
 # The default lists apply if the user does not specify any file.
