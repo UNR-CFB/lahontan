@@ -29,3 +29,33 @@ cd ../../build/samtools/bin
 echo 'export PATH=$PATH:'`pwd` >> $HOME/.bash_profile
 > above is for jr-style path insertion
 ```
+
+# Committing changes
+The following commands assume you are operating from the project root directory.
+
+Pull the newest changes from the repository before attempting to push:
+```
+git pull origin
+```
+
+Stage your next commit:
+```
+git add .
+```
+
+Check the staged commit contains all the expected changes:
+```
+git status
+```
+
+Commit the changes:
+```
+git commit
+```
+
+A text editor will start.  Input a description of your changes and save.
+
+Push your changes to Github:
+```
+git push origin
+```
