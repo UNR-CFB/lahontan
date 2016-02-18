@@ -1,7 +1,8 @@
 #!/bin/bash
 ### PROJECT-WIDE VARIABLES SECTION
 ### these variables were used for a particular organization scheme for the
-### beetle projects. Structure is probably a bit too over-wrought
+### beetle projects. Structure is probably a bit too over-wrought.
+### Uncomment+modify various of these to use inside the loops
 # work_root=/home/rltillett/data/3beetles/basespace
 # sequence_dir=$work_root/glued
 # hisat_dir=$work_root/dendro_hisat
@@ -34,7 +35,7 @@ sample11 \
 sampleq1qxxx
 do
 hisat -p 30 --known-splicesite-infile $known_genes -x $hisat_ref -1 "${sequence_dir}/${prefix}_r1.fq.gz" -2 "${sequence_dir}/${prefix}_r2.fq.gz" -S "${out_dir}/${prefix}.sam" &> "${out_dir}/${prefix}.log"
-samtools view -bS "${out_dir}/${prefix}.sam" > "${out_dir}/${prefix}.notSRs.bam"
-pigz "${out_dir}/${prefix}.notSRs.sam"
+samtools view -bS "${out_dir}/${prefix}.sam" > "${out_dir}/${prefix}.bam"
+pigz "${out_dir}/${prefix}.sam"
 done
 
