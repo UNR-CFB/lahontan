@@ -1,7 +1,6 @@
 #!/usr/bin/python
 
 import csv
-from math import abs
 from optparse import OptionParser
 
 def main():
