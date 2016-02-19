@@ -20,7 +20,7 @@ mkdir fastqc1
 
 # FastQC run 2
 mkdir fastqc2
-{ time fastqc -t $PROCS -o fastqc2 *.fq.gz; } > fastqc_2.txt 2>&1
+{ time fastqc -t $PROCS -o fastqc2 *.P.trim.fq.gz; } > fastqc_2.txt 2>&1
 
 # SeqTK sub sample
 { time seqtk sample -s100 read1.P.trim.fq.gz 10000 | seqtk seq -A - > sampled.read1.fa; } > seqtk_1.txt 2>&1
