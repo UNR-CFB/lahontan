@@ -1,6 +1,6 @@
 #!/bin/bash
 
-PROCS=nproc
+PROCS=$(nproc)
 
 # Record hostname
 hostname > host.txt
