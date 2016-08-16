@@ -1,7 +1,7 @@
 #!/bin/bash
 
-if [ -f /home/alberton/Pipeline/INPUT ]; then
-	source /home/alberton/Pipeline/INPUT
+if [ -f "${Input_Field}" ]; then
+	source "${Input_Field}"
 else
 	echo "NEED INPUT FILE"
 	exit
@@ -9,7 +9,7 @@ fi
 
 cd "${Data}"
 
-for directory in $(ls -d */); do
+for directory in */; do
 	dir=$(echo "${directory}" | cut -sf 1 -d '/')
 	timeit3.sh "${dir}"
 done

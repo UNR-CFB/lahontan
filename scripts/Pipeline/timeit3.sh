@@ -1,7 +1,7 @@
 #!/bin/bash
 
-if [ -f /home/alberton/Pipeline/INPUT ]; then
-	source /home/alberton/Pipeline/INPUT
+if [ -f "${Input_Field}" ]; then
+	source "${Input_Field}"
 else
 	echo "NEED INPUT FILE"
 	exit
@@ -11,16 +11,17 @@ sample=$1 #name of sample directory
 Read1=$(findFiles.sh "${sample}" | awk 'NR==1{print $1}') #name of read1
 Read2=$(findFiles.sh "${sample}" | awk 'NR==2{print $1}') #name of read2
 
+################################################################
+# Utilities
+################################################################
+
 # Record hostname
 function getHostname {
 	cd "${Data}"/"${sample}"
 	hostname > host.txt
 }
 
-################################################################
-# Utilities
-################################################################
-
+# Function timer
 function funTime {
 	local func=$1
 	echo "" >> "${Data}"/"${sample}"/Runtime.log

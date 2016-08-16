@@ -1,8 +1,10 @@
-Ref="/home/alberton/Project/reference" #/path/to/reference
-Data="/home/alberton/Project/data" #/path/to/data
+Project="/home/alberton/Project"		#/path/to/Project
+Ref=""${Project}"/reference"			#/path/to/reference
+Data=""${Project}"/data"			#/path/to/data
+Original=""${Project}"/original"		#/path/to/original/data/folder
 Genome="Arabidopsis_thaliana.TAIR10.dna.toplevel.fa" #name of genome
-Cdna="Arabidopsis_thaliana.TAIR10.cdna.all.fa" #name of cDNA
-Gtf="Arabidopsis_thaliana.TAIR10.32.gtf" #name of GTF
-basename="Arabidopsis_thaliana.TAIR10"
-fastq="fastq" # .fastq.gz vs .fq.gz
+Cdna="Arabidopsis_thaliana.TAIR10.cdna.all.fa"	#name of cDNA
+Gtf="Arabidopsis_thaliana.TAIR10.32.gtf"	#name of GTF
+basename="Arabidopsis_thaliana.TAIR10"		#a name
+fastq="fastq"					#.fastq.gz vs .fq.gz
 PROCS=$(nproc)

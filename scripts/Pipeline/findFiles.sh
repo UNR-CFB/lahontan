@@ -1,7 +1,7 @@
 #!/bin/bash
 
-if [ -f /home/alberton/Pipeline/INPUT ]; then
-	source /home/alberton/Pipeline/INPUT
+if [ -f "${Input_Field}" ]; then
+	source "${Input_Field}"
 else
 	echo "NEED INPUT FILE"
 	exit

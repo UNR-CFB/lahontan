@@ -6,8 +6,8 @@
 #	all		resets reference and all sample directories
 #	<sample> 	resets specific sample directory
 
-if [ -f /home/alberton/Pipeline/INPUT ]; then
-	source /home/alberton/Pipeline/INPUT
+if [ -f "${Input_Field}" ]; then
+	source "${Input_Field}"
 else
 	echo "NEED INPUT FILE"
 	exit
@@ -34,7 +34,7 @@ function cleanSample {
 }
 
 function cleanData {
-	for directory in $(ls -d "${Data}"/_*/); do
+	for directory in $(ls -d "${Data}"/*/); do
 		cleanSample "${directory}"	
 	done
 }
