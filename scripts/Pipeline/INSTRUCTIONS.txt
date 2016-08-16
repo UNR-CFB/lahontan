@@ -1,0 +1,102 @@
+STEP 1
+---------------------------------------------------------------
+Make an INPUT file
+You will need to know the name and location of "Project" directory
+
+ex:
+Project="/home/alberton/Project"                #/path/to/Project
+Ref=""${Project}"/reference"                    #/path/to/reference
+Data=""${Project}"/data"                        #/path/to/data
+Original=""${Project}"/original"                #/path/to/original/data/folder
+Genome="Arabidopsis_thaliana.TAIR10.dna.toplevel.fa" #name of genome
+Cdna="Arabidopsis_thaliana.TAIR10.cdna.all.fa"  #name of cDNA
+Gtf="Arabidopsis_thaliana.TAIR10.32.gtf"        #name of GTF
+basename="Arabidopsis_thaliana.TAIR10"          #a name
+fastq="fastq"                                   #.fastq.gz vs .fq.gz
+PROCS=$(nproc)
+
+STEP 2
+---------------------------------------------------------------
+run fixInputVar.sh and then run source $HOME/.bashrc
+It takes as an argument the path to your INPUT file
+
+This will create an environmental variable called "Input_Field"
+
+ex: fixInputVar.sh /home/alberton/INPUT
+    source $HOME/.bashrc
+
+STEP 3
+---------------------------------------------------------------
+run makeStructure.sh
+It takes as an argument the number of sample folders you will need
+
+This will create the structure needed for scripts to run
+
+ex: makeStructure.sh 12
+
+STEP 4
+---------------------------------------------------------------
+Populate your "original/" folder located in your Project directory
+with your raw data
+
+You will need to make sure data is sorted accordingly:
+sample1_read1
+sample1_read2
+sample2_read1
+sample2_read2
+
+STEP 5
+---------------------------------------------------------------
+run makeSyms.sh
+
+This will make symbolic links from your "original/" folder to each
+respective sample folder within "data/"
+
+STEP 6
+---------------------------------------------------------------
+Populate your "reference/" folder with a reference genome, a cDNA
+file, and a .gtf file
+
+STEP 7
+---------------------------------------------------------------
+run QCofRef.sh
+
+This will go through your Reference files to make sure they are
+consistent and output a "Reference Report"
+
+**This step may need some user input and background knowledge
+
+STEP 8
+---------------------------------------------------------------
+run PPofRef.sh
+
+This will preprocess your reference data for later use
+
+################################################### TODO 
+STEP 9
+---------------------------------------------------------------
+run runall.sh?
+
+STEP 10
+---------------------------------------------------------------
+run formatFeatures.sh
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
