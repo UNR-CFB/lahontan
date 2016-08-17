@@ -24,10 +24,10 @@ function getHostname {
 # Function timer
 function funTime {
 	local func=$1
-	echo "" >> "${Data}"/"${sample}"/Runtime.log
-	echo "${func} started" >> "${Data}"/"${sample}"/Runtime.log
-	{ time "${func}"; } >> "${Data}"/"${sample}"/Runtime.log 2>&1
-	echo "${func} done" >> "${Data}"/"${sample}"/Runtime.log
+	echo "" >> "${Data}"/"${sample}"/Runtime."${sample}".log
+	echo "${func} started" >> "${Data}"/"${sample}"/Runtime."${sample}".log
+	{ time "${func}"; } >> "${Data}"/"${sample}"/Runtime."${sample}".log 2>&1
+	echo "${func} done" >> "${Data}"/"${sample}"/Runtime."${sample}".log
 }
 
 ################################################################
@@ -37,15 +37,15 @@ function funTime {
 # FastQC
 function runfastq {
 	cd "${Data}"/"${sample}"/
-	mkdir fastqc"${runNumber}"
-	fastqc -t $PROCS -o fastqc"${runNumber}" *."$fastq".gz
-	cd "${Data}"/"${sample}"/fastqc"${runNumber}"/
+	mkdir fastqc"${runNumber}"."${sample}"
+	fastqc -t $PROCS -o fastqc"${runNumber}"."${sample}" *."$fastq".gz
+	cd "${Data}"/"${sample}"/fastqc"${runNumber}"."${sample}"/
 	unzip \*.zip
 }
 
 #Scraping Illumina Version Number to get phred number
 function getPhred {
-	cd "${Data}"/"${sample}"/fastqc"${runNumber}"/*/
+	cd "${Data}"/"${sample}"/fastqc"${runNumber}"."${sample}"/*/
 	IllumVN=$(grep -E "Encoding" fastqc_data.txt | sed 's/[^0-9.]*//g')
 	echo $(grep -E "Encoding" fastqc_data.txt)
 	if [ `bc <<< "$IllumVN >= 1.3 && $IllumVN < 1.8"` -eq 1 ]; then
@@ -57,16 +57,16 @@ function getPhred {
 
 #Scraping Overrepresented Sequences
 function findOverrepSeq {
-	cd "${Data}"/"${sample}"/fastqc"${runNumber}"/
+	cd "${Data}"/"${sample}"/fastqc"${runNumber}"."${sample}"/
 	for directory in $(ls -d */); do
-		cd "${Data}"/"${sample}"/fastqc"${runNumber}"/"$directory"/
+		cd "${Data}"/"${sample}"/fastqc"${runNumber}"."${sample}"/"$directory"/
 		awk '/Overrepresented sequences/,/>>END_MODULE/' fastqc_data.txt \
 			| tail -n +2 | head -n -1 > Overrepresented_sequences.txt
 		if [ $(wc -l < Overrepresented_sequences.txt) -eq 0 ]; then
-			echo "There are no over represented sequences in "${Data}"/"${sample}"/fastqc"${runNumber}"/"$directory""
+			echo "There are no over represented sequences in "${Data}"/"${sample}"/fastqc"${runNumber}"."${sample}"/"$directory""
 		else
-			echo "There are $overseq over represented sequences in "${Data}"/"${sample}"/fastqc"${runNumber}"/"$directory"\
-				; see Overrepresented_sequences.txt in "${Data}"/"${sample}"/fastqc"${runNumber}"/"$directory""
+			echo "There are $overseq over represented sequences in "${Data}"/"${sample}"/fastqc"${runNumber}"."${sample}"/"$directory"\
+				; see Overrepresented_sequences.txt in "${Data}"/"${sample}"/fastqc"${runNumber}"."${sample}"/"$directory""
 			#TODO exit?
 		fi
 	done
@@ -176,8 +176,8 @@ function runPipeline {
 }
 
 function main {
-	echo "Runtime Log" >> "${Data}"/"${sample}"/Runtime.log
-	echo "----------------------------------------" >> "${Data}"/"${sample}"/Runtime.log
+	echo "Runtime Log" >> "${Data}"/"${sample}"/Runtime."${sample}".log
+	echo "----------------------------------------" >> "${Data}"/"${sample}"/Runtime."${sample}".log
 	funTime getHostname
 	#TODO make wrapper for qcData and call that instead
 	#	wrapper will automate iterations of qcData
@@ -185,5 +185,5 @@ function main {
 	funTime runPipeline
 }
 
-> "${Data}"/"${sample}"/Runtime.log
+> "${Data}"/"${sample}"/Runtime."${sample}".log
 funTime main

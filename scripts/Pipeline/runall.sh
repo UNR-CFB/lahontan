@@ -11,5 +11,6 @@ cd "${Data}"
 
 for directory in */; do
 	dir=$(echo "${directory}" | cut -sf 1 -d '/')
-	timeit3.sh "${dir}"
+	time timeit3.sh "${dir}" &
+	sleep 5
 done
