@@ -34,8 +34,10 @@ function cleanSample {
 }
 
 function cleanData {
-	for directory in $(ls -d "${Data}"/*/); do
-		cleanSample "${directory}"	
+	cd "${Data}"
+	for directory in */; do
+		dir=$(echo "${directory}" | cut -sf 1 -d '/')
+		cleanSample "${dir}"
 	done
 }
 
