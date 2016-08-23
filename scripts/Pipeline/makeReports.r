@@ -1,8 +1,22 @@
-# store the current directory
-initial.dir<-getwd()
+'Usage: makeReports.r [-h | --help] [-p </path/to/data>] [--counts <name>] [--cols <name>]
 
-# change to the new directory
-setwd(initial.dir)
+Example:
+Rscript makeReports.r -p /path/to/project --counts CountName --cols ColumnsName
+
+Options:
+    -h --help           Show this
+    -p <path>           Directory that contains Cols.dat and Counts.dat [default: ./]
+    --counts <name>     Name of collected featureCounts data file [default: Counts.dat]
+    --cols <name>       Name of Column file that describes Counts [default: Cols.dat]'-> doc
+
+# Set up command line argument library
+library('docopt')
+
+# Retrieve Command Line Arguments
+opts <- docopt(doc)
+
+# change to the directory
+setwd(opts$p)
 
 # load the necessary libraries
 library('DESeq2')
@@ -11,8 +25,8 @@ library('ggplot2')
 library('regionReport')
 
 # Load the datasets
-countData <- read.csv('Counts.dat',sep='\t',header=TRUE)
-colData <- read.csv('Cols.dat',sep='\t',header=TRUE)
+countData <- read.csv(opts$counts,sep='\t',header=TRUE)
+colData <- read.csv(opts$cols,sep='\t',header=TRUE)
 
 # Make DESeq Data Frame
 dds <- DESeqDataSetFromMatrix(countData=countData,
@@ -71,6 +85,4 @@ detach("package:DESeq2")
 detach("package:ReportingTools")
 detach("package:ggplot2")
 detach("package:regionReport")
-
-# change back to the original directory
-setwd(initial.dir)
+detach("package:docopt")
