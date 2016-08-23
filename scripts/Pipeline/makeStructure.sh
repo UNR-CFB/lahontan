@@ -34,6 +34,6 @@ if [ ! -d "${Ref}" ]; then
 	mkdir "${Ref}"
 fi
 
-for number in `seq 1 "${numSamp}"`; do
+for number in `seq -w 1 "${numSamp}"`; do
 	mkdir "${Data}"/sample_$number
 done
