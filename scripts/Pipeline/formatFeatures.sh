@@ -27,6 +27,6 @@ for directory in $(ls -d sample*/); do
 	fi	
 done
 
-paste "${Data}"/../ProjectCounts/*.three "${Data}"/../ProjectCounts/*.one > "${Data}"/../Counts.dat
+paste "${Data}"/../ProjectCounts/*.three "${Data}"/../ProjectCounts/*.one > "${Data}"/../KarenCounts.dat
 
 rm -rf "${Data}"/../ProjectCounts/
