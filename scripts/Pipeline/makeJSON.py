@@ -15,14 +15,18 @@ def getProjectInfo():
 
 def getSampleInfo():
     projectName,numberofSamples,numberofFeatures = getProjectInfo()
+
     SampleData = {}
+    featureNames = []
+    for feature in range(numberofFeatures):
+        featureNames.append(str(input('What is the name of feature #%d? '%(feature+1))))
 
     for sample in range(numberofSamples):
         SampleData['sample_%.2d'%(sample+1)] = {}
-        SampleData['sample_%.2d'%(sample+1)]['Features'] = []
-        for feature in range(numberofFeatures):
-            feat = str(input('What is feature#%d for sample#%d? '%(feature+1,sample+1)))
-            SampleData['sample_%.2d'%(sample+1)]['Features'].append(feat)
+        SampleData['sample_%.2d'%(sample+1)]['Features'] = {}
+        for feature in featureNames:
+            feat = str(input('What is the %s feature for sample #%d? '%(feature,sample+1)))
+            SampleData['sample_%.2d'%(sample+1)]['Features'][feature] = feat
     return projectName,numberofSamples,numberofFeatures,SampleData
 
 def makeJSON():
@@ -45,5 +49,4 @@ def writeJSON(name):
 
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='1.0')
-    print(arguments)
     writeJSON(arguments['-f'])
