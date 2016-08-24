@@ -13,7 +13,7 @@ import json
 import makeCols
 
 def AAA(jsontoRead,name):
-    makeReports = """
+    makeReportsTemplate = """
 'Usage: makeReports.r [-h | --help] [-p </path/to/data>] [--counts <name>] [--cols <name>]
 
 Example:
@@ -114,12 +114,13 @@ detach("package:docopt")
             "10_formulalistcomma": formulalistcomma,
             }
     with open(name,'w') as f:
-        f.write(makeReports.format(**Context))
+        f.write(makeReportsTemplate.format(**Context))
 
 def getContext(jsontoRead):
     Metadata = jsontoRead
     mainFeature = Metadata['MainFeature']
 
+    #TODO Generalize 'Cols.dat'
     with open('Cols.dat','r') as f:
         colData = csv.reader(f,dialect='unix',delimiter='\t')
         x = []
@@ -133,16 +134,17 @@ def getContext(jsontoRead):
     z = list(zip(*x))
     for group in z:
         if str(group[0]) == str(mainFeature):
-            newgroup = list(group)[1:]
-            uniquegroup = set(newgroup)
-            uniquegroup2 = list(uniquegroup)
+            realgroup = list(group)[1:]
+            uniquesetj = set(newgroup)
+            uniquelist = list(uniquegroup)
 
-    factorlist = ','.join('"{0}"'.format(a) for a in uniquegroup2) 
+    factorlist = ','.join('"{0}"'.format(a) for a in uniquelist) 
     formulalistcomma = ','.join('"{0}"'.format(b) for b in formulalist)
     formulalistplus = ' + '.join(formulalistp)
     return factorlist,formulalistplus,formulalistcomma,mainFeature
 
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='1.0')
+    #TODO Check for Cols.dat
     #subprocess.run(["python","makeCols.py"],check=True)
     AAA(makeCols.readJSON(arguments['-f']),arguments['-t'])
