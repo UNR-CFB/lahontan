@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 '''Usage: readJSON.py [-h | --help] [-f <file>] [-t <tofile>]
 
 Options:

@@ -1,3 +1,4 @@
+#!/usr/bin/python3
 '''Usage: makeJSON.py [-h | --help] [-f <file>]
 
 Options:

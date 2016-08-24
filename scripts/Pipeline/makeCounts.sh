@@ -11,11 +11,12 @@ fi
 # Making Counts.dat
 ###############################################################
 
+toName=$1
 cd "${Project}"
 
 cut -sf 2 --complement KarenCounts.dat > tempData
 
-head -n +1 tempData | cut -sf 1 --complement > Counts.dat
-tail -n +2 tempData >> Counts.dat
+head -n +1 tempData | cut -sf 1 --complement > "${toName}"
+tail -n +2 tempData >> "${toName}"
 
 rm tempData
