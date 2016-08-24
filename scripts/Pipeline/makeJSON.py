@@ -20,6 +20,7 @@ def getSampleInfo():
     featureNames = []
     for feature in range(numberofFeatures):
         featureNames.append(str(input('What is the name of feature #%d? '%(feature+1))))
+    mainFeature = str(input("What is the name of the main feature? "))
 
     for sample in range(numberofSamples):
         SampleData['sample_%.2d'%(sample+1)] = {}
@@ -27,17 +28,18 @@ def getSampleInfo():
         for feature in featureNames:
             feat = str(input('What is the %s feature for sample #%d? '%(feature,sample+1)))
             SampleData['sample_%.2d'%(sample+1)]['Features'][feature] = feat
-    return projectName,numberofSamples,numberofFeatures,featureNames,SampleData
+    return projectName,numberofSamples,numberofFeatures,featureNames,mainFeature,SampleData
 
 def makeJSON():
     MetaData = {}
 
-    projectName,numberofSamples,numberofFeatures,featureNames,sampleData = getSampleInfo()
+    projectName,numberofSamples,numberofFeatures,featureNames,mainFeature,sampleData = getSampleInfo()
 
     MetaData['ProjectName'] = projectName
     MetaData['NumberofSamples'] = numberofSamples
     MetaData['NumberofFeatures'] = numberofFeatures
     MetaData['FeatureNames'] = featureNames
+    MetaData['MainFeature'] = mainFeature
     MetaData['Samples'] = sampleData
 
     return MetaData
