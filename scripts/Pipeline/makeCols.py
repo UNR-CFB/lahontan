@@ -1,14 +1,17 @@
 #!/usr/bin/python3
-'''Usage: readJSON.py [-h | --help] [-f <file>] [-t <tofile>]
+
+'''Usage: makeCols.py [-h | --help] [-j <jsonfile>] [-t <tofile>]
 
 Options:
     -h --help           Show this screen
-    -f <file>           Optional name of JSON file to be read [default: Metadata.json] 
+    -j <jsonfile>           Optional name of JSON file to be read [default: Metadata.json] 
     -t <tofile>         Optional name of Column file to write to [default: Cols.dat]
 '''
+
 from docopt import docopt
 from pprint import pprint
 import json
+import os
 
 def readJSON(name):
     with open(name) as jsonFile:
@@ -44,4 +47,6 @@ def makeCols(jsontoRead,filetoWrite):
 
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='1.0')
-    makeCols(readJSON(arguments['-f']),arguments['-t'])
+    exec(open(os.environ["Input_Field"]).read())
+    os.chdir(Postprocessing)
+    makeCols(readJSON(arguments['-j']),arguments['-t'])

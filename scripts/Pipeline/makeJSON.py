@@ -1,12 +1,15 @@
 #!/usr/bin/python3
-'''Usage: makeJSON.py [-h | --help] [-f <file>]
+
+'''Usage: makeJSON.py [-h | --help] [-j <jsonfile>]
 
 Options:
-    -h --help           Show this screen
-    -f <file>           Optional name of JSON file to be saved to [default: Metadata.json] 
+    -h --help               Show this screen
+    -j <jsonfile>           Optional name of JSON file to be saved to [default: Metadata.json] 
 '''
+
 from docopt import docopt
 import json
+import os
 
 def getProjectInfo():
     projectName = str(input("What is the name of the project? "))
@@ -47,10 +50,11 @@ def makeJSON():
 
 def writeJSON(name):
     MetaDict = makeJSON()
-
     with open(name,'w') as File:
         json.dump(MetaDict, File, sort_keys=True,indent=4)
 
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='1.0')
-    writeJSON(arguments['-f'])
+    exec(open(os.environ["Input_Field"]).read())
+    os.chdir(Postprocessing)
+    writeJSON(arguments['-j'])

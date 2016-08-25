@@ -1,5 +1,22 @@
 #!/bin/bash
 
+Usage="timeit3.sh [-h] <sample>
+
+where
+    -h          Show this screen
+    <sample>    Mandatory argument: name of sample directory
+                to run Pipeline on"
+
+while getopts ':h' option; do                           
+    case "${option}" in                                 
+        h) echo "${Usage}"; exit;;                      
+        ?)                                              
+            printf "Invalid Argument: -%s\n" "${OPTARG}"
+            echo "${Usage}"; exit;;                     
+    esac                                                
+done                                                    
+shift $(( OPTIND -1 ));                                 
+
 if [ -f "${Input_Field}" ]; then
 	source "${Input_Field}"
 else
@@ -154,7 +171,7 @@ function runFeatureCounts {
 }
 
 # Puts geneid and aligned.bam columns into a separate file
-function getKarensColumns {
+function getNiceColumns {
 	tail -n +2 aligned."${sample}".counts | awk '{printf ("%5s\t%s\t%s\n", $1, $6, $7)}' > aligned."${sample}".counts.three
 }
 
@@ -171,7 +188,7 @@ function runPipeline {
 	funTime runHisat
 	funTime runCompression
 	funTime runFeatureCounts
-	funTime getKarensColumns
+	funTime getNiceColumns
 	funTime getAlignedColumn
 }
 

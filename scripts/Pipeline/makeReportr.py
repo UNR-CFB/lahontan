@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+
 '''Usage: asdf.py [-h | --help] [-f <file>] [-t <tofile>]
                                                                                       
 Options:                                                                              
@@ -6,11 +7,13 @@ Options:
     -f <file>           Optional name of JSON file to be read [default: Metadata.json]
     -t <tofile>         Optional name of R report script [default: makeReport.r]
 '''                                                                                   
+
 from docopt import docopt                                                             
 import csv
 import subprocess
 import json                                                                           
 import makeCols
+import os
 
 def AAA(jsontoRead,name):
     makeReportsTemplate = """
@@ -145,6 +148,8 @@ def getContext(jsontoRead):
 
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='1.0')
+    exec(open(os.environ["Input_Field"]).read())
+    os.chdir(Postprocessing)
     #TODO Check for Cols.dat
     #subprocess.run(["python","makeCols.py"],check=True)
     AAA(makeCols.readJSON(arguments['-f']),arguments['-t'])

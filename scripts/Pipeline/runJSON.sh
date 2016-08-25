@@ -1,5 +1,20 @@
 #!/bin/bash
 
+Usage="runJSON.sh [-h]
+
+where
+    -h          Show this screen"
+
+while getopts ':h' option; do                           
+    case "${option}" in                                 
+        h) echo "${Usage}"; exit;;                      
+        ?)                                              
+            printf "Invalid Argument: -%s\n" "${OPTARG}"
+            echo "${Usage}"; exit;;                     
+    esac                                                
+done                                                    
+shift $(( OPTIND -1 ));                                 
+
 if [ -f "${Input_Field}" ]; then
 	source "${Input_Field}"
 else
@@ -11,7 +26,7 @@ fi
 # Running JSON scripts
 ###############################################################
 
-cd "${Project}"
+cd "${Postprocessing}"
 
 if [ -f "Metadata.json" ]; then
     while true; do
