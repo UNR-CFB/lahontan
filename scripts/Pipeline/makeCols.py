@@ -10,12 +10,13 @@ Options:
 
 from docopt import docopt
 from pprint import pprint
+from collections import OrderedDict
 import json
 import os
 
 def readJSON(name):
     with open(name) as jsonFile:
-        jsonData = json.load(jsonFile)
+        jsonData = json.load(jsonFile,object_pairs_hook=OrderedDict)
     return jsonData
 
 def parseJSON(jsontoRead):
@@ -29,7 +30,7 @@ def parseSamples(jsontoRead):
     SampleList = []
     counter = 0
     for sample in jsontoRead['Samples']:
-        SampleList.append([sample])
+        SampleList.append(["aligned.{}.bam".format(sample)])
         for feature in jsontoRead['Samples'][sample]['Features']:
             SampleList[counter].append(jsontoRead['Samples'][sample]['Features'][feature])
         counter += 1

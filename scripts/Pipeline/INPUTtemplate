@@ -1,14 +1,11 @@
-Project="/home/alberton/Project"		#/path/to/Project
+Project="/home/alberton/test3_Plants"		#/path/to/Project
+Ref="/home/alberton/test3_Plants/reference"			#/path/to/reference
+Data="/home/alberton/test3_Plants/data"			#/path/to/data
+Original="/home/alberton/test3_Plants/original"		#/path/to/original/data/folder
+Postprocessing="/home/alberton/test3_Plants/postprocessing"     #/path/to/postprocessing
 Genome="Arabidopsis_thaliana.TAIR10.dna.toplevel.fa" #name of genome
 Cdna="Arabidopsis_thaliana.TAIR10.cdna.all.fa"	#name of cDNA
 Gtf="Arabidopsis_thaliana.TAIR10.32.gtf"	#name of GTF
 basename="Arabidopsis_thaliana.TAIR10"		#a name
 fastq="fastq"					#.fastq.gz vs .fq.gz
-
-
-# No need to change the variables below unless you know what you're doing
-Ref=""${Project}"/reference"			#/path/to/reference
-Data=""${Project}"/data"			#/path/to/data
-Original=""${Project}"/original"		#/path/to/original/data/folder
-Postprocessing=""${Project}"/postprocessing     #/path/to/postprocessing
-PROCS=$(nproc)
+PROCS=48

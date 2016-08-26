@@ -1,15 +1,18 @@
 #!/bin/bash
 
-Usage="timeit3.sh [-h] <sample>
+Usage="timeit3.sh [-h] [-s] <sample>
 
 where
     -h          Show this screen
+    -s          Skip the quality control
     <sample>    Mandatory argument: name of sample directory
                 to run Pipeline on"
 
-while getopts ':h' option; do                           
+skip=false
+while getopts ':hs' option; do                           
     case "${option}" in                                 
         h) echo "${Usage}"; exit;;                      
+        s) skip=true; break;;
         ?)                                              
             printf "Invalid Argument: -%s\n" "${OPTARG}"
             echo "${Usage}"; exit;;                     
@@ -25,8 +28,8 @@ else
 fi
 
 sample=$1 #name of sample directory
-Read1=$(findFiles.sh "${sample}" | awk 'NR==1{print $1}') #name of read1
-Read2=$(findFiles.sh "${sample}" | awk 'NR==2{print $1}') #name of read2
+Read1=$(getReadNames.sh "${sample}" | awk 'NR==1{print $1}') #name of read1
+Read2=$(getReadNames.sh "${sample}" | awk 'NR==2{print $1}') #name of read2
 
 ################################################################
 # Utilities
@@ -185,6 +188,7 @@ function runPipeline {
 	funTime runSeqtk
 	funTime runBlastn
 	funTime findStranded
+    sleep 2
 	funTime runHisat
 	funTime runCompression
 	funTime runFeatureCounts
@@ -198,8 +202,12 @@ function main {
 	funTime getHostname
 	#TODO make wrapper for qcData and call that instead
 	#	wrapper will automate iterations of qcData
-	funTime qcData
-	funTime runPipeline
+    if [ "${skip}" == true ]; then
+	    funTime runPipeline
+    else
+	    funTime qcData
+	    funTime runPipeline
+    fi
 }
 
 > "${Data}"/"${sample}"/Runtime."${sample}".log

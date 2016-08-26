@@ -1,8 +1,8 @@
 #!/bin/bash
 
-Usage="makeSyms.sh [-h]
+Usage="runDESeq.sh [-h]
 
-where:
+where
     -h          Show this screen"
 
 while getopts ':h' option; do                           
@@ -23,23 +23,12 @@ else
 fi
 
 ###############################################################
-# Making symlinks from original folder to sample folders
+# Running DESeq
 ###############################################################
 
-function makeSyms {
-    samplecounter=1
-    directorycounter=0
-    for file in "${Original}"/*; do
-    	name=$(echo "${file}" | awk -F '/' '{print $NF}')
-        samplename=$(printf "sample_%02d" "${samplecounter}")
-    
-    	ln -s "${file}" "${Data}"/"${samplename}"/"${name}"
-    
-    	let directorycounter++
-    	if [ $(($directorycounter%2)) -eq 0 ]; then
-    		let samplecounter++
-    	fi
-    done
+function runR {
+    cd "${Postprocessing}"
+    { time Rscript "makeReport.r"; } > makeReportTime.log 2>&1;
 }
 
-makeSyms
+runR

@@ -1,17 +1,17 @@
 #!/usr/bin/python3
 
-'''Usage: asdf.py [-h | --help] [-f <file>] [-t <tofile>]
+'''Usage: makeReportr.py [-h | --help] [-j <jsonfile>] [-t <tofile>]
                                                                                       
 Options:                                                                              
     -h --help           Show this screen                                              
-    -f <file>           Optional name of JSON file to be read [default: Metadata.json]
+    -j <jsonfile>           Optional name of JSON file to be read [default: Metadata.json]
     -t <tofile>         Optional name of R report script [default: makeReport.r]
 '''                                                                                   
 
-from docopt import docopt                                                             
+from docopt import docopt
 import csv
 import subprocess
-import json                                                                           
+import json
 import makeCols
 import os
 
@@ -138,8 +138,8 @@ def getContext(jsontoRead):
     for group in z:
         if str(group[0]) == str(mainFeature):
             realgroup = list(group)[1:]
-            uniquesetj = set(newgroup)
-            uniquelist = list(uniquegroup)
+            uniquesetj = set(realgroup)
+            uniquelist = list(uniquesetj)
 
     factorlist = ','.join('"{0}"'.format(a) for a in uniquelist) 
     formulalistcomma = ','.join('"{0}"'.format(b) for b in formulalist)
@@ -152,4 +152,4 @@ if __name__ == '__main__':
     os.chdir(Postprocessing)
     #TODO Check for Cols.dat
     #subprocess.run(["python","makeCols.py"],check=True)
-    AAA(makeCols.readJSON(arguments['-f']),arguments['-t'])
+    AAA(makeCols.readJSON(arguments['-j']),arguments['-t'])

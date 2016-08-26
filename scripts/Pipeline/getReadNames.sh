@@ -33,21 +33,21 @@ function getReadNames {
     local samplename=$1
 
     if [ -d "${Data}"/"${samplename}" ]; then
-        > /tmp/readNames
+        > /tmp/readNames."${samplename}"
         for file in "${Data}"/"${sample}"/*; do
-        	echo "${file}" >> /tmp/readNames
+        	echo "${file}" >> /tmp/readNames."${samplename}"
         done
         
-        numFiles=$(wc -l < /tmp/readNames)
+        numFiles=$(wc -l < /tmp/readNames."${samplename}")
         if [ "${numFiles}" -eq 2 ]; then
-        	awk -F '/' '{print $NF}' /tmp/readNames
+        	awk -F '/' '{print $NF}' /tmp/readNames."${samplename}"
         else
         	echo "Need only specific reads in each sample directory"
             echo "There are "${numFiles}" in "${sample}"; need only two"
-        	cat /tmp/readNames
+        	cat /tmp/readNames."${samplename}"
         fi
         
-        rm /tmp/readNames
+        rm /tmp/readNames."${samplename}"
     else
         echo "Invalid sample name: "${samplename}""
     fi

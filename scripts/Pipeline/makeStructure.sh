@@ -55,11 +55,15 @@ function makeStructure {
             	mkdir "${Ref}"
             fi
             
+            if [ ! -d "${Original}" ]; then
+            	mkdir "${Original}"
+            fi
+
             if [ ! -d "${Postprocessing}" ]; then
             	mkdir "${Postprocessing}"
             fi
 
-            for number in `seq -w 1 "${numSamp}"`; do
+            for number in `seq -f "%02g" 1 "${numSamp}"`; do
             	mkdir "${Data}"/sample_$number
             done
         else
@@ -74,12 +78,16 @@ function makeStructure {
             if [ ! -d "${Ref}" ]; then
             	mkdir "${Ref}"
             fi
+
+            if [ ! -d "${Original}" ]; then
+            	mkdir "${Original}"
+            fi
             
             if [ ! -d "${Postprocessing}" ]; then
             	mkdir "${Postprocessing}"
             fi
 
-            for number in `seq -w 1 "${numSamp}"`; do
+            for number in `seq -f "%02g" 1 "${numSamp}"`; do
             	mkdir "${Data}"/sample_$number
             done
         fi

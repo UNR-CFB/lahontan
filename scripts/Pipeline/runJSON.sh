@@ -53,6 +53,8 @@ if [ -f "Metadata.json" ]; then
             * ) echo "Please answer yes or no.";;
         esac
     done
+else
+    makeJSON.py
 fi
 
 while true; do

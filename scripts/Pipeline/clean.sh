@@ -10,7 +10,7 @@ where:
     -p              resets POSTPROCESSING directory
     -s <samplename> 	resets a SPECIFIC SAMPLE directory"
 
-whatToClean=
+whatToClean=false
 while getopts ':hrdas:' option; do
     case "$option" in
         h) echo "${Usage}"; exit;;
@@ -78,12 +78,17 @@ function cleanAll {
 function main {
     local thingToClean=$1
     case "${thingToClean}" in
-        [reference] ) cleanRef; exit;;
-        [data] ) cleanData; exit;;
-        [pp] ) cleanPostprocessing; exit;;
-        [all] ) cleanAll; exit;;
-        * ) cleanSample "${thingToClean}"; exit;;
+        [r]* ) cleanRef; exit;;
+        [d]* ) cleanData; exit;;
+        [p]* ) cleanPostprocessing; exit;;
+        [a]* ) cleanAll; exit;;
+        [s]* ) cleanSample "${thingToClean}"; exit;;
     esac
 }
 
-main "${whatToClean}"
+if [ "${whatToClean}" == false ]; then
+    echo "Need valid argument"
+    echo "${Usage}"; exit
+else
+    main "${whatToClean}"
+fi

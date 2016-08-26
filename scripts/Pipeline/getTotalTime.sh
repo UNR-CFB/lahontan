@@ -41,4 +41,12 @@ def getTime {
 	grep 'real' "${Postprocessing}"/totalTime.dat | awk '{print $2}' >> "${Postprocessing}"/totalTime.dat
 }
 
+def printTime {
+    cd "${Postprocessing}"
+
+    maxTime=$(sed -n -e '/biggest/,$p' totalTime.dat | tail -n +2 | sort --reverse | head -n +1)
+    echo "${maxTime}"
+}
+
 getTime
+printTime
