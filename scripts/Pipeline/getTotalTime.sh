@@ -26,7 +26,7 @@ fi
 # Pastes together Pipeline Times
 ################################################################
 
-def getTime {
+function getTime {
 	cd "${Data}"
 	
 	> "${Postprocessing}"/totalTime.dat
@@ -41,7 +41,7 @@ def getTime {
 	grep 'real' "${Postprocessing}"/totalTime.dat | awk '{print $2}' >> "${Postprocessing}"/totalTime.dat
 }
 
-def printTime {
+function printTime {
     cd "${Postprocessing}"
 
     maxTime=$(sed -n -e '/biggest/,$p' totalTime.dat | tail -n +2 | sort --reverse | head -n +1)

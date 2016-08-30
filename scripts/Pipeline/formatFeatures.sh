@@ -38,7 +38,7 @@ function makeNiceCounts {
     		cp "${Data}"/"${dir}"/aligned."${dir}".counts.three "${Postprocessing}"/ProjectCounts
     		let counter++
     	else
-    		cp "${Data}"/"${dir}"/aligned."${dir}".counts.one "${PostProcessing}"/ProjectCounts
+    		cp "${Data}"/"${dir}"/aligned."${dir}".counts.one "${Postprocessing}"/ProjectCounts
     		let counter++
     	fi	
     done

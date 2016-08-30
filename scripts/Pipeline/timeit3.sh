@@ -147,12 +147,15 @@ function runBlastn {
 # Stranded classifier.  Should only continue if True.  NOT EVALUATED.
 function findStranded {
 	stranded_classifier.py -1 sampled.read1_vscdna.out -2 sampled.read2_vscdna.out
+    strandedBool=false
+    scrapeStranded=$(awk '/findStranded started/,/findStranded done/' Runtime."${sample}".log | grep -q False && strandedBool=false || strandedBool=true)
 	#TODO do something if stranded or not
 }
 
 # Hisat2
 function runHisat {
 	# stranded classifier stuff that gets done
+    # hisat2 manual line 553
 	hisat2 -k 5 -p $PROCS --dta --phred"$phred" \
 	--known-splicesite-infile "${Ref}"/splice_sites.txt \
 	-x "${Ref}"/"$basename" \
@@ -188,7 +191,6 @@ function runPipeline {
 	funTime runSeqtk
 	funTime runBlastn
 	funTime findStranded
-    sleep 2
 	funTime runHisat
 	funTime runCompression
 	funTime runFeatureCounts
