@@ -1,0 +1,6 @@
+Project="/home/alberton/Project"
+    Project will be location of entire expiremental analysis
+Reference="/path/to/3/reference/files"
+    Reference will be the path to a directory containing 3 files: a .gtf, a cdna file, and a genome file
+Original="/path/to/actual/data"
+    Original will be the path to a directory containing results of an Illumina sequencer
