@@ -102,6 +102,11 @@ detach("package:ReportingTools")
 detach("package:ggplot2")
 detach("package:regionReport")
 detach("package:docopt")
+
+# notify that we are done
+fileConn <- file("FINISHED.txt")
+writeLines(c("We are","Finished"), fileConn)
+close(fileConn)
 """
     factorlist,formulalistplus,formulalistcomma,mainFeature = getContext(jsontoRead)
     Context = {
