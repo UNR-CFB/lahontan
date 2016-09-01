@@ -207,7 +207,7 @@ function runCompression {
 # To counts
 function runFeatureCounts {
 	featureCounts -T $PROCS -p -C --primary --ignoreDup -t exon -g gene_id \
-	-a "${Ref}"/"${Gtf}" -o aligned."${sample}".counts aligned."${sample}".bam
+	-a "${Ref}/${Gtf}" -o aligned."${sample}".counts aligned."${sample}".bam
 }
 
 # Puts geneid and aligned.bam columns into a separate file
@@ -255,6 +255,7 @@ Ref=$5
 Genome=$6
 basename=$7
 projectPath=$8
+Gtf=$9
 Read1=$(getReadNames.sh "${sample}" "${Data}" | awk 'NR==1{print $1}') #name of read1
 Read2=$(getReadNames.sh "${sample}" "${Data}" | awk 'NR==2{print $1}') #name of read2
 

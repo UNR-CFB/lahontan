@@ -26,9 +26,6 @@ shift $(( OPTIND -1 ));
 # Structure Maker
 ###############################################################
 
-projectPath=$1
-numberofSamples=$2
-
 function makeStructure {
     local Project=$1
     local numSamp=$2
@@ -37,63 +34,60 @@ function makeStructure {
     local Original="${Project}/Original"
     local Postprocessing="${Project}/Postprocessing"
 
-    re='^[0-9]+$' # regular expression to test argument validity
-    if [[ "${numSamp}" =~ $re ]] ; then
-        if [ "${force}" = true ]; then
-            if [ ! -d "${Project}" ]; then
-            	mkdir "${Project}"
-            fi
-
-            if [ ! -d "${Data}" ]; then
-            	mkdir "${Data}"
-            else
-                rm -rf "${Data}"
-                mkdir "${Data}"
-            fi
-            
-            if [ ! -d "${Ref}" ]; then
-            	mkdir "${Ref}"
-            fi
-            
-            if [ ! -d "${Original}" ]; then
-            	mkdir "${Original}"
-            fi
-
-            if [ ! -d "${Postprocessing}" ]; then
-            	mkdir "${Postprocessing}"
-            fi
-
-            for number in `seq -f "%02g" 1 "${numSamp}"`; do
-            	mkdir "${Data}"/sample_$number
-            done
-        else
-            if [ ! -d "${Project}" ]; then
-            	mkdir "${Project}"
-            fi
-            
-            if [ ! -d "${Data}" ]; then
-            	mkdir "${Data}"
-            fi
-            
-            if [ ! -d "${Ref}" ]; then
-            	mkdir "${Ref}"
-            fi
-
-            if [ ! -d "${Original}" ]; then
-            	mkdir "${Original}"
-            fi
-            
-            if [ ! -d "${Postprocessing}" ]; then
-            	mkdir "${Postprocessing}"
-            fi
-
-            for number in `seq -f "%02g" 1 "${numSamp}"`; do
-            	mkdir "${Data}"/sample_$number
-            done
+    if [ "${force}" = true ]; then
+        if [ ! -d "${Project}" ]; then
+        	mkdir "${Project}"
         fi
+
+        if [ ! -d "${Data}" ]; then
+        	mkdir "${Data}"
+        else
+            rm -rf "${Data}"
+            mkdir "${Data}"
+        fi
+        
+        if [ ! -d "${Ref}" ]; then
+        	mkdir "${Ref}"
+        fi
+        
+        if [ ! -d "${Original}" ]; then
+        	mkdir "${Original}"
+        fi
+
+        if [ ! -d "${Postprocessing}" ]; then
+        	mkdir "${Postprocessing}"
+        fi
+
+        for number in `seq -f "%02g" 1 "${numSamp}"`; do
+        	mkdir "${Data}"/sample_$number
+        done
     else
-        echo "Need number of samples as an argument" >&2; exit 1
+        if [ ! -d "${Project}" ]; then
+        	mkdir "${Project}"
+        fi
+        
+        if [ ! -d "${Data}" ]; then
+        	mkdir "${Data}"
+        fi
+        
+        if [ ! -d "${Ref}" ]; then
+        	mkdir "${Ref}"
+        fi
+
+        if [ ! -d "${Original}" ]; then
+        	mkdir "${Original}"
+        fi
+        
+        if [ ! -d "${Postprocessing}" ]; then
+        	mkdir "${Postprocessing}"
+        fi
+
+        for number in `seq -f "%02g" 1 "${numSamp}"`; do
+        	mkdir "${Data}"/sample_$number
+        done
     fi
 }
 
+projectPath=$1
+numberofSamples=$2
 makeStructure "${projectPath}" "${numberofSamples}"

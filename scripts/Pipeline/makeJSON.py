@@ -52,6 +52,7 @@ def writeJSON(name):
     MetaDict = makeJSON()
     with open(name,'w') as File:
         json.dump(MetaDict, File, sort_keys=True,indent=4)
+    print('Done making {}'.format(name))
 
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='1.0')

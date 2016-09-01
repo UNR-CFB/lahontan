@@ -32,6 +32,7 @@ Ref=$4
 Genome=$5
 basename=$6
 Project=$7
+Gtf=$8
 
 checkDirectory "${Data}"
 checkDirectory "${Data}"/"${sample}"
@@ -43,5 +44,5 @@ cd "${Data}"
 
 for directory in */; do
 	dir=$(echo "${directory}" | cut -sf 1 -d '/')
-	timeit3.sh "${dir}" "${Data}" "${fastq}" "${PROCS}" "${Ref}" "${Genome}" "${basename}" "${Project}" &
+	timeit3.sh "${dir}" "${Data}" "${fastq}" "${PROCS}" "${Ref}" "${Genome}" "${basename}" "${Project}" "${Gtf}" &
 done

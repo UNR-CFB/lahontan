@@ -71,9 +71,23 @@ function makeRefSyms {
     	ln -s "${file}" "${Reference}"/"${name}"
     done
 }
+function makeJsonSym {
+    local JSONfile=$1
+    local postprocessingPath=$2
+    local name=$3
+
+    checkDirectory "${postprocessingPath}"
+
+    if [ "${name}" == false ]; then
+        name=$(echo "${JSONfile}" | awk -F '/' '{print $NF}')
+    fi
+
+    ln -s "${JSONfile}" "${postprocessingPath}/${name}"
+}
 projectPath=$1
 originalPath=$2
 refPath=$3
+jsonPath=$4
 checkDirectory "${projectPath}"
 checkDirectory "${originalPath}"
 checkDirectory "${refPath}"
@@ -81,3 +95,9 @@ checkDirectory "${refPath}"
 makeOriginalSyms "${originalPath}" "${projectPath}/Original"
 makeDataSyms "${projectPath}/Original" "${projectPath}/Data"
 makeRefSyms "${refPath}" "${projectPath}/Reference"
+
+if [ "${jsonPath}" == 'false' ]; then
+    :
+else
+    makeJsonSym "${jsonPath}" "${projectPath}/Postprocessing" "Metadata.json"
+fi

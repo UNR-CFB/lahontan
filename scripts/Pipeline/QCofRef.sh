@@ -99,12 +99,12 @@ function qcReport {
 
 refPath=$1
 genomeName=$2
-checkDirectory "${refPath}"
-if [ -f "${refPath}/${genomeName}" ]; then
-    :
-else
-    echo "${refPath}/${genomeName} does not exist"; exit
-fi
+#checkDirectory "${refPath}"
+#if [ -f "${refPath}/${genomeName}" ]; then
+#    echo "QCofRef initial check good"
+#else
+#    echo "${refPath}/${genomeName} does not exist"
+#fi
 
 qcReport "${refPath}" "${genomeName}"
 cat Reference_Report.txt

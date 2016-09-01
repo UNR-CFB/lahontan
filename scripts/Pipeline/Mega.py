@@ -1,9 +1,11 @@
 #!/usr/bin/python3
 
-'''Usage: Mega.py [-h | --help] <pathtoInput>
+'''Usage: Mega.py [-h | --help] [-j <jsonFile> | --jsonfile <jsonFile>] [--noconfirm] <pathtoInput>
 
 Options:
     -h --help               Show this screen and exit
+    -j <jsonFile>, --jsonfile <jsonFile>            If already available, path to json file 
+    --noconfirm             Ignore all user prompts except JSON file creation
 '''
 
 ################################################################
@@ -16,6 +18,7 @@ import subprocess
 import os
 import multiprocessing
 import shutil
+import sys
 import time
 import makeJSON
 import makeCols
@@ -56,11 +59,6 @@ def getNumberofFiles(path):
 ################################################################
 # Getting INPUT variables
 ################################################################
-IdealInput="""
-Project="/home/alberton/Project"
-Reference="/path/to/3/reference/files"
-Original="/path/to/actual/data"
-"""
 
 def sourceInput(pathtoInput):
     ''' Arguments:
@@ -72,9 +70,15 @@ def sourceInput(pathtoInput):
                 "Reference" path
                 "Original" path
     '''
+    import imp
+
     assert type(pathtoInput) == str, "Path to INPUT not a string"
-    exec(open(pathtoInput).read())
-    return project, reference, original
+
+    with open(pathtoInput) as Input:
+        global inputVars
+        inputVars = imp.load_source('inputVars', '', Input)
+
+    return inputVars.Project, inputVars.Reference, inputVars.Original
 
 def getReferenceVariables(referencePath):
     ''' Arguments:
@@ -123,7 +127,10 @@ def countCPU():
 
 def exportVariables(pathtoInput):
     ''' Arguments:
+            pathtoInput = string; path to INPUT file
         Returns:
+            Variables
+        Note: INPUT file must contain Project, Reference, and Original paths
     '''
     Project, Reference, Original = sourceInput(pathtoInput)
     Gtf, Cdna, Genome = getReferenceVariables(Reference)
@@ -150,7 +157,8 @@ def createStructure(projectPath, originalPath):
         print('There are not an even number of files in {}'.format(originalPath))
     else:
         numSamp = str(getNumberofFiles(originalPath)/2)
-    subprocess.call(["makeStructure.sh",projectPath,numSamp])
+    subprocess.call(["makeStructure.sh", projectPath, numSamp])
+    #TODO check if structure was made
 
 ################################################################
 # Make Pointers to Data
@@ -164,7 +172,10 @@ def createSymLinks(projectPath,originalPath,referencePath):
         Returns:
             None; creates Sym links
     '''
-    subprocess.call(["makeSyms.sh",projectPath,originalPath,referencePath])
+    if JSFI == None:
+        subprocess.call(["makeSyms.sh",projectPath,originalPath,referencePath,'false'])
+    else:
+        subprocess.call(["makeSyms.sh",projectPath,originalPath,referencePath,JSFI])
 
 ################################################################
 # Quality Control of Reference Data
@@ -178,6 +189,17 @@ def qcReference(referencePath,genomeName):
             None; outputs Reference_Report.txt to STDOUT
     '''
     subprocess.call(["QCofRef.sh",referencePath,genomeName])
+    if noconfirm == False:
+        while True:
+            answer = str(input("Would you like to review your reference data?(y,n) "))
+            if answer == 'y':
+                print('See Reference_Report.txt to view initial Diagnostics;\
+                        exiting now')
+                break
+            elif answer == 'n':
+                break
+            else:
+                print('Please answer y or n')
 
 ################################################################
 # Pre-Processing of Reference Data once QC complete
@@ -201,7 +223,7 @@ def preProcessingReference(referencePath,cdnaName,gtfName,genomeName,baseName):
 #Split up timeit3 into components
 #       Definitely into the QC and actual alignment stuff
 
-def runPipe(dataPath,fastqVar,numProcs,referencePath,genomeName,baseName,projectPath):
+def runPipe(dataPath,fastqVar,numProcs,referencePath,genomeName,baseName,projectPath,gtfName):
     ''' Arguments:
             dataPath = string; path to Data directory
             fastqVar = string; fq vs fastq
@@ -210,10 +232,11 @@ def runPipe(dataPath,fastqVar,numProcs,referencePath,genomeName,baseName,project
             genomeName = string; name of the genome file
             baseName = string; base name created
             projectPath = string; path to Project directory
+            Gtf = string; name of Gtf file
         Returns:
             None; Runs Pipeline
     '''
-    subprocess.call(["runall.sh",dataPath,fastqVar,str(numProcs),referencePath,genomeName,baseName,projectPath])
+    subprocess.call(["runall.sh",dataPath,fastqVar,str(numProcs),referencePath,genomeName,baseName,projectPath,gtfName])
 
 def findFinish(projectPath, originalPath):
     ''' Arguments:
@@ -248,8 +271,18 @@ def createMetaData(postProcessingPath,jsonName='Metadata.json'):
         Returns:
             None; Creates Metadata.json
     '''
-    os.chdir(postProcessingPath)
-    makeJSON.writeJSON(jsonName)
+    if JSFI == None:
+        os.chdir(postProcessingPath)
+        makeJSON.writeJSON(jsonName)
+        while True:
+            answer = str(input("Would you like to review {}?(y,n) ".format(jsonName)))
+            if answer == 'y':
+                os.chdir(postProcessingPath)
+                subprocess.call(['vim',jsonName])
+            elif answer == 'n':
+                break
+            else:
+                print('Please answer y or n')
 
 ################################################################
 # Evaluating Results of Pipeline
@@ -319,9 +352,11 @@ def makeRreports(postProcessingPath):
     '''
     subprocess.call(["runDESeq.sh",postProcessingPath])
 
-def notifyEnding(postProcessingPath):
+def notifyEnding(postProcessingPath,originalPath,projectPath):
     ''' Arguments:
+            postProcessingPath = string; path to Postprocessing Directory
         Returns:
+            None
     '''
     if getNumberofFiles(originalPath)%2 != 0:
         print('There are not an even number of files in {}!'.format(originalPath))
@@ -333,16 +368,91 @@ def notifyEnding(postProcessingPath):
         if 'FINISHED.txt' in os.listdir(postProcessingPath):
             #textMe('+17756227884','This is sent from your python script; The first part of the \
             #        Pipeline has finished. Please return to computer')
-            print('At this point textMe would send you a text')
-            os.chdir(postProcessingPath)
-            os.remove("FINISHED.txt")
+            print('DESeq2 reports are finished')
+            os.remove(str(postProcessingPath + "/FINISHED.txt"))
             break
         else:
             time.sleep(30)
 
 
+#################################################################
+#def exportVariablesforClass(pathtoInput):
+#    ''' Arguments:
+#        Returns:
+#    '''
+#    Project, Reference, Original = sourceInput(pathtoInput)
+#    Gtf, Cdna, Genome = getReferenceVariables(Reference)
+#    Basename = getBasename(Genome)
+#    Fastq = getFastq(Original)
+#    Procs = countCPU()
+#    Variables = {
+#            "Projectpath": Project,
+#            "ogReference": Reference,
+#            "ogOriginal": Original,
+#            "Gtf": Gtf,
+#            "Cdna": Cdna,
+#            "Genome": Genome,
+#            "Basename": Basename,
+#            "Fastq": Fastq,
+#            "Procs": Procs
+#            }
+#    return Variables
+#
+#class Experiment:
+#    def __init__(self, inputPath):
+#        variables = exportVariablesforClass(inputPath)
+#        self.Project = variables["Projectpath"]
+#        self.ogReference = variables["ogReference"]
+#        self.ogOriginal = variables["ogOriginal"]
+#        self.Reference = str(variables["Projectpath"] + '/Reference')
+#        self.Original = str(variables["Projectpath"] + '/Original')
+#        self.Data = str(variables["Projectpath"] + '/Data')
+#        self.Postprocessing = str(variables["Projectpath"] + '/Reference')
+#        self.Gtf = str(variables["Gtf"])
+#        self.Cdna = str(variables["Cdna"])
+#        self.Genome = str(variables["Genome"])
+#        self.Basename = str(variables["Basename"])
+#        self.Fastq = str(variables["Fastq"])
+#        self.Procs = int(variables["Procs"])
+#    def __repr__(self):
+#        return 'Experiment(%r)'%(self.Project)
+#    ###############################################################
+#    # Utilities
+#    ###############################################################
+#    def getNumberofSamples(self):
+#        if getNumberofFiles(self.ogOriginal)%2 != 0:
+#            print('There are not an even number of files in {}'.format(self.ogOriginal))
+#        else:
+#            numSamp = getNumberofFiles(self.ogOriginal)/2
+#        return int(numSamp)
+#    def makeStructure(self):
+#        createStructure(self.Project, self.ogOriginal)
+#    def makeSyms(self):
+#        createSymLinks(self.Project, self.ogOriginal, self.ogReference)
+#    def qcRef(self):
+#        qcReference(self.Reference, self.Genome)
+#    def ppRef(self):
+#        preProcessingReference(self.Reference, self.Cdna, self.Gtf, self.Genome, self.Basename)
+#    def deployPipe(self):
+#        runPipe(self.Data, self.Fastq, self.Procs, self.Reference,\
+#                self.Genome, self.Basename, self.Project, self.Gtf)
+#    def findPipeFinish(self):
+#        findFinish(self.Project, self.ogOriginal)
+#    def createJsonMetadata(self):
+#        createMetaData(self.Postprocessing)
+#    def createNiceCounts(self):
+#        makeNiceCounts(self.Postprocessing, self.Data)
+#    def getPipeTime(self):
+#        makeTotalTime(self.Postprocessing, self.Data)
+#    def createRCounts(self):
+#        createCountFile(self.Postprocessing)
+#    def createRCols(self):
+#        createColumnFile(self.Postprocessing)
+#    def createRProgram(self):
+#        createRScript(self.Postprocessing)
+#    def runRProgram(self):
+#        makeRreports(self.Postprocessing)
 ################################################################
-
 def Main(pathtoInput):
     ''' Arguments:
             pathtoInput = string; path to INPUT file
@@ -354,18 +464,25 @@ def Main(pathtoInput):
     createSymLinks(Project,Original,Reference)
     qcReference(Project + '/Reference', Genome)
     preProcessingReference(Project + '/Reference', Cdna, Gtf, Genome, Basename)
-    runPipe(Project + '/Data', Fastq, Procs, Project + '/Reference', Genome, Basename,Project)
-    createMetaData(Project + '/Postprocessing')
+    runPipe(Project + '/Data', Fastq, Procs, Project + '/Reference', Genome, Basename,Project,Gtf)
+    ############createMetaData(Project + '/Postprocessing')
     findFinish(Project, Original)
     makeNiceCounts(Project + '/Postprocessing', Project + '/Data')
     makeTotalTime(Project + '/Postprocessing', Project + '/Data')
     createColumnFile(Project + '/Postprocessing')
     createCountFile(Project + '/Postprocessing')
     createRScript(Project + '/Postprocessing')
+    # TODO check for X11 forwarding
     makeRreports(Project + '/Postprocessing')
     print(':)')
 
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='Version 1.1\nAuthor: Alberto')
-    print('In development :)')
-    #Main(arguments['<pathtoInput>'])
+    #print(arguments)
+
+    global noconfirm
+    noconfirm = arguments['--noconfirm']
+    global JSFI
+    JSFI = arguments['--jsonfile']
+
+    Main(arguments['<pathtoInput>'])

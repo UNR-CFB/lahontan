@@ -41,5 +41,5 @@ function askx11 {
 }
 
 postProcessingPath=$1
-askx11
+#askx11
 runR "${postProcessingPath}"
