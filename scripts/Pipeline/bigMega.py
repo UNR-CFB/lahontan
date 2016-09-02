@@ -1,14 +1,17 @@
 #!/usr/bin/python3
 
-'''Usage: Mega.py [-h | --help] [-j <jsonFile> | --jsonfile <jsonFile>] [--noconfirm] <pathtoInput>
+'''Usage: Mega.py [-h | --help] [-j <jsonFile> | --jsonfile <jsonFile>] [--noconfirm] [-c <placeToClean> | --clean <placeToClean>] [-s <sampleName> | --sampleclean <sampleName>] <pathtoInput>
 
 Options:                                                                                           
     -h --help               Show this screen and exit
     -j <jsonFile>, --jsonfile <jsonFile>            Ignores JSON file creation and uses specified
                                                     path to JSON
     --noconfirm             Ignore all user prompts except JSON file creation
+    -c <placeToClean>, --clean <placeToClean>       Cleans <placeToClean>: Possible places include:
+                                                    Reference, Data, Postprocessing, All
+    -s <sampleName>, --sampleclean <sampleName>     Similar to -c,--clean; but instead just cleans a
+                                                    single sample directory <sampleName>
 '''
-#TODO Make a cleanup function or fix the other one
 
 ################################################################
 # Importations
@@ -17,9 +20,11 @@ Options:
 from docopt import docopt
 import Mega
 import os
+import subprocess
+import shutil
 
 ################################################################
-# Defining Experiment Class
+# Utilities
 ################################################################
 
 def exportVariablesforClass(pathtoInput):
@@ -45,6 +50,20 @@ def exportVariablesforClass(pathtoInput):
             "Procs": Procs
             }
     return Variables
+
+def checkJSON(jsonFile):
+    import json
+    with open(jsonFile) as JF:
+        try:
+            json.load(JF)
+        except ValueError as e:
+            print("Invalid JSON: %s"%(e))
+            print("Check your JSON, exiting now")
+            raise SystemExit
+
+################################################################
+# Defining Experiment Class
+################################################################
 
 class Experiment:
     ''' Experiment is a Paired-End Sequencing Experiment.
@@ -128,6 +147,52 @@ class Experiment:
         Mega.notifyEnding(self.Postprocessing)
 
     ################################################################
+    # Cleaning Stuff
+    ################################################################
+
+    def clean(self, thingToClean, sampleName=False):
+        ''' Arguments:
+                thingToClean = string:
+                                Reference or Data or Postprocessing or All or Sample
+                Note: If thingToClean=Sample, require second argument:
+                sampleName = string; name of Sample to be cleaned
+            Returns:
+                None; cleans directories
+        '''
+        assert type(thingToClean) == str, '{} is not a valid argument'.format(thingToClean)
+        if thingToClean == 'Reference':
+            arg = '-r'
+        elif thingToClean == 'Data':
+            arg = '-d'
+        elif thingToClean == 'Postprocessing':
+            arg = '-p'
+        elif thingToClean == 'All':
+            arg = '-a'
+        elif thingToClean == 'Sample':
+            if sampleName == False:
+                print('Need a valid sample name')
+                raise SystemExit
+            arg = sampleName
+        else:
+            print('Need a valid argument: Reference, Data, Postprocessing, All, or Sample')
+            raise SystemExit
+        if thingToClean == 'Sample':
+            subprocess.run(['clean.sh','-s',arg, self.Genome, self.Cdna, self.Gtf, self.Reference, self.Data, self.Postprocessing],check=True)
+        else:
+            subprocess.run(['clean.sh',arg, self.Genome, self.Cdna, self.Gtf, self.Reference, self.Data, self.Postprocessing],check=True)
+
+    def nukeProject(self):
+        while True:
+            answer = input('Are you sure you want to remove entire Project?(y,n) ')
+            if answer == 'y':
+                shutil.rmtree(self.Project)
+                break
+            elif answer == 'n':
+                break
+            else:
+                print('Please answer y or n')
+
+    ################################################################
     # Useful Functions
     ################################################################
 
@@ -138,10 +203,15 @@ class Experiment:
         '''
         self.makeStructure()
         self.makeSyms()
+
+    def runStage2(self):
+        '''
+        Prepare Reference Data
+        '''
         self.qcRef()
         self.ppRef()
 
-    def runStage2(self):
+    def runStage3(self):
         ''' Note: In future deployPipe will be split up into
             multiple functions
 
@@ -150,7 +220,7 @@ class Experiment:
         self.deployPipe()
         self.findPipeFinish()
 
-    def runStage3(self):
+    def runStage4(self):
         ''' Note: Creating a metadata file should only need
             to be done once
 
@@ -163,33 +233,72 @@ class Experiment:
         self.createRCols()
         self.createRProgram()
 
-    def runStage4(self):
+    def runStage5(self):
         '''
         Run R pipeline
         '''
         self.runRProgram()
         self.findRFinish()
 
-    def runStage5(self):
-        print(':)')
-
     def runAll(self):
+        '''
+        Runs Stage 1 through Stage 4
+        '''
         self.runStage1()
         self.runStage2()
         self.runStage3()
         self.runStage4()
         self.runStage5()
 
-
+################################################################
+# Handling Command line arguments
 ################################################################
 
 if __name__ == '__main__':
     arguments = docopt(__doc__, version='Version 1.1\nAuthor: Alberto')
 
+    ######################
+    ## Area for Testing
+    #PROJ = Experiment(arguments['<pathtoInput>'])
+    #PROJ.nukeProject()
+    #raise SystemExit
+    #####################
+
+    # Handling Cleaning Arguments
+    possibleCleanArguments = ['All','Reference','Data','Postprocessing']
+    if arguments['--clean'] != None:
+        assert arguments['--clean'] in possibleCleanArguments, 'Invalid Cleaning Argument: Run bigMega.py -h for available arguments'
+        PROJ = Experiment(arguments['<pathtoInput>'])
+        if arguments['--clean'] != 'All':
+            if arguments['--clean'] == 'Data':
+                if os.path.isdir(PROJ.Data) == False:
+                    print('{} does not exist'.format(PROJ.Data))
+                    raise SystemExit
+            if arguments['--clean'] == 'Reference':
+                if os.path.isdir(PROJ.Reference) == False:
+                    print('{} does not exist'.format(PROJ.Reference))
+                    raise SystemExit
+            if arguments['--clean'] == 'Postprocessing':
+                if os.path.isdir(PROJ.Postprocessing) == False:
+                    print('{} does not exist'.format(PROJ.Postprocessing))
+                    raise SystemExit
+        PROJ.clean(arguments['--clean'])
+        raise SystemExit
+    elif arguments['--sampleclean'] != None:
+        PROJ = Experiment(arguments['<pathtoInput>'])
+        if os.path.isdir(str(PROJ.Data + '/' + arguments['--sampleclean'])) == False:
+            print('{} does not exist'.format(str(PROJ.Data + '/' + arguments['--sampleclean'])))
+            raise SystemExit
+        PROJ.clean('Sample',arguments['--sampleclean'])
+        raise SystemExit
+
     global noconfirm
     noconfirm = arguments['--noconfirm']
     global JSFI
     JSFI = arguments['--jsonfile']
+
+    if JSFI != None:
+        checkJSON(JSFI)
 
     Mega.JSFI = JSFI
     Mega.noconfirm = noconfirm
