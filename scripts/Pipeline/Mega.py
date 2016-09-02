@@ -51,10 +51,12 @@ def getNumberofFiles(path):
         Returns:
             counter = the number of files in path
     '''
-    counter = 0
-    for filename in os.listdir(path):
-        counter += 1
-    return counter
+    if os.path.isdir(path) == False:
+        print("Path for getNumberofFiles is not a directory:\n{}".format(path))
+        raise SystemExit
+
+    num = len(os.listdir(path))
+    return num
 
 ################################################################
 # Getting INPUT variables
@@ -73,6 +75,9 @@ def sourceInput(pathtoInput):
     import imp
 
     assert type(pathtoInput) == str, "Path to INPUT not a string"
+    if os.path.exists(pathtoInput) == False:
+        print("Path is not a file:\n{}".format(pathtoInput))
+        raise SystemExit
 
     with open(pathtoInput) as Input:
         global inputVars
@@ -82,47 +87,70 @@ def sourceInput(pathtoInput):
 
 def getReferenceVariables(referencePath):
     ''' Arguments:
+            referencePath = string; path to Reference files
         Returns:
-            Gtf, Cdna, Genome filenames
+            gtf, cdna, genome filenames
     '''
-    for filename in os.listdir(referencePath):
+    if os.path.isdir(referencePath) == False:
+        print("Path is not a directory:\n{}".format(path))
+        raise SystemExit
+
+    ls = os.listdir(referencePath)
+    if len(ls) != 3:
+        print("There are an incorrect number of files in:\n{}".format(referencePath))
+        raise SystemExit
+
+    for filename in ls:
         if filename.split(".")[-1] == 'gtf':
-            gtf = filename
+            gtf = str(filename)
         elif "cdna" in filename:
-            cdna = filename
+            cdna = str(filename)
         else:
-            genome = filename
+            genome = str(filename)
     return gtf,cdna,genome
 
 def getBasename(genomeName):
     ''' Arguments:
+            genomeName = string; name of Genome file
         Returns:
+            basename
     '''
-    basename = genomeName.split(".")[0]
+    basename = str(genomeName.split(".")[0])
     return basename
 
 def getFastq(originalPath):
     ''' Arguments:
+            originalPath = string; path to ogOriginal
         Returns:
             fastq
     '''
+    if os.path.isdir(originalPath) == False:
+        print("Path is not a directory:\n{}".format(originalPath))
+        raise SystemExit
+
     allFastq = []
     for filename in os.listdir(originalPath):
         allFastq.append(filename.split(".")[-2])
+
     uniqueFastq = set(allFastq)
     if len(uniqueFastq) != 1:
-        raise NameError('File Endings in $Original are not consistent')
+        raise NameError('File Endings in ogOriginal are not consistent')
     else:
         fastq = list(uniqueFastq)[0]
+
+    if fastq != 'fastq' and fastq != 'fq':
+        print('Unknown fastq extension: {}\nSetting default to "fastq"')
+        fastq = 'fastq'
+
     return fastq
 
 def countCPU():
     ''' Arguments:
             None
         Returns:
-            PROCS
+            PROCS (number of processors)
     '''
-    procs = multiprocessing.cpu_count()
+    procs = int(multiprocessing.cpu_count())
     return procs
 
 def exportVariables(pathtoInput):
@@ -132,6 +160,10 @@ def exportVariables(pathtoInput):
             Variables
         Note: INPUT file must contain Project, Reference, and Original paths
     '''
+    if os.path.isdir(pathtoInput) == False:
+        print("Path is not a directory:\n{}".format(pathtoInput))
+        raise SystemExit
+
     Project, Reference, Original = sourceInput(pathtoInput)
     Gtf, Cdna, Genome = getReferenceVariables(Reference)
     Basename = getBasename(Genome)
@@ -153,12 +185,28 @@ def createStructure(projectPath, originalPath):
         Returns:
             None; creates directory structure
     '''
+    if os.path.isdir(originalPath) == False:
+        print("Path is not a directory:\n{}".format(originalPath))
+        raise SystemExit
+
     if getNumberofFiles(originalPath)%2 != 0:
         print('There are not an even number of files in {}'.format(originalPath))
+        raise SystemExit
     else:
         numSamp = str(getNumberofFiles(originalPath)/2)
-    subprocess.call(["makeStructure.sh", projectPath, numSamp])
-    #TODO check if structure was made
+
+    subprocess.run(["makeStructure.sh", projectPath, numSamp],check=True)
+
+    if noconfirm == False:
+        if os.path.isdir(projectPath + '/Postprocessing') == False:
+            print("Path is not a directory:\n{}".format(projectPath + '/Postprocessing'))
+            raise SystemExit
+        if os.path.isdir(projectPath + '/Reference') == False:
+            print("Path is not a directory:\n{}".format(projectPath + '/Reference'))
+            raise SystemExit
+        if os.path.isdir(projectPath + '/Data') == False:
+            print("Path is not a directory:\n{}".format(projectPath + '/Data'))
+            raise SystemExit
 
 ################################################################
 # Make Pointers to Data
@@ -172,10 +220,37 @@ def createSymLinks(projectPath,originalPath,referencePath):
         Returns:
             None; creates Sym links
     '''
+    if noconfirm == False:
+        if os.path.isdir(projectPath) == False:
+            print("Path is not a directory:\n{}".format(projectPath))
+            raise SystemExit
+        if os.path.isdir(originalPath) == False:
+            print("Path is not a directory:\n{}".format(originalPath))
+            raise SystemExit
+        if os.path.isdir(referencePath) == False:
+            print("Path is not a directory:\n{}".format(referencePath))
+            raise SystemExit
+
     if JSFI == None:
-        subprocess.call(["makeSyms.sh",projectPath,originalPath,referencePath,'false'])
+        subprocess.run(["makeSyms.sh",projectPath,originalPath,referencePath,'false'],check=True)
     else:
-        subprocess.call(["makeSyms.sh",projectPath,originalPath,referencePath,JSFI])
+        subprocess.run(["makeSyms.sh",projectPath,originalPath,referencePath,JSFI],check=True)
+
+    if noconfirm == False:
+        if getNumberofFiles(originalPath)%2 != 0:
+            print('There are not an even number of files in {}!'.format(originalPath))
+        else:
+            numSamp = int(getNumberofFiles(originalPath)/2)
+        if len(os.listdir(projectPath + '/Reference')) != 3:
+            print("There are not an appropriate amount of Symlinks in {}".format(projectPath + '/Reference'))
+            raise SystemExit
+        if len(os.listdir(projectPath + '/Data')) != numSamp:
+            print("There are not an appropriate number of Samples in {}".format(projectPath + '/Data'))
+            raise SystemExit
+        if len(os.listdir(projectPath + '/Original')) != numSamp*2:
+            print("There are not an appropriate number of samples in {}".format(projectPath + '/Original'))
+            raise SystemExit
+
 
 ################################################################
 # Quality Control of Reference Data
@@ -188,14 +263,22 @@ def qcReference(referencePath,genomeName):
         Returns:
             None; outputs Reference_Report.txt to STDOUT
     '''
-    subprocess.call(["QCofRef.sh",referencePath,genomeName])
+    if os.path.isdir(referencePath) == False:
+        print("Path is not a directory:\n{}".format(referencePath))
+        raise SystemExit
+    if genomeName not in os.listdir(referencePath):
+        print("{} not in {}".format(genomeName, referencePath))
+        raise SystemExit
+
+    subprocess.run(["QCofRef.sh",referencePath,genomeName],check=True)
+
     if noconfirm == False:
         while True:
             answer = str(input("Would you like to review your reference data?(y,n) "))
             if answer == 'y':
                 print('See Reference_Report.txt to view initial Diagnostics;\
                         exiting now')
-                break
+                raise SystemExit
             elif answer == 'n':
                 break
             else:
@@ -215,7 +298,32 @@ def preProcessingReference(referencePath,cdnaName,gtfName,genomeName,baseName):
         Returns:
             None; outputs Reference_Report.txt to STDOUT
     '''
-    subprocess.call(["PPofRef.sh",referencePath,cdnaName,gtfName,genomeName,baseName])
+    if noconfirm == False:
+        if os.path.isdir(referencePath) == False:
+            print("Path is not a directory:\n{}".format(referencePath))
+            raise SystemExit
+        if genomeName not in os.listdir(referencePath):
+            print("{} not in {}".format(genomeName, referencePath))
+            raise SystemExit
+        if cdnaName not in os.listdir(referencePath):
+            print("{} not in {}".format(cdnaName, referencePath))
+            raise SystemExit
+        if gtfName not in os.listdir(referencePath):
+            print("{} not in {}".format(gtfName, referencePath))
+            raise SystemExit
+
+    subprocess.run(["PPofRef.sh",referencePath,cdnaName,gtfName,genomeName,baseName],check=True)
+
+    if noconfirm == False:
+        if 'Reference_Report.txt' not in os.listdir(referencePath):
+            print("{} not in {}".format('Reference_Report.txt', referencePath))
+            raise SystemExit
+        if 'splice_sites.txt' not in os.listdir(referencePath):
+            print("{} not in {}".format('splice_sites.txt', referencePath))
+            raise SystemExit
+        if 'known_exons.txt' not in os.listdir(referencePath):
+            print("{} not in {}".format('known_exons.txt', referencePath))
+            raise SystemExit
 
 ################################################################
 # Run Pipeline
@@ -236,7 +344,7 @@ def runPipe(dataPath,fastqVar,numProcs,referencePath,genomeName,baseName,project
         Returns:
             None; Runs Pipeline
     '''
-    subprocess.call(["runall.sh",dataPath,fastqVar,str(numProcs),referencePath,genomeName,baseName,projectPath,gtfName])
+    subprocess.run(["runall.sh",dataPath,fastqVar,str(numProcs),referencePath,genomeName,baseName,projectPath,gtfName],check=True)
 
 def findFinish(projectPath, originalPath):
     ''' Arguments:
@@ -249,7 +357,12 @@ def findFinish(projectPath, originalPath):
     else:
         numSamp = int(getNumberofFiles(originalPath)/2)
 
-    os.chdir(projectPath + '/runPipeNotify')
+    if os.path.isdir(projectPath + '/runPipeNotify') == False:
+        print("Path is not a directory:\n{}".format(projectPath + '/runPipeNotify'))
+        raise SystemExit
+    else:
+        os.chdir(projectPath + '/runPipeNotify')
+
     while True:
         if len([name for name in os.listdir('.') if os.path.isfile(name)]) == numSamp:
             #textMe('+17756227884','This is sent from your python script; The first part of the \
@@ -272,13 +385,16 @@ def createMetaData(postProcessingPath,jsonName='Metadata.json'):
             None; Creates Metadata.json
     '''
     if JSFI == None:
+        if os.path.isdir(postProcessingPath) == False:
+            print("Path is not a directory:\n{}".format(postProcessingPath))
+            raise SystemExit
         os.chdir(postProcessingPath)
         makeJSON.writeJSON(jsonName)
         while True:
             answer = str(input("Would you like to review {}?(y,n) ".format(jsonName)))
             if answer == 'y':
                 os.chdir(postProcessingPath)
-                subprocess.call(['vim',jsonName])
+                subprocess.run(['vim',jsonName],check=True)
             elif answer == 'n':
                 break
             else:
@@ -295,7 +411,14 @@ def makeNiceCounts(postProcessingPath,dataPath):
         Returns:
             None; Creates NiceCounts.dat
     '''
-    subprocess.call(["formatFeatures.sh",postProcessingPath,dataPath])
+    if os.path.isdir(postProcessingPath) == False:
+        print("Path is not a directory:\n{}".format(postProcessingPath))
+        raise SystemExit
+    if os.path.isdir(dataPath) == False:
+        print("Path is not a directory:\n{}".format(dataPath))
+        raise SystemExit
+
+    subprocess.run(["formatFeatures.sh",postProcessingPath,dataPath],check=True)
     
 def makeTotalTime(postProcessingPath,dataPath):
     ''' Arguments:
@@ -304,7 +427,14 @@ def makeTotalTime(postProcessingPath,dataPath):
         Returns:
             None; Creates totalTime.dat
     '''
-    subprocess.call(["getTotalTime.sh",postProcessingPath,dataPath])
+    if os.path.isdir(postProcessingPath) == False:
+        print("Path is not a directory:\n{}".format(postProcessingPath))
+        raise SystemExit
+    if os.path.isdir(dataPath) == False:
+        print("Path is not a directory:\n{}".format(dataPath))
+        raise SystemExit
+
+    subprocess.run(["getTotalTime.sh",postProcessingPath,dataPath],check=True)
 
 ################################################################
 # Preparing for DESeq2
@@ -318,6 +448,10 @@ def createColumnFile(postProcessingPath,jsonName='Metadata.json',columnName='Col
         Returns:
             None; Creates Cols.dat
     '''
+    if os.path.isdir(postProcessingPath) == False:
+        print("Path is not a directory:\n{}".format(postProcessingPath))
+        raise SystemExit
+
     os.chdir(postProcessingPath)
     makeCols.makeCols(makeCols.readJSON(jsonName),columnName)
 
@@ -328,7 +462,12 @@ def createCountFile(postProcessingPath,countName='Counts.dat'):
         Returns:
             None; Creates Counts.dat
     '''
-    subprocess.call(["makeCounts.sh",postProcessingPath,countName])
+    if os.path.isdir(postProcessingPath) == False:
+        print("Path is not a directory:\n{}".format(postProcessingPath))
+        raise SystemExit
+
+    os.chdir(postProcessingPath)
+    subprocess.run(["makeCounts.sh",postProcessingPath,countName],check=True)
 
 def createRScript(postProcessingPath,jsonName='Metadata.json',rName='makeReport.r'):
     ''' Arguments:
@@ -337,6 +476,10 @@ def createRScript(postProcessingPath,jsonName='Metadata.json',rName='makeReport.
         Returns:
             None; Creates makeReportr.dat
     '''
+    if os.path.isdir(postProcessingPath) == False:
+        print("Path is not a directory:\n{}".format(postProcessingPath))
+        raise SystemExit
+
     os.chdir(postProcessingPath)
     makeReportr.createRscript(makeCols.readJSON(jsonName),rName)
 
@@ -350,20 +493,35 @@ def makeRreports(postProcessingPath):
         Returns:
             None; Creates R reports
     '''
-    subprocess.call(["runDESeq.sh",postProcessingPath])
+    if noconfirm == False:
+        if os.path.isdir(postProcessingPath) == False:
+            print("Path is not a directory:\n{}".format(postProcessingPath))
+            raise SystemExit
+        if 'totalTime.dat' not in os.listdir(postProcessingPath):
+            print("{} is not in {}".format('totalTime.dat',postProcessingPath))
+            raise SystemExit
+        if 'Cols.dat' not in os.listdir(postProcessingPath):
+            print("{} is not in {}".format('Cols.dat',postProcessingPath))
+            raise SystemExit
+        if 'Counts.dat' not in os.listdir(postProcessingPath):
+            print("{} is not in {}".format('Counts.dat',postProcessingPath))
+            raise SystemExit
+        if 'makeReport.r' not in os.listdir(postProcessingPath):
+            print("{} is not in {}".format('makeReport.r',postProcessingPath))
+            raise SystemExit
 
-def notifyEnding(postProcessingPath,originalPath,projectPath):
+    subprocess.run(["runDESeq.sh",postProcessingPath],check=True)
+
+def notifyEnding(postProcessingPath):
     ''' Arguments:
             postProcessingPath = string; path to Postprocessing Directory
         Returns:
             None
     '''
-    if getNumberofFiles(originalPath)%2 != 0:
-        print('There are not an even number of files in {}!'.format(originalPath))
-    else:
-        numSamp = int(getNumberofFiles(originalPath)/2)
+    if os.path.isdir(postProcessingPath) == False:
+        print("Path is not a directory:\n{}".format(postProcessingPath))
+        raise SystemExit
 
-    os.chdir(projectPath + '/runPipeNotify')
     while True:
         if 'FINISHED.txt' in os.listdir(postProcessingPath):
             #textMe('+17756227884','This is sent from your python script; The first part of the \
@@ -465,7 +623,7 @@ def Main(pathtoInput):
     qcReference(Project + '/Reference', Genome)
     preProcessingReference(Project + '/Reference', Cdna, Gtf, Genome, Basename)
     runPipe(Project + '/Data', Fastq, Procs, Project + '/Reference', Genome, Basename,Project,Gtf)
-    ############createMetaData(Project + '/Postprocessing')
+    createMetaData(Project + '/Postprocessing')
     findFinish(Project, Original)
     makeNiceCounts(Project + '/Postprocessing', Project + '/Data')
     makeTotalTime(Project + '/Postprocessing', Project + '/Data')
@@ -474,11 +632,11 @@ def Main(pathtoInput):
     createRScript(Project + '/Postprocessing')
     # TODO check for X11 forwarding
     makeRreports(Project + '/Postprocessing')
-    print(':)')
+    notifyEnding(Project + '/Postprocessing')
 
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='Version 1.1\nAuthor: Alberto')
-    #print(arguments)
+    print(arguments)
 
     global noconfirm
     noconfirm = arguments['--noconfirm']

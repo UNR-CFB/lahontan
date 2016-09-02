@@ -106,7 +106,7 @@ function findOverrepSeq {
 		else
 			echo "There are some over-represented sequences in "${Data}"/"${sample}"/fastqc"${runNumber}"."${sample}"/"$directory"\
 				; see Overrepresented_sequences.txt in "${Data}"/"${sample}"/fastqc"${runNumber}"."${sample}"/"$directory""
-			#TODO exit?
+            #exit
 		fi
 	done
 }

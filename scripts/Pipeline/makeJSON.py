@@ -56,6 +56,4 @@ def writeJSON(name):
 
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='1.0')
-    exec(open(os.environ["Input_Field"]).read())
-    os.chdir(Postprocessing)
     writeJSON(arguments['-j'])
