@@ -147,7 +147,7 @@ class Experiment:
         Mega.notifyEnding(self.Postprocessing)
 
     ################################################################
-    # Cleaning Stuff
+    # Cleaning Functions
     ################################################################
 
     def clean(self, thingToClean, sampleName=False):
@@ -182,6 +182,9 @@ class Experiment:
             subprocess.run(['clean.sh',arg, self.Genome, self.Cdna, self.Gtf, self.Reference, self.Data, self.Postprocessing],check=True)
 
     def nukeProject(self):
+        '''
+        Removes entire Project Directory Structure
+        '''
         while True:
             answer = input('Are you sure you want to remove entire Project?(y,n) ')
             if answer == 'y':
