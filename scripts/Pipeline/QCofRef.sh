@@ -107,4 +107,3 @@ genomeName=$2
 #fi
 
 qcReport "${refPath}" "${genomeName}"
-cat Reference_Report.txt

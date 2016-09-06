@@ -273,6 +273,9 @@ def qcReference(referencePath,genomeName):
     subprocess.run(["QCofRef.sh",referencePath,genomeName],check=True)
 
     if noconfirm == False:
+        os.chdir(referencePath)
+        with open('Reference_Report.txt', 'r') as Report:
+            print(Report.read())
         while True:
             answer = str(input("Would you like to review your reference data?(y,n) "))
             if answer == 'y':
@@ -312,7 +315,9 @@ def preProcessingReference(referencePath,cdnaName,gtfName,genomeName,baseName):
             print("{} not in {}".format(gtfName, referencePath))
             raise SystemExit
 
-    subprocess.run(["PPofRef.sh",referencePath,cdnaName,gtfName,genomeName,baseName],check=True)
+    os.chdir(referencePath)
+    with open('Preprocessing.log','w') as PPlog:
+        subprocess.run(["PPofRef.sh",referencePath,cdnaName,gtfName,genomeName,baseName],stdout=PPlog,stderr=subprocess.STDOUT,check=True)
 
     if noconfirm == False:
         if 'Reference_Report.txt' not in os.listdir(referencePath):

@@ -1,16 +1,19 @@
 #!/usr/bin/python3
 
-'''Usage: Mega.py [-h | --help] [-j <jsonFile> | --jsonfile <jsonFile>] [--noconfirm] [-c <placeToClean> | --clean <placeToClean>] [-s <sampleName> | --sampleclean <sampleName>] <pathtoInput>
+'''Usage: bigMega.py [-h | --help] [-j <jsonFile> | --jsonfile <jsonFile>] [--noconfirm] [-c <placeToClean> | --clean <placeToClean>] [-s <sampleName> | --sampleclean <sampleName>] [--NUKE] [-r <runlogPath> | --runtime <runlogPath>] <pathtoInput>
 
 Options:                                                                                           
-    -h --help               Show this screen and exit
+    -h --help                                       Show this screen and exit
     -j <jsonFile>, --jsonfile <jsonFile>            Ignores JSON file creation and uses specified
                                                     path to JSON
-    --noconfirm             Ignore all user prompts except JSON file creation
+    --noconfirm                                     Ignore all user prompts except JSON file creation
     -c <placeToClean>, --clean <placeToClean>       Cleans <placeToClean>: Possible places include:
                                                     Reference, Data, Postprocessing, All
     -s <sampleName>, --sampleclean <sampleName>     Similar to -c,--clean; but instead just cleans a
                                                     single sample directory <sampleName>
+    --NUKE                                          Removes entire project Directory
+    -r <runlogPath>, --runtime <runlogPath>         Optional directory path for Runtime Log file to 
+                                                    be created in [default: $Project]
 '''
 
 ################################################################
@@ -18,6 +21,7 @@ Options:
 ################################################################
 
 from docopt import docopt
+from timeit import default_timer as timer
 import Mega
 import os
 import subprocess
@@ -61,6 +65,20 @@ def checkJSON(jsonFile):
             print("Check your JSON, exiting now")
             raise SystemExit
 
+def funTime(function):
+    def wrapper(*args):
+        t1 = timer()
+        stuff = function(*args)
+        t2 = timer()
+        with open(RUNTIMELOG, 'a') as R:
+            R.write('{} function took {:.3f} seconds\n'.format(function.__name__, t2 - t1))
+        return stuff
+    return wrapper
+
+def makeTimeFile(logPath):
+    with open(logPath, 'w') as R:
+        R.write('bigMega.py Runtime File\n-----------------------------------------\n\n')
+
 ################################################################
 # Defining Experiment Class
 ################################################################
@@ -100,49 +118,67 @@ class Experiment:
             numSamp = Mega.getNumberofFiles(self.ogOriginal)/2
         return int(numSamp)
 
+    @funTime
     def makeStructure(self):
+        print("Creating Structure...")
         Mega.createStructure(self.Project, self.ogOriginal)
+        makeTimeFile(RUNTIMELOG)
 
+    @funTime
     def makeSyms(self):
         Mega.createSymLinks(self.Project, self.ogOriginal, self.ogReference)
         
+    @funTime
     def qcRef(self):
         Mega.qcReference(self.Reference, self.Genome)
 
+    @funTime
     def ppRef(self):
+        print("Preprocessing Data...")
         Mega.preProcessingReference(self.Reference, self.Cdna, self.Gtf, self.Genome, self.Basename)
 
+    @funTime
     def deployPipe(self):
         print("Pipeline is running...")
         Mega.runPipe(self.Data, self.Fastq, self.Procs, self.Reference,\
                 self.Genome, self.Basename, self.Project, self.Gtf)
 
+    @funTime
     def findPipeFinish(self):
         Mega.findFinish(self.Project, self.ogOriginal)
 
+    @funTime
     def createJsonMetadata(self):
         Mega.createMetaData(self.Postprocessing)
 
+    @funTime
     def createNiceCounts(self):
         Mega.makeNiceCounts(self.Postprocessing, self.Data)
 
+    @funTime
     def getPipeTime(self):
         Mega.makeTotalTime(self.Postprocessing, self.Data)
 
+    @funTime
     def createRCounts(self):
         os.chdir(self.Postprocessing)
         Mega.createCountFile(self.Postprocessing)
 
+    @funTime
     def createRCols(self):
         os.chdir(self.Postprocessing)
         Mega.createColumnFile(self.Postprocessing)
 
+    @funTime
     def createRProgram(self):
         Mega.createRScript(self.Postprocessing)
         
+    @funTime
     def runRProgram(self):
+        print("R program is running...")
         Mega.makeRreports(self.Postprocessing)
 
+    @funTime
     def findRFinish(self):
         Mega.notifyEnding(self.Postprocessing)
 
@@ -185,20 +221,24 @@ class Experiment:
         '''
         Removes entire Project Directory Structure
         '''
-        while True:
-            answer = input('Are you sure you want to remove entire Project?(y,n) ')
-            if answer == 'y':
-                shutil.rmtree(self.Project)
-                break
-            elif answer == 'n':
-                break
-            else:
-                print('Please answer y or n')
+        if noconfirm == True:
+            shutil.rmtree(self.Project)
+        else:
+            while True:
+                answer = input('Are you sure you want to remove entire Project?(y,n) ')
+                if answer == 'y':
+                    shutil.rmtree(self.Project)
+                    break
+                elif answer == 'n':
+                    break
+                else:
+                    print('Please answer y or n')
 
     ################################################################
     # Useful Functions
     ################################################################
 
+    @funTime
     def runStage1(self):
         ''' Note: does not need to be run more than once
 
@@ -207,6 +247,7 @@ class Experiment:
         self.makeStructure()
         self.makeSyms()
 
+    @funTime
     def runStage2(self):
         '''
         Prepare Reference Data
@@ -214,6 +255,7 @@ class Experiment:
         self.qcRef()
         self.ppRef()
 
+    @funTime
     def runStage3(self):
         ''' Note: In future deployPipe will be split up into
             multiple functions
@@ -223,6 +265,7 @@ class Experiment:
         self.deployPipe()
         self.findPipeFinish()
 
+    @funTime
     def runStage4(self):
         ''' Note: Creating a metadata file should only need
             to be done once
@@ -236,6 +279,7 @@ class Experiment:
         self.createRCols()
         self.createRProgram()
 
+    @funTime
     def runStage5(self):
         '''
         Run R pipeline
@@ -243,6 +287,7 @@ class Experiment:
         self.runRProgram()
         self.findRFinish()
 
+    @funTime
     def runAll(self):
         '''
         Runs Stage 1 through Stage 4
@@ -259,13 +304,31 @@ class Experiment:
 
 if __name__ == '__main__':
     arguments = docopt(__doc__, version='Version 1.1\nAuthor: Alberto')
+    t1 = timer()
 
-    ######################
-    ## Area for Testing
-    #PROJ = Experiment(arguments['<pathtoInput>'])
-    #PROJ.nukeProject()
-    #raise SystemExit
-    #####################
+    global noconfirm
+    noconfirm = arguments['--noconfirm']
+    global JSFI
+    JSFI = arguments['--jsonfile']
+
+
+    # Handling --NUKE argument
+    if arguments['--NUKE'] == True:
+        if noconfirm == True:
+            PROJ = Experiment(arguments['<pathtoInput>'])
+            PROJ.nukeProject()
+            raise SystemExit
+        else:
+            PROJ = Experiment(arguments['<pathtoInput>'])
+            while True:
+                answer = input('Are you sure you wish to remove {}?(y/n) '.format(PROJ.Project))
+                if answer == 'y':
+                    PROJ.nukeProject()
+                    raise SystemExit
+                elif answer == 'n':
+                    raise SystemExit
+                else:
+                    print('Please answer y or n')
 
     # Handling Cleaning Arguments
     possibleCleanArguments = ['All','Reference','Data','Postprocessing']
@@ -295,11 +358,6 @@ if __name__ == '__main__':
         PROJ.clean('Sample',arguments['--sampleclean'])
         raise SystemExit
 
-    global noconfirm
-    noconfirm = arguments['--noconfirm']
-    global JSFI
-    JSFI = arguments['--jsonfile']
-
     if JSFI != None:
         checkJSON(JSFI)
 
@@ -307,4 +365,18 @@ if __name__ == '__main__':
     Mega.noconfirm = noconfirm
 
     PROJ = Experiment(arguments['<pathtoInput>'])
+
+    global RUNTIMELOG
+    if arguments['--runtime'] == '$Project':
+        RUNTIMELOG = str(PROJ.Project + '/Runtime.log')
+    else:
+        if os.path.isdir(arguments['--runtime']) == False:
+            print('Need a valid directory to save Runtime file to')
+            raise SystemExit
+        else:
+            RUNTIMELOG = str(arguments['--runtime'] + '/Runtime.log')
+
     PROJ.runAll()
+
+    t2 = timer()
+    print('Total time elapsed: {0:.3f} seconds'.format(t2-t1))
