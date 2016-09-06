@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-'''Usage: bigMega.py [-h | --help] [-j <jsonFile> | --jsonfile <jsonFile>] [--noconfirm] [-c <placeToClean> | --clean <placeToClean>] [-s <sampleName> | --sampleclean <sampleName>] [--NUKE] [-r <runlogPath> | --runtime <runlogPath>] <pathtoInput>
+'''Usage: runPipe.py [-h | --help] [-j <jsonFile> | --jsonfile <jsonFile>] [--noconfirm] [-c <placeToClean> | --clean <placeToClean>] [-s <sampleName> | --sampleclean <sampleName>] [--NUKE] [-r <runlogPath> | --runtime <runlogPath>] <pathtoInput>
 
 Options:                                                                                           
     -h --help                                       Show this screen and exit
@@ -22,7 +22,7 @@ Options:
 
 from docopt import docopt
 from timeit import default_timer as timer
-import Mega
+import pipeUtils
 import os
 import subprocess
 import shutil
@@ -37,11 +37,11 @@ def exportVariablesforClass(pathtoInput):
         Returns:
             Variables
     '''
-    Project, Reference, Original = Mega.sourceInput(pathtoInput)
-    Gtf, Cdna, Genome = Mega.getReferenceVariables(Reference)
-    Basename = Mega.getBasename(Genome)
-    Fastq = Mega.getFastq(Original)
-    Procs = Mega.countCPU()
+    Project, Reference, Original = pipeUtils.sourceInput(pathtoInput)
+    Gtf, Cdna, Genome = pipeUtils.getReferenceVariables(Reference)
+    Basename = pipeUtils.getBasename(Genome)
+    Fastq = pipeUtils.getFastq(Original)
+    Procs = pipeUtils.countCPU()
     Variables = {
             "Projectpath": Project,
             "ogReference": Reference,
@@ -77,7 +77,7 @@ def funTime(function):
 
 def makeTimeFile(logPath):
     with open(logPath, 'w') as R:
-        R.write('bigMega.py Runtime File\n-----------------------------------------\n\n')
+        R.write('runPipe.py Runtime File\n-----------------------------------------\n\n')
 
 ################################################################
 # Defining Experiment Class
@@ -112,75 +112,75 @@ class Experiment:
     ###############################################################
 
     def getNumberofSamples(self):
-        if Mega.getNumberofFiles(self.ogOriginal)%2 != 0:
+        if pipeUtils.getNumberofFiles(self.ogOriginal)%2 != 0:
             print('There are not an even number of files in {}'.format(self.ogOriginal))
         else:
-            numSamp = Mega.getNumberofFiles(self.ogOriginal)/2
+            numSamp = pipeUtils.getNumberofFiles(self.ogOriginal)/2
         return int(numSamp)
 
     @funTime
     def makeStructure(self):
         print("Creating Structure...")
-        Mega.createStructure(self.Project, self.ogOriginal)
+        pipeUtils.createStructure(self.Project, self.ogOriginal)
         makeTimeFile(RUNTIMELOG)
 
     @funTime
     def makeSyms(self):
-        Mega.createSymLinks(self.Project, self.ogOriginal, self.ogReference)
+        pipeUtils.createSymLinks(self.Project, self.ogOriginal, self.ogReference)
         
     @funTime
     def qcRef(self):
-        Mega.qcReference(self.Reference, self.Genome)
+        pipeUtils.qcReference(self.Reference, self.Genome)
 
     @funTime
     def ppRef(self):
         print("Preprocessing Data...")
-        Mega.preProcessingReference(self.Reference, self.Cdna, self.Gtf, self.Genome, self.Basename)
+        pipeUtils.preProcessingReference(self.Reference, self.Cdna, self.Gtf, self.Genome, self.Basename)
 
     @funTime
     def deployPipe(self):
         print("Pipeline is running...")
-        Mega.runPipe(self.Data, self.Fastq, self.Procs, self.Reference,\
+        pipeUtils.runPipe(self.Data, self.Fastq, self.Procs, self.Reference,\
                 self.Genome, self.Basename, self.Project, self.Gtf)
 
     @funTime
     def findPipeFinish(self):
-        Mega.findFinish(self.Project, self.ogOriginal)
+        pipeUtils.findFinish(self.Project, self.ogOriginal)
 
     @funTime
     def createJsonMetadata(self):
-        Mega.createMetaData(self.Postprocessing)
+        pipeUtils.createMetaData(self.Postprocessing)
 
     @funTime
     def createNiceCounts(self):
-        Mega.makeNiceCounts(self.Postprocessing, self.Data)
+        pipeUtils.makeNiceCounts(self.Postprocessing, self.Data)
 
     @funTime
     def getPipeTime(self):
-        Mega.makeTotalTime(self.Postprocessing, self.Data)
+        pipeUtils.makeTotalTime(self.Postprocessing, self.Data)
 
     @funTime
     def createRCounts(self):
         os.chdir(self.Postprocessing)
-        Mega.createCountFile(self.Postprocessing)
+        pipeUtils.createCountFile(self.Postprocessing)
 
     @funTime
     def createRCols(self):
         os.chdir(self.Postprocessing)
-        Mega.createColumnFile(self.Postprocessing)
+        pipeUtils.createColumnFile(self.Postprocessing)
 
     @funTime
     def createRProgram(self):
-        Mega.createRScript(self.Postprocessing)
+        pipeUtils.createRScript(self.Postprocessing)
         
     @funTime
     def runRProgram(self):
         print("R program is running...")
-        Mega.makeRreports(self.Postprocessing)
+        pipeUtils.makeRreports(self.Postprocessing)
 
     @funTime
     def findRFinish(self):
-        Mega.notifyEnding(self.Postprocessing)
+        pipeUtils.notifyEnding(self.Postprocessing)
 
     ################################################################
     # Cleaning Functions
@@ -333,7 +333,7 @@ if __name__ == '__main__':
     # Handling Cleaning Arguments
     possibleCleanArguments = ['All','Reference','Data','Postprocessing']
     if arguments['--clean'] != None:
-        assert arguments['--clean'] in possibleCleanArguments, 'Invalid Cleaning Argument: Run bigMega.py -h for available arguments'
+        assert arguments['--clean'] in possibleCleanArguments, 'Invalid Cleaning Argument: Run runPipe.py -h for available arguments'
         PROJ = Experiment(arguments['<pathtoInput>'])
         if arguments['--clean'] != 'All':
             if arguments['--clean'] == 'Data':
@@ -361,8 +361,8 @@ if __name__ == '__main__':
     if JSFI != None:
         checkJSON(JSFI)
 
-    Mega.JSFI = JSFI
-    Mega.noconfirm = noconfirm
+    pipeUtils.JSFI = JSFI
+    pipeUtils.noconfirm = noconfirm
 
     PROJ = Experiment(arguments['<pathtoInput>'])
 
