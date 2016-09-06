@@ -22,6 +22,7 @@ Options:
 
 from docopt import docopt
 from timeit import default_timer as timer
+import time
 import pipeUtils
 import os
 import subprocess
@@ -272,6 +273,7 @@ class Experiment:
 
         Prepare for DESeq2 Analysis
         '''
+        print('Preparing for DESeq2...')
         self.createJsonMetadata()
         self.createNiceCounts()
         self.getPipeTime()
@@ -376,7 +378,16 @@ if __name__ == '__main__':
         else:
             RUNTIMELOG = str(arguments['--runtime'] + '/Runtime.log')
 
+
+    # Call for actually doing stuff
+    ############################################################
+    # 
     PROJ.runAll()
+    #
+    ############################################################
+    #
 
     t2 = timer()
-    print('Total time elapsed: {0:.3f} seconds'.format(t2-t1))
+
+    timeused = str(time.strftime('%H:%M:%S', time.gmtime(t2-t1)))
+    print('Total time elapsed: {}'.format(timeused))

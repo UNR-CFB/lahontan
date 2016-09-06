@@ -372,7 +372,7 @@ def findFinish(projectPath, originalPath):
         if len([name for name in os.listdir('.') if os.path.isfile(name)]) == numSamp:
             #textMe('+17756227884','This is sent from your python script; The first part of the \
             #        Pipeline has finished. Please return to computer')
-            print('At this point textMe would send you a text')
+            #print('At this point textMe would send you a text')
             os.chdir(projectPath)
             shutil.rmtree(projectPath + '/runPipeNotify')
             break

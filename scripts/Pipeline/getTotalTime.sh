@@ -50,4 +50,4 @@ postProcessingPath=$1
 dataPath=$2
 
 getTime "${postProcessingPath}" "${dataPath}"
-printTime "${postProcessingPath}"
+#printTime "${postProcessingPath}"
