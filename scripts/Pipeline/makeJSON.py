@@ -24,7 +24,12 @@ def getSampleInfo():
     featureNames = []
     for feature in range(numberofFeatures):
         featureNames.append(str(input('What is the name of feature #%d? '%(feature+1))))
-    mainFeature = str(input("What is the name of the main feature? "))
+    while True:
+        mainFeature = str(input("What is the name of the main feature? "))
+        if mainFeature not in featureNames:
+            print('Need a valid feature name.')
+        else:
+            break
 
     for sample in range(numberofSamples):
         SampleData['sample_%.2d'%(sample+1)] = {}

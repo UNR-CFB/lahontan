@@ -150,7 +150,9 @@ class Experiment:
 
     @funTime
     def createJsonMetadata(self):
+        print('Making Metadata file; require user input...')
         pipeUtils.createMetaData(self.Postprocessing)
+        print('Waiting for Pipeline to finish...')
 
     @funTime
     def createNiceCounts(self):
@@ -264,6 +266,7 @@ class Experiment:
         Run Pipeline
         '''
         self.deployPipe()
+        self.createJsonMetadata()
         self.findPipeFinish()
 
     @funTime
@@ -274,7 +277,6 @@ class Experiment:
         Prepare for DESeq2 Analysis
         '''
         print('Preparing for DESeq2...')
-        self.createJsonMetadata()
         self.createNiceCounts()
         self.getPipeTime()
         self.createRCounts()
