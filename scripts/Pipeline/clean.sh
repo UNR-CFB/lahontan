@@ -39,12 +39,27 @@ function cleanRef {
 
 function cleanSample {
 	local sample=$1
+    cd "${Data}/${sample}"
     if [ -d "${Data}"/"${sample}" ]; then
-        if [ -f "${Data}"/"${sample}"/*trim* ]; then
-	        rm "${Data}"/"${sample}"/*trim*
+        numero=$(echo * | wc -w)
+        if [ "${numero}" -eq 2 ]; then
+            :
+        else
+            pattern="${Data}/${sample}/*trim*"
+            files=( $pattern )
+            if [ -f "${files[0]}" ]; then
+	            rm "${Data}/${sample}"/*trim*
+            fi
+            if [ -d "${Data}/${sample}/fastqc.${sample}" ]; then
+                rm -rf "${Data}/${sample}/fastqc.${sample}"
+            fi
+            cd "${Data}/${sample}"
+            if [ "${numero}" -eq 2 ]; then
+                :
+            else
+                rm $(ls -I "*.gz")
+            fi
         fi
-        cd "${Data}/${sample}"
-        rm $(ls -I "*.gz")
     else
         echo "Invalid sample name: "${sample}""
     fi
