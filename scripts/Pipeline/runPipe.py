@@ -187,7 +187,7 @@ class Experiment:
 
     def checkX11(self):
         while True:
-            answer = input('Are you on a local X session or is X11 forwarding enabled? You wont be able to run DESeq without it...(y,n) '
+            answer = input('Are you on a local X session or is X11 forwarding enabled? You wont be able to run DESeq without it...(y,n) ')
             if answer == 'y':
                 print('Running...')
             elif answer == 'n':
