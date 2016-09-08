@@ -185,6 +185,18 @@ class Experiment:
     def findRFinish(self):
         pipeUtils.notifyEnding(self.Postprocessing)
 
+    def checkX11(self):
+        while True:
+            answer = input('Are you on a local X session or is X11 forwarding enabled? You wont be able to run DESeq without it...(y,n) '
+            if answer == 'y':
+                print('Running...')
+            elif answer == 'n':
+                print('Exiting now')
+                raise SystemExit
+            else:
+                print('Please answer y or n')
+            
+
     ################################################################
     # Cleaning Functions
     ################################################################
@@ -247,6 +259,8 @@ class Experiment:
 
         Prepare for Pipeline
         '''
+        if noconfirm == False:
+            self.checkX11()
         self.makeStructure()
         self.makeSyms()
 
