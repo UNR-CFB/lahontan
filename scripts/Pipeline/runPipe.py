@@ -1,18 +1,21 @@
 #!/usr/bin/python3
 
-'''Usage: runPipe.py [-h | --help] [-j <jsonFile> | --jsonfile <jsonFile>] [--noconfirm] [-c <placeToClean> | --clean <placeToClean>] [-s <sampleName> | --sampleclean <sampleName>] [--NUKE] [-r <runlogPath> | --runtime <runlogPath>] <pathtoInput>
+'''Usage: runPipe.py [-h | --help] [-j <jsonFile> | --jsonfile <jsonFile>]
+                    [--noconfirm] [-c <placeToClean> | --clean <placeToClean>]
+                    [-s <sampleName> | --sampleclean <sampleName>]
+                    [--NUKE] [-r <runlogPath> | --runtime <runlogPath>] <pathtoInput>
 
 Options:                                                                                           
-    -h --help                                       Show this screen and exit
-    -j <jsonFile>, --jsonfile <jsonFile>            Ignores JSON file creation and uses specified
+    -h --help                                  :    Show this screen and exit
+    -j <jsonFile>, --jsonfile <jsonFile>       :    Ignores JSON file creation and uses specified
                                                     path to JSON
-    --noconfirm                                     Ignore all user prompts except JSON file creation
-    -c <placeToClean>, --clean <placeToClean>       Cleans <placeToClean>: Possible places include:
+    --noconfirm                                :    Ignore all user prompts except JSON file creation
+    -c <placeToClean>, --clean <placeToClean>  :    Cleans <placeToClean>: Possible places include:
                                                     Reference, Data, Postprocessing, All
-    -s <sampleName>, --sampleclean <sampleName>     Similar to -c,--clean; but instead just cleans a
+    -s <sampleName>, --sampleclean <sampleName>:    Similar to -c,--clean; but instead just cleans a
                                                     single sample directory <sampleName>
-    --NUKE                                          Removes entire project Directory
-    -r <runlogPath>, --runtime <runlogPath>         Optional directory path for Runtime Log file to 
+    --NUKE                                     :    Removes entire project Directory
+    -r <runlogPath>, --runtime <runlogPath>    :    Optional directory path for Runtime Log file to 
                                                     be created in [default: $Project]
 '''
 
@@ -329,7 +332,6 @@ if __name__ == '__main__':
     noconfirm = arguments['--noconfirm']
     global JSFI
     JSFI = arguments['--jsonfile']
-
 
     # Handling --NUKE argument
     if arguments['--NUKE'] == True:
