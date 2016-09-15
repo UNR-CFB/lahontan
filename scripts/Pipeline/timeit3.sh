@@ -247,17 +247,18 @@ function main {
     > "${projectPath}/runPipeNotify/${sample}-done"
 }
 
-sample=$1
-Data=$2
-fastq=$3
-PROCS=$4
-Ref=$5
-Genome=$6
-basename=$7
-projectPath=$8
-Gtf=$9
-Read1=$(getReadNames.sh "${sample}" "${Data}" | awk 'NR==1{print $1}') #name of read1
-Read2=$(getReadNames.sh "${sample}" "${Data}" | awk 'NR==2{print $1}') #name of read2
 
-> "${Data}"/"${sample}"/Runtime."${sample}".log
-funTime main
+#sample=$1
+#Data=$2
+#fastq=$3
+#PROCS=$4
+#Ref=$5
+#Genome=$6
+#basename=$7
+#projectPath=$8
+#Gtf=$9
+#Read1=$(getReadNames.sh "${sample}" "${Data}" | awk 'NR==1{print $1}') #name of read1
+#Read2=$(getReadNames.sh "${sample}" "${Data}" | awk 'NR==2{print $1}') #name of read2
+#
+#> "${Data}"/"${sample}"/Runtime."${sample}".log
+#funTime main

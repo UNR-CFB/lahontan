@@ -270,22 +270,37 @@ def qcReference(referencePath,genomeName):
         print("{} not in {}".format(genomeName, referencePath))
         raise SystemExit
 
-    subprocess.run(["QCofRef.sh",referencePath,genomeName],check=True)
+    while True:
+        STOP = True
 
-    if noconfirm == False:
-        os.chdir(referencePath)
-        with open('Reference_Report.txt', 'r') as Report:
-            print(Report.read())
-        while True:
-            answer = str(input("Would you like to review your reference data?(y,n) "))
-            if answer == 'y':
-                print('See Reference_Report.txt to view initial Diagnostics;\
-                        exiting now')
-                raise SystemExit
-            elif answer == 'n':
-                break
-            else:
-                print('Please answer y or n')
+        subprocess.run(["QCofRef.sh",referencePath,genomeName],check=True)
+
+        if noconfirm == False:
+            os.chdir(referencePath)
+            with open('Reference_Report.txt', 'r') as Report:
+                print(Report.read())
+            while True:
+                answer = str(input("Would you like to review your reference data?(y,n) "))
+                if answer == 'y':
+                    print('See Reference_Report.txt to view initial Diagnostics')
+                    print('Pausing Pipeline.')
+                    while True:
+                        answer2 = input('Are you ready to run Diagnostics again?(y,n) ')
+                        if answer2 == 'y':
+                            STOP = False
+                            break
+                        elif answer2 == 'n':
+                            print('Pipeline still paused')
+                        else:
+                            print('Please answer y or n')
+                    break
+                elif answer == 'n':
+                    STOP = True
+                    break
+                else:
+                    print('Please answer y or n')
+        if STOP == True:
+            break
 
 ################################################################
 # Pre-Processing of Reference Data once QC complete
