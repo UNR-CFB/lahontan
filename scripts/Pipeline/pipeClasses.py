@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-'''Usage: runPipe.py [-h | --help] [-j <jsonFile> | --jsonfile <jsonFile>]
+'''Usage: pipeClasses.py [-h | --help] [-j <jsonFile> | --jsonfile <jsonFile>]
                     [--noconfirm] [-c <placeToClean> | --clean <placeToClean>]
                     [-s <sampleName> | --sampleclean <sampleName>]
                     [--NUKE] [-r <runlogPath> | --runtime <runlogPath>] <pathtoInput>
@@ -755,22 +755,7 @@ class Experiment:
 # Handling Command line arguments
 ################################################################
 
-if __name__ == '__main__':
-    #global RUNTIMELOG
-    #RUNTIMELOG='/home/alberton/testlog/Runtime.log'
-    #E = Experiment('/home/alberton/idealINPUT')
-    #E.runAll()
-    ##with Pool(48) as p:
-    ##    print(p.map(fa, [g for g in range(10)]))
-    ##E.dostuff()
-    ##pool = Pool(48)
-    ##read = pool.map(fa, [1,2,3,4,5])
-    ##pool.close()
-    ##print(read)
-
-    ##print('In development')
-    ##raise SystemExit
-
+def main():
     arguments = docopt(__doc__, version='Version 1.1\nAuthor: Alberto')
     t1 = timer()
 
@@ -859,3 +844,8 @@ if __name__ == '__main__':
 
     timeused = str(time.strftime('%H:%M:%S', time.gmtime(t2-t1)))
     print('Total time elapsed: {}'.format(timeused))
+
+################################################################
+
+if __name__ == '__main__':
+    main()
