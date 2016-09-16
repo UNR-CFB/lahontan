@@ -50,8 +50,19 @@ function cleanSample {
             if [ -f "${files[0]}" ]; then
 	            rm "${Data}/${sample}"/*trim*
             fi
-            if [ -d "${Data}/${sample}/fastqc.${sample}" ]; then
-                rm -rf "${Data}/${sample}/fastqc.${sample}"
+            pattern2="${Data}/${sample}/fastq*/"
+            files2=( ${pattern2} )
+            if [ -d "${files2[0]}" ]; then
+                #counter=$((counter+1))
+                counter=0
+                while true; do
+                    if [ -d "${files2[$counter]}" ]; then
+                        rm -rf "${files2[$counter]}"
+                        let counter++
+                    else
+                        break
+                    fi
+                done
             fi
             cd "${Data}/${sample}"
             if [ "${numero}" -eq 2 ]; then

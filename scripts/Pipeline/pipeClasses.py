@@ -25,8 +25,7 @@ Options:
 
 from docopt import docopt
 from timeit import default_timer as timer
-from multiprocessing import Pool
-from collections import namedtuple
+import multiprocessing
 import time
 import pipeUtils
 import os
@@ -102,6 +101,9 @@ def makeTimeFile(logPath):
     with open(logPath, 'w') as R:
         R.write('runPipe.py Runtime File\n-----------------------------------------\n\n')
 
+def unwrap_self_runSample(arg, **kwarg):
+    return Experiment.runSample(*arg, **kwarg)
+
 ################################################################
 # Defining Experiment Class
 ################################################################
@@ -160,10 +162,11 @@ class Experiment:
     def ppRef(self):
         print("Preprocessing Data...")
         pipeUtils.preProcessingReference(self.Reference, self.Cdna, self.Gtf, self.Genome, self.Basename)
+
     @funTime
     def createSampleClasses(self):
         Samples = [Experiment.Sample(n, self.inputPath) for n in range(1,self.getNumberofSamples() + 1)]
-        return Samples[0:2]
+        return Samples
 
     @funTime
     def runSample(self, sample):
@@ -171,25 +174,10 @@ class Experiment:
 
     @funTime
     def GO(self):
-        Samples = self.createSampleClasses()[0:2]
-        with Pool(48) as p:
+        self.makeNotifyFolder()
+        Samples = self.createSampleClasses()
+        with multiprocessing.Pool(self.Procs) as p:
             p.map(unwrap_self_runSample, zip([self]*len(Samples), Samples))
-
-    #@funTime
-    #def test(self):
-    #    Samples = self.createSampleClasses()[0:2]
-    #    with Pool(48) as p:
-    #        p.map(self.runSample, Samples)
-    #        print(p.map(unwrap_self, [g**2 for g in range(10)]))
-
-        ##'
-        ##1. Create all sample Classes
-        ##2. Run initial fastq and overrep for all Classes
-        ##3. If no overrep, let class continue to stage 2
-        ##4. If yes overrep, stop Class and tell it to review
-        ##5. When ready ask which class to restart qc
-        ##6. Repeat 2-6
-        ##7.
  
     @funTime
     def deployPipe(self):
@@ -248,6 +236,12 @@ class Experiment:
             else:
                 print('Please answer y or n')
             
+    def makeNotifyFolder(self):
+        if os.path.isdir(self.Project + '/runPipeNotify') == False:
+            os.mkdir(self.Project + '/runPipeNotify')
+        else:
+            shutil.rmtree(self.Project + '/runPipeNotify')
+            os.mkdir(self.Project + '/runPipeNotify')
 
     ################################################################
     # Cleaning Functions
@@ -378,9 +372,6 @@ class Experiment:
                                                 self.sampleName)
             if not os.path.exists(fastqcFolder):
                 os.makedirs(fastqcFolder)
-            #command1 = r'fastqc -t {0} -o {1} *.{2}.gz'.format(self.Procs,
-            #                                                    fastqcFolder,
-            #                                                    self.Fastq)
             command1 = r'fastqc -t {0} -o {1} {2} {3}'.format(self.Procs,
                                                                 fastqcFolder,
                                                                 self.Read1,
@@ -678,10 +669,13 @@ class Experiment:
             self.getNiceColumns()
             self.getAlignedColumn()
             self.writeFunctionTail('runPart2')
+            with open(self.Project + '/runPipeNotify/{}'.format('done'+self.sampleName), 'w') as N:
+                N.write('{} is done'.format(self.samplePath))
 
         def runParts(self):
             self.runPart1()
             self.runPart2()
+
     ################################################################
     ################################################################
 
@@ -716,6 +710,7 @@ class Experiment:
         Run Pipeline
         '''
         self.deployPipe()
+        self.GO()
         self.createJsonMetadata()
         self.findPipeFinish()
 
@@ -756,36 +751,25 @@ class Experiment:
     # End
     ################################################################
 
-    def dostuff(self):
-        pass
-        #self.test()
-        #self.createSampleClasses()
-        #S = Experiment.Sample(1,self.inputPath)
-        #S.runPart1()
-        #S.runPart2()
-
-def unwrap_self_runSample(arg, **kwarg):
-    return Experiment.runSample(*arg, **kwarg)
-
 ################################################################
 # Handling Command line arguments
 ################################################################
 
 if __name__ == '__main__':
-    global RUNTIMELOG
-    RUNTIMELOG='/home/alberton/testlog/Runtime.log'
-    E = Experiment('/home/alberton/idealINPUT')
-    E.run()
-    #with Pool(48) as p:
-    #    print(p.map(fa, [g for g in range(10)]))
-    #E.dostuff()
-    #pool = Pool(48)
-    #read = pool.map(fa, [1,2,3,4,5])
-    #pool.close()
-    #print(read)
+    #global RUNTIMELOG
+    #RUNTIMELOG='/home/alberton/testlog/Runtime.log'
+    #E = Experiment('/home/alberton/idealINPUT')
+    #E.runAll()
+    ##with Pool(48) as p:
+    ##    print(p.map(fa, [g for g in range(10)]))
+    ##E.dostuff()
+    ##pool = Pool(48)
+    ##read = pool.map(fa, [1,2,3,4,5])
+    ##pool.close()
+    ##print(read)
 
-    print('In development')
-    raise SystemExit
+    ##print('In development')
+    ##raise SystemExit
 
     arguments = docopt(__doc__, version='Version 1.1\nAuthor: Alberto')
     t1 = timer()
@@ -849,21 +833,24 @@ if __name__ == '__main__':
 
     PROJ = Experiment(arguments['<pathtoInput>'])
 
-    #global RUNTIMELOG
-    #if arguments['--runtime'] == '$Project':
-    #    RUNTIMELOG = str(PROJ.Project + '/Runtime.log')
-    #else:
-    #    if os.path.isdir(arguments['--runtime']) == False:
-    #        print('Need a valid directory to save Runtime file to')
-    #        raise SystemExit
-    #    else:
-    #        RUNTIMELOG = str(arguments['--runtime'] + '/Runtime.log')
+    global RUNTIMELOG
+    if arguments['--runtime'] == '$Project':
+        RUNTIMELOG = str(PROJ.Project + '/Runtime.log')
+    else:
+        if os.path.isdir(arguments['--runtime']) == False:
+            print('Need a valid directory to save Runtime file to')
+            raise SystemExit
+        else:
+            RUNTIMELOG = str(arguments['--runtime'] + '/Runtime.log')
 
 
     # Call for actually doing stuff
     ############################################################
     #
-    PROJ.runAll()
+    #PROJ.runAll()
+    PROJ.runStage3()
+    PROJ.runStage4()
+    PROJ.runStage5()
     #
     ############################################################
     #
