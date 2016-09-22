@@ -67,6 +67,17 @@ pdf('Simple_PCA.pdf')
 plotPCA(rld,intgroup='{5_mf}')
 dev.off()
 
+# Make Detailed regionReport
+dir.create('SimpleReport',showWarnings = FALSE,recursive = TRUE)
+report <- DESeq2Report(dds, project = 'DESeq2 Report',
+                        intgroup = c('{5_mf}'),
+                        outdir = 'SimpleReport',
+                        output = 'DESeq2Report',
+                        theme = theme_bw(),
+                        output_format='pdf_document',
+                        device='pdf')
+
+
 # Adjust DESeq Data Frame to include other features
 ddsAdj <- dds
 design(ddsAdj) <- formula(~ {6_formulalistplus})
@@ -86,11 +97,11 @@ publish(ddsAdj,RTReport,pvalueCutoff={8_pvaluecutoff},factor=ddsAdj${9_mf},
         reportDir="./ReportingToolsReport")
 finish(RTReport)
 
-# Make regionReport
-dir.create('regionReport',showWarnings = FALSE,recursive = TRUE)
+# Make Detailed regionReport
+dir.create('DetailedReport',showWarnings = FALSE,recursive = TRUE)
 report <- DESeq2Report(ddsAdj, project = 'DESeq2 Report',
                         intgroup = c({10_formulalistcomma}),
-                        outdir = 'regionReport',
+                        outdir = 'DetailedReport',
                         output = 'DESeq2Report',
                         theme = theme_bw(),
                         output_format='pdf_document',

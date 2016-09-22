@@ -23,6 +23,7 @@ import time
 import makeJSON
 import makeCols
 import makeReportr
+import makeEdgeReport
 
 ################################################################
 # Useful Utilities
@@ -503,6 +504,19 @@ def createRScript(postProcessingPath,jsonName='Metadata.json',rName='makeReport.
     os.chdir(postProcessingPath)
     makeReportr.createRscript(makeCols.readJSON(jsonName),rName)
 
+def createEdgeRScript(postProcessingPath,jsonName='Metadata.json',rName='makeEdge.r'):
+    ''' Arguments:
+            postProcessingPath = string; path to the Postprocessing Directory
+        Returns:
+            None; Creates makeEdge.r
+    '''
+    if os.path.isdir(postProcessingPath) == False:
+        print("Path is not a directory:\n{}".format(postProcessingPath))
+        raise SystemExit
+
+    os.chdir(postProcessingPath)
+    makeEdgeReport.createEdgeR(makeCols.readJSON(jsonName),rName)
+
 ################################################################
 # Running DESeq2
 ################################################################
@@ -552,85 +566,32 @@ def notifyEnding(postProcessingPath):
         else:
             time.sleep(30)
 
+def makeEdgeRreport(postProcessingPath):
+    ''' Arguments:
+            postProcessingPath = string; path to Postprocessing Directory
+        Returns:
+            None; Creates R reports
+    '''
+    if noconfirm == False:
+        if os.path.isdir(postProcessingPath) == False:
+            print("Path is not a directory:\n{}".format(postProcessingPath))
+            raise SystemExit
+        if 'totalTime.dat' not in os.listdir(postProcessingPath):
+            print("{} is not in {}".format('totalTime.dat',postProcessingPath))
+            raise SystemExit
+        if 'Cols.dat' not in os.listdir(postProcessingPath):
+            print("{} is not in {}".format('Cols.dat',postProcessingPath))
+            raise SystemExit
+        if 'Counts.dat' not in os.listdir(postProcessingPath):
+            print("{} is not in {}".format('Counts.dat',postProcessingPath))
+            raise SystemExit
+        if 'makeReport.r' not in os.listdir(postProcessingPath):
+            print("{} is not in {}".format('makeReport.r',postProcessingPath))
+            raise SystemExit
 
-#################################################################
-#def exportVariablesforClass(pathtoInput):
-#    ''' Arguments:
-#        Returns:
-#    '''
-#    Project, Reference, Original = sourceInput(pathtoInput)
-#    Gtf, Cdna, Genome = getReferenceVariables(Reference)
-#    Basename = getBasename(Genome)
-#    Fastq = getFastq(Original)
-#    Procs = countCPU()
-#    Variables = {
-#            "Projectpath": Project,
-#            "ogReference": Reference,
-#            "ogOriginal": Original,
-#            "Gtf": Gtf,
-#            "Cdna": Cdna,
-#            "Genome": Genome,
-#            "Basename": Basename,
-#            "Fastq": Fastq,
-#            "Procs": Procs
-#            }
-#    return Variables
-#
-#class Experiment:
-#    def __init__(self, inputPath):
-#        variables = exportVariablesforClass(inputPath)
-#        self.Project = variables["Projectpath"]
-#        self.ogReference = variables["ogReference"]
-#        self.ogOriginal = variables["ogOriginal"]
-#        self.Reference = str(variables["Projectpath"] + '/Reference')
-#        self.Original = str(variables["Projectpath"] + '/Original')
-#        self.Data = str(variables["Projectpath"] + '/Data')
-#        self.Postprocessing = str(variables["Projectpath"] + '/Reference')
-#        self.Gtf = str(variables["Gtf"])
-#        self.Cdna = str(variables["Cdna"])
-#        self.Genome = str(variables["Genome"])
-#        self.Basename = str(variables["Basename"])
-#        self.Fastq = str(variables["Fastq"])
-#        self.Procs = int(variables["Procs"])
-#    def __repr__(self):
-#        return 'Experiment(%r)'%(self.Project)
-#    ###############################################################
-#    # Utilities
-#    ###############################################################
-#    def getNumberofSamples(self):
-#        if getNumberofFiles(self.ogOriginal)%2 != 0:
-#            print('There are not an even number of files in {}'.format(self.ogOriginal))
-#        else:
-#            numSamp = getNumberofFiles(self.ogOriginal)/2
-#        return int(numSamp)
-#    def makeStructure(self):
-#        createStructure(self.Project, self.ogOriginal)
-#    def makeSyms(self):
-#        createSymLinks(self.Project, self.ogOriginal, self.ogReference)
-#    def qcRef(self):
-#        qcReference(self.Reference, self.Genome)
-#    def ppRef(self):
-#        preProcessingReference(self.Reference, self.Cdna, self.Gtf, self.Genome, self.Basename)
-#    def deployPipe(self):
-#        runPipe(self.Data, self.Fastq, self.Procs, self.Reference,\
-#                self.Genome, self.Basename, self.Project, self.Gtf)
-#    def findPipeFinish(self):
-#        findFinish(self.Project, self.ogOriginal)
-#    def createJsonMetadata(self):
-#        createMetaData(self.Postprocessing)
-#    def createNiceCounts(self):
-#        makeNiceCounts(self.Postprocessing, self.Data)
-#    def getPipeTime(self):
-#        makeTotalTime(self.Postprocessing, self.Data)
-#    def createRCounts(self):
-#        createCountFile(self.Postprocessing)
-#    def createRCols(self):
-#        createColumnFile(self.Postprocessing)
-#    def createRProgram(self):
-#        createRScript(self.Postprocessing)
-#    def runRProgram(self):
-#        makeRreports(self.Postprocessing)
-################################################################
+    subprocess.run(["runEdgeR.sh",postProcessingPath],check=True)
+
+###############################################################
 def Main(pathtoInput):
     ''' Arguments:
             pathtoInput = string; path to INPUT file
@@ -650,7 +611,6 @@ def Main(pathtoInput):
     createColumnFile(Project + '/Postprocessing')
     createCountFile(Project + '/Postprocessing')
     createRScript(Project + '/Postprocessing')
-    # TODO check for X11 forwarding
     makeRreports(Project + '/Postprocessing')
     notifyEnding(Project + '/Postprocessing')
 

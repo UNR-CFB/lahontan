@@ -214,10 +214,12 @@ class Experiment:
     @funTime
     def createRProgram(self):
         pipeUtils.createRScript(self.Postprocessing)
-        
+        pipeUtils.createEdgeRScript(self.Postprocessing)
+
     @funTime
     def runRProgram(self):
         print("R program is running...")
+        pipeUtils.makeEdgeRreport(self.Postprocessing)
         pipeUtils.makeRreports(self.Postprocessing)
 
     @funTime
@@ -756,7 +758,7 @@ class Experiment:
 ################################################################
 
 def main():
-    arguments = docopt(__doc__, version='Version 1.1\nAuthor: Alberto')
+    arguments = docopt(__doc__, version='Version 0.99\nAuthor: Alberto')
     t1 = timer()
 
     global noconfirm

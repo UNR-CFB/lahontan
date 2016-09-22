@@ -34,7 +34,7 @@ import os
 ################################################################
 
 def main():
-    arguments = docopt(__doc__, version='Version 1.0\nAuthor: Alberto')
+    arguments = docopt(__doc__, version='Version 0.99\nAuthor: Alberto')
     t1 = timer()
 
     global noconfirm
