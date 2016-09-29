@@ -110,11 +110,6 @@ detach("package:edgeR")
 detach("package:ggplot2")
 detach("package:regionReport")
 detach("package:docopt")
-
-# Make file to notify when done
-fileConn <- file("FINISHED.txt")
-writeLines("We are finished", fileConn)
-close(fileConn)
 """
     Combination, GLM, RRN, mf = getContext(jsontoRead)
     Context = {

@@ -82,9 +82,11 @@ function makeStructure {
         	mkdir "${Postprocessing}"
         fi
 
-        for number in `seq -f "%02g" 1 "${numSamp}"`; do
-        	mkdir "${Data}"/sample_$number
-        done
+        if [ ! -d "${Data}/sample_01" ]; then
+            for number in `seq -f "%02g" 1 "${numSamp}"`; do
+            	mkdir "${Data}"/sample_$number
+            done
+        fi
     fi
 }
 

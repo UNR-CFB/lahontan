@@ -32,6 +32,7 @@ import os
 import subprocess
 import shutil
 import glob
+import json
 
 ################################################################
 # Utilities
@@ -42,6 +43,8 @@ def exportVariablesforClass(pathtoInput):
             pathtoInput = string; path to INPUT file
         Returns:
             Variables
+
+        Gathers instance variables for Experiment Class
     '''
     Project, Reference, Original = pipeUtils.sourceInput(pathtoInput)
     Gtf, Cdna, Genome = pipeUtils.getReferenceVariables(Reference)
@@ -62,7 +65,13 @@ def exportVariablesforClass(pathtoInput):
     return Variables
 
 def checkJSON(jsonFile):
-    import json
+    ''' Arguments:
+            jsonFile = string; path to JSON file
+        Returns:
+            None
+
+        Tests if JSON file has correct syntax
+    '''
     with open(jsonFile) as JF:
         try:
             json.load(JF)
@@ -72,36 +81,36 @@ def checkJSON(jsonFile):
             raise SystemExit
 
 def funTime(function):
+    ''' Arguments:
+            None
+        Returns:
+            None
+
+        Wrapper to time a function and write into RUNTIMELOG
+    '''
     def wrapper(*args):
         t1 = timer()
         stuff = function(*args)
         t2 = timer()
         with open(RUNTIMELOG, 'a') as R:
-            R.write('{} function took {:.3f} seconds\n'.format(function.__name__, t2 - t1))
+            R.write('{} function took {:.3f} seconds\n'.format(
+                                    function.__name__, t2 - t1))
         return stuff
     return wrapper
 
-#def funTimeN(logName):
-#    def Timer(function):
-#        def Wrapper(*args,**kwargs):
-#            with open(logName, 'a') as R:
-#                R.write('{} function started\n'.format(function.__name__))
-#            t1 = timer()
-#            stuff = function(*args)
-#            t2 = timer()
-#            with open(logName, 'a') as R:
-#                R.write('{} function took {:.3f} seconds\n'.format(function.__name__, t2 - t1))
-#                R.write('{} function finished\n'.format(function.__name__))
-#            return stuff
-#        return Wrapper
-#    return Timer
-
-
 def makeTimeFile(logPath):
+    ''' Arguments:
+            logPath = string; path to log file
+        Returns:
+            None
+
+        Initializes log file
+    '''
     with open(logPath, 'w') as R:
         R.write('runPipe.py Runtime File\n-----------------------------------------\n\n')
 
 def unwrap_self_runSample(arg, **kwarg):
+    ''' Magic for multiprocessing '''
     return Experiment.runSample(*arg, **kwarg)
 
 ################################################################
@@ -109,11 +118,19 @@ def unwrap_self_runSample(arg, **kwarg):
 ################################################################
 
 class Experiment:
-    ''' Experiment is a Paired-End Sequencing Experiment.
+    ''' Experiment is a Paired-End RNA Sequencing Experiment.
         This class provides tools to analyze data
     '''
 
     def __init__(self, inputPath):
+        ''' Arguments:
+                inputPath = string; path to INPUT file
+            Returns:
+                None
+
+            Initializes variables that get scraped from 
+            exportVariablesforClass(inputPath)
+        '''
         variables = exportVariablesforClass(inputPath)
         self.Project = variables["Projectpath"]
         self.ogReference = variables["ogReference"]
@@ -131,6 +148,15 @@ class Experiment:
         self.inputPath = str(inputPath)
 
     def __repr__(self):
+        ''' Arguments:
+                None
+            Returns:
+                A string representation of class
+                ex: >print(Experiment)
+                        Experiment('/path/to/Project')
+
+            Creates a string representation of class
+        '''
         return 'Experiment(%r)'%(self.Project)
 
     ###############################################################
@@ -138,95 +164,292 @@ class Experiment:
     ###############################################################
 
     def getNumberofSamples(self):
+        ''' Arguments:
+                None
+            Returns:
+                numSamp = int; The number of samples in experiment
+
+            Finds number of samples in Experiment by counting number
+            of files in the Original Data folder and dividing by 2
+            because there are 2 reads to a sample
+        '''
         if pipeUtils.getNumberofFiles(self.ogOriginal)%2 != 0:
-            print('There are not an even number of files in {}'.format(self.ogOriginal))
+            print('There are not an even number of files in {}'.format(
+                                                    self.ogOriginal))
         else:
             numSamp = pipeUtils.getNumberofFiles(self.ogOriginal)/2
         return int(numSamp)
+    
+    def checkStructure(self):
+        ''' Arguments:
+                None
+            Returns:
+                A boolean {
+                        True : if .init file exists and contains
+                                an 'S' meaning the Project Structure
+                                has been created
+                        False : otherwise}
 
+            Checks to see if directory structure has been made by checking
+            if there is an 'S' in '.init' which is in the Project folder.
+            The 'S' is added after pipeUtils.createSymLinks has completed
+        '''
+        if os.path.exists(self.Project + '/.init'):
+            with open(self.Project + '/.init', 'r') as f:
+                G = f.read()
+            if 'S' in G:
+                return True
+        return False
+
+    def checkReference(self):
+        ''' Arguments:
+                None
+            Returns:
+                A boolean {
+                        True : if .init file exists and contains
+                                an 'P' meaning Reference Data has been
+                                processed
+                        False : otherwise}
+
+            Checks to see if reference data has been processed by checking
+            if there is a 'P' in '.init' which is in the Project folder.
+            The 'P' is added after pipeUtils.preProcessingReference has completed
+        '''
+ 
+        if os.path.exists(self.Project + '/.init'):
+            with open(self.Project + '/.init', 'r') as f:
+                G = f.read()
+            if 'P' in G:
+                return True
+        return False
+
+    # @funTime is just a wrapper that times function
     @funTime
     def makeStructure(self):
-        print("Creating Structure...")
-        pipeUtils.createStructure(self.Project, self.ogOriginal)
-        makeTimeFile(RUNTIMELOG)
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.createStructure to make Directory Structure
+        '''
+        if self.checkStructure() == False:
+            print("Creating Structure...")
+            pipeUtils.createStructure(self.Project,
+                                        self.ogOriginal)
+            makeTimeFile(RUNTIMELOG)
 
     @funTime
     def makeSyms(self):
-        pipeUtils.createSymLinks(self.Project, self.ogOriginal, self.ogReference)
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.createSymLinks to make Symbolic Links for
+            Original Data, Reference Data; and Metadata if available
+        '''
+        if self.checkStructure() == False:
+            pipeUtils.createSymLinks(self.Project,
+                                        self.ogOriginal,
+                                        self.ogReference)
         
     @funTime
     def qcRef(self):
-        pipeUtils.qcReference(self.Reference, self.Genome)
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.qcReference to make Reference_Report.txt in Reference
+            Folder
+        '''
+        if self.checkReference() == False:
+            pipeUtils.qcReference(self.Reference,
+                                    self.Genome)
 
     @funTime
     def ppRef(self):
-        print("Preprocessing Data...")
-        pipeUtils.preProcessingReference(self.Reference, self.Cdna, self.Gtf, self.Genome, self.Basename)
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.preProcessingReference to Pre-Process Reference Data
+        '''
+        if self.checkReference() == False:
+            print("Preprocessing Data...")
+            pipeUtils.preProcessingReference(self.Reference,
+                                                self.Cdna,
+                                                self.Gtf,
+                                                self.Genome,
+                                                self.Basename)
 
     @funTime
     def createSampleClasses(self):
-        Samples = [Experiment.Sample(n, self.inputPath) for n in range(1,self.getNumberofSamples() + 1)]
+        ''' Arguments:
+                None
+            Returns:
+                Samples = list; list contains Sample Classes
+
+            Creates all Sample Classes necessary and returns them in a list
+            Number of samples is based on self.getNumberofSamples() function
+        '''
+        Samples = [Experiment.Sample(n, self.inputPath) for n 
+                in range(1,self.getNumberofSamples() + 1)]
         return Samples
 
     @funTime
     def runSample(self, sample):
+        ''' Arguments:
+                sample = class; runs pipeline on sample
+            Returns:
+                None
+
+            Function calls Sample class function runParts()
+            Function used in multiprocessing as map function on 
+                self.createSampleClasses() list
+        '''
         sample.runParts()
 
     @funTime
     def GO(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Uses python multiprocessing to distribute sample analysis to
+            CPUs
+        '''
         self.makeNotifyFolder()
         Samples = self.createSampleClasses()
         with multiprocessing.Pool(self.Procs) as p:
             p.map(unwrap_self_runSample, zip([self]*len(Samples), Samples))
  
     @funTime
-    def deployPipe(self):
-        print("Pipeline is running...")
-
-    @funTime
     def findPipeFinish(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.findFinish() to figure out when self.GO()
+            function has finished analysis on all samples
+        '''
         pipeUtils.findFinish(self.Project, self.ogOriginal)
 
     @funTime
     def createJsonMetadata(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.createMetaData() to make JSON file if not already
+            provided
+        '''
         print('Making Metadata file; require user input...')
         pipeUtils.createMetaData(self.Postprocessing)
         print('Waiting for Pipeline to finish...')
 
     @funTime
     def createNiceCounts(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.makeNiceCounts() to make the composite counts file
+            with length column; Not used for my R analysis
+        '''
         pipeUtils.makeNiceCounts(self.Postprocessing, self.Data)
 
     @funTime
     def getPipeTime(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.makeTotalTime() to scrape Sample times from
+            respective sample Runtime.log files
+        '''
         pipeUtils.makeTotalTime(self.Postprocessing, self.Data)
 
     @funTime
     def createRCounts(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.createCountFile() to make the Count file(Counts.dat)
+            that works in my R analysis 
+        '''
         os.chdir(self.Postprocessing)
         pipeUtils.createCountFile(self.Postprocessing)
 
     @funTime
     def createRCols(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.createColumnFile() to make column file(Cols.dat)
+            that describes Experiment. Uses Metadata JSON file for this
+        '''
         os.chdir(self.Postprocessing)
         pipeUtils.createColumnFile(self.Postprocessing)
 
     @funTime
     def createRProgram(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.createRScript() and pipeUtils.createEdgeRScript()
+            to make DESeq2 R analysis program and edgeR analysis program
+        '''
         pipeUtils.createRScript(self.Postprocessing)
         pipeUtils.createEdgeRScript(self.Postprocessing)
 
     @funTime
     def runRProgram(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.makeEdgeRreport() and pipeUtils.makeRreports()
+            to create DESeq2 and edgeR reports
+        '''
         print("R program is running...")
         pipeUtils.makeEdgeRreport(self.Postprocessing)
         pipeUtils.makeRreports(self.Postprocessing)
 
     @funTime
     def findRFinish(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.notifyEnding() to figure out when self.runRProgram()
+            has finished making reports
+        '''
         pipeUtils.notifyEnding(self.Postprocessing)
 
     def checkX11(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Asks user if X server is available. Required for R stuff.
+        '''
         while True:
             answer = input('Are you on a local X session or is X11 forwarding enabled? You wont be able to run DESeq without it...(y,n) ')
             if answer == 'y':
@@ -239,6 +462,15 @@ class Experiment:
                 print('Please answer y or n')
             
     def makeNotifyFolder(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Initializes notification folder that is used to determine when
+            Pipeline has finished running
+            'runPipeNotify/' in self.Project
+        '''
         if os.path.isdir(self.Project + '/runPipeNotify') == False:
             os.mkdir(self.Project + '/runPipeNotify')
         else:
@@ -257,6 +489,9 @@ class Experiment:
                 sampleName = string; name of Sample to be cleaned
             Returns:
                 None; cleans directories
+
+            Cleaning function for Experiment.
+            See runPipe.py --help for help
         '''
         assert type(thingToClean) == str, '{} is not a valid argument'.format(thingToClean)
         if thingToClean == 'Reference':
@@ -281,8 +516,12 @@ class Experiment:
             subprocess.run(['clean.sh',arg, self.Genome, self.Cdna, self.Gtf, self.Reference, self.Data, self.Postprocessing],check=True)
 
     def nukeProject(self):
-        '''
-        Removes entire Project Directory Structure
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Removes entire Project Directory Structure
         '''
         if noconfirm == True:
             shutil.rmtree(self.Project)
@@ -305,9 +544,21 @@ class Experiment:
     ################################################################
 
     class Sample:
-        '''For a specific sample: run analyses'''
+        '''
+        For a specific sample: run analyses
+        Inherits from Experiment Parent Class
+        '''
 
         def __init__(self,sampleNumber,inputFile):
+            ''' Arguments:
+                    sampleNumber = int; sample number used for naming
+                    inputFile = str; path to inputFile
+                Returns:
+                    None
+
+                Initializes class variables from Parent class and also
+                initializes some sample specific variables
+            '''
             Experiment.__init__(self,inputFile)
             assert sampleNumber <= Experiment.getNumberofSamples(self)
             assert sampleNumber > 0
@@ -316,7 +567,17 @@ class Experiment:
             self.Read1 = self.getReadNames()[0]
             self.Read2 = self.getReadNames()[1]
             self.logPath = '{}/Runtime.{}.log'.format(self.samplePath, self.sampleName)
+
         def __repr__(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    String representation print
+                    ex: >print(Sample)
+                            Sample(sample_01)
+
+                Returns string representation of class
+            '''
             return 'Sample(%r)'%(self.sampleName)
 
         ########################################################
@@ -337,6 +598,13 @@ class Experiment:
             return correctCommand
 
         def getHostname(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    None
+
+                Writes to host.txt the hostname
+            '''
             hostFile = '{}/host.txt'.format(self.samplePath)
             command = ['hostname']
             with open(hostFile,'w') as host:
@@ -345,20 +613,60 @@ class Experiment:
                                         check=True)
 
         def getReadNames(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    files = list; contains read1 and read2 original
+                            data for sample
+
+                Finds the name of the original data names and returns
+                them in a list
+            '''
             files = sorted([os.path.basename(thing) for thing in glob.glob(self.samplePath + '/*.gz')])
             return files
 
         def writeToLog(self, message):
+            ''' Arguments:
+                    message = str; a line to be written to specific sample
+                                Runtime.log
+                Returns:
+                    None
+
+                Writes to sample log a string(message)
+            '''
             with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'a') as LOG:
                 LOG.write(message)
 
         def writeFunctionHeader(self, function):
+            ''' Arguments:
+                    function = str; name of function
+                Returns:
+                    None
+
+                Calls self.writeToLog with name of function
+                Used to identify specific function output and times
+            '''
             self.writeToLog('\n{} started\n\n'.format(function))
 
         def writeFunctionTail(self, function):
+            ''' Arguments:
+                    function = str; name of function
+                Returns:
+                    None
+
+                Calls self.writeToLog with name of function
+                Used to identify specific function output and times
+            '''
             self.writeToLog('\n{} done\n\n'.format(function))
 
         def initializeLog(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    None
+                
+                Initializes sample log
+            '''
             os.chdir(self.samplePath)
             with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'w') as LOG:
                 LOG.write('\t\tRuntime Log for {}\n'.format(sampleName))
@@ -368,7 +676,16 @@ class Experiment:
         # Quality Control
         ########################################################
 
-        def runFastqc(self,runNumber):
+        def runFastqc(self,runNumber,read1,read2):
+            ''' Arguments:
+                    runNumber = int; trial number for QC
+                    read1 = str; first read to run fastQC on
+                    read2 = str; second read to run fastQC on
+                Returns:
+                    None
+
+                Runs fastQC on read1 and read2
+            '''
             fastqcFolder = '{}/fastqc{}.{}'.format(self.samplePath,
                                                 int(runNumber),
                                                 self.sampleName)
@@ -376,8 +693,8 @@ class Experiment:
                 os.makedirs(fastqcFolder)
             command1 = r'fastqc -t {0} -o {1} {2} {3}'.format(self.Procs,
                                                                 fastqcFolder,
-                                                                self.Read1,
-                                                                self.Read2)
+                                                                read1,
+                                                                read2)
             command2 = r'unzip \*.zip'.format(fastqcFolder)
             goodCommand1 = self.formatCommand(command1)
             goodCommand2 = self.formatCommand(command2)
@@ -393,6 +710,13 @@ class Experiment:
                                 check=True)
 
         def getPhred(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    phred = int; Phred Version Number
+
+                Scrapes Phred Version Number from fastqc output
+            '''
             fastqcFolder = '{}/fastqc1.{}'.format(self.samplePath, self.sampleName)
             os.chdir(glob.glob('{}/*/'.format(fastqcFolder))[0])
             command = r"grep -E 'Encoding' fastqc_data.txt | sed 's/[^0-9.]*//g'"
@@ -409,6 +733,14 @@ class Experiment:
             return phred
 
         def findOverrepSeq(self,runNumber):
+            ''' Arguments:
+                    runNumber = int; trial number for QC
+                Returns:
+                    None
+                
+                Scrapes Overrepresented Sequences from Fastqc output
+                and writes to a file in sample fastqc directory
+            '''
             fastqcFolder = '{}/fastqc{}.{}'.format(self.samplePath, runNumber, self.sampleName)
             os.chdir(fastqcFolder)
             availableDirs = glob.glob('{}/*/'.format(fastqcFolder))
@@ -428,15 +760,30 @@ class Experiment:
                     LOG.write('There are {} overrepresented sequence in {}'.format(thing,
                                 str('{}/{}'.format(fastqcFolder, directory))))
 
-        def runQCheck(self, runNumber):
-            self.runFastqc(runNumber)
+        def runQCheck(self, runNumber, read1, read2):
+            ''' Arguments:
+                    runNumber = int; trial number for QC
+                    read1 = str; first read to run fastQC on
+                    read2 = str; second read to run fastQC on
+                Returns:
+                    None
+
+                Packages self.runFastqc and self.findOverrepSeq together
+            '''
+            self.runFastqc(runNumber, read1, read2)
             self.findOverrepSeq(runNumber)
 
         def runTrimmomatic(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    None
+
+                Runs Trimmomatic on read1 and read2
+            '''
             os.chdir(self.samplePath)
             Phred = self.getPhred()
             Reads = self.getReadNames()
-
             # Making Command
             command = r'java -jar $RNASEQDIR/Trimmomatic/trimmomatic-0.35.jar PE -threads {procs} -phred{phred} {Read1} {Read2} read1.P.trim.{fastq}.gz read1.U.trim.{fastq}.gz read2.P.trim.{fastq}.gz read2.U.trim.{fastq}.gz ILLUMINACLIP:$RNASEQDIR/Trimmomatic/adapters/TruSeq3-PE-2.fa:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:5 MINLEN:25'
             Context = {
@@ -448,48 +795,56 @@ class Experiment:
                     }
             commandWithContext = command.format(**Context)
             goodCommand = self.formatCommand(commandWithContext)
-
             # Executing
             os.chdir(self.samplePath)
             subprocess.run(goodCommand,
                                 shell=True,
                                 check=True)
 
-        def smartQC(self):
-            os.chdir(self.samplePath)
-            run = 1
-            while True:
-                STOP = False
-                self.runFastqc(run)
-                self.findOverrepSeq(run)
-                while True:
-                    print('Pipeline paused. You should review sample {}'.format(self.sampleName))
-                    answer1 = input("Are you ready to run Trimmomatic on {}?(y,n) ".format(self.sampleName))
-                    if answer1 == 'y':
-                        self.runTrimmomatic()
-                        run += 1
-                        break
-                    elif answer1 == 'n':
-                        answer2 = input("Would you like to proceed to Stage 2?(y,n) ")
-                        if answer2 == 'y':
-                            break
-                        elif answer2 == 'n':
-                            answer3 = input("Would you like to run QC again?(y,n) ")
-                        else:
-                            print('Please answer y or n')
-                    else:
-                        print('Please answer y or n')
-                if STOP == True:
-                    break
+        #def smartQC(self):
+        #    os.chdir(self.samplePath)
+        #    run = 1
+        #    while True:
+        #        STOP = False
+        #        self.runFastqc(run)
+        #        self.findOverrepSeq(run)
+        #        while True:
+        #            print('Pipeline paused. You should review sample {}'.format(self.sampleName))
+        #            answer1 = input("Are you ready to run Trimmomatic on {}?(y,n) ".format(self.sampleName))
+        #            if answer1 == 'y':
+        #                self.runTrimmomatic()
+        #                run += 1
+        #                break
+        #            elif answer1 == 'n':
+        #                answer2 = input("Would you like to proceed to Stage 2?(y,n) ")
+        #                if answer2 == 'y':
+        #                    break
+        #                elif answer2 == 'n':
+        #                    answer3 = input("Would you like to run QC again?(y,n) ")
+        #                else:
+        #                    print('Please answer y or n')
+        #            else:
+        #                print('Please answer y or n')
+        #        if STOP == True:
+        #            break
 
         def runPart1(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    None
+
+                Runs Fastqc once, then Trimmomatic, and then fastqc again
+            '''
+            #TODO Fix this to desired behavior
             os.chdir(self.samplePath)
             with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'w') as LOG:
                 LOG.write('\t\tRuntime Log Part 1 for {}\n'.format(self.sampleName))
                 LOG.write('----------------------------------------\n\n')
-            self.runQCheck(1)
+            self.runQCheck(1, self.Read1, self.Read2)
             self.runTrimmomatic()
-            self.runQCheck(2)
+            self.runQCheck(2, 'read1.P.trim.{}.gz'.format(self.Fastq),
+                                'read2.P.trim.{}.gz'.format(self.Fastq))
             self.writeFunctionTail('runPart1')
 
         ########################################################
@@ -497,6 +852,13 @@ class Experiment:
         ########################################################
 
         def runSeqtk(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    None
+
+                Runs seqtk on reads from trimmomatic
+            '''
             self.writeFunctionHeader('runSeqtk')
             # Making Command
             command1 = r'seqtk sample -s100 read1.P.trim.{0}.gz 10000 | seqtk seq -A - > sampled.read1.fa'.format(
@@ -516,6 +878,13 @@ class Experiment:
             self.writeFunctionTail('runSeqtk')
 
         def runBlastn(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    None
+
+                Runs Blastn on seqtk output
+            '''
             self.writeFunctionHeader('runBlastn')
             # Making Command
             db = self.Reference + '/' + self.Basename + '.cdna.all'
@@ -534,6 +903,16 @@ class Experiment:
             self.writeFunctionTail('runBlastn')
 
         def findStranded(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    Boolean:{
+                                True: if data is stranded
+                                False: if data is not stranded
+                            }
+                Runs stranded_classifier.py and then scrapes output
+                to determine if data is stranded or not
+            '''
             # Running stranded_classifier.py
             # Making Command
             with open('{}/Runtime.{}.log'.format(self.samplePath,
@@ -565,9 +944,15 @@ class Experiment:
                 return False
             else:
                 print('There was an error with findStranded')
-                raise SystemExit
 
         def runHisat(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    None
+
+                Runs hisat2 on data
+            '''
             self.writeFunctionHeader('runHisat')
             # hisat2 manual line 553
             # Making Command
@@ -591,6 +976,13 @@ class Experiment:
             self.writeFunctionTail('runHisat')
 
         def runCompression(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    None
+
+                Compresses output of hisat2 with samtools
+            '''
             self.writeFunctionHeader('runCompression')
             # Making Command
             command = r"samtools view -bT {ref}/{genome} -@{procs} aligned.{sample}.sam -o aligned.{sample}.bam"
@@ -611,6 +1003,13 @@ class Experiment:
             self.writeFunctionTail('runCompression')
 
         def runFeatureCounts(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    None
+
+                Collects counts from data with featureCounts
+            '''
             self.writeFunctionHeader('runFeatureCounts')
             # Making Command
             command = r"featureCounts -T {procs} -p -C --primary --ignoreDup -t exon -g gene_id -a {ref}/{gtf} -o aligned.{sample}.counts aligned.{sample}.bam"
@@ -629,6 +1028,13 @@ class Experiment:
             self.writeFunctionTail('runFeatureCounts')
 
         def getNiceColumns(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    None
+
+                Scrapes featureCounts output for gene id, length of gene, and count
+            '''
             self.writeFunctionHeader('getNiceColumns')
             # Making Command
             command = r'''tail -n +2 aligned.{sample}.counts | awk '{{printf ("%5s\t%s\t%s\n", $1, $6, $7)}}' > aligned.{sample}.counts.three'''
@@ -642,6 +1048,13 @@ class Experiment:
             self.writeFunctionTail('getNiceColumns')
 
         def getAlignedColumn(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    None
+
+                Scrapes featureCounts output to get count column
+            '''
             self.writeFunctionHeader('getAlignedColumn')
             # Making Command
             command = r'''tail -n +2 aligned.{sample}.counts | awk '{{print $7}}' > aligned.{sample}.counts.one'''
@@ -655,9 +1068,13 @@ class Experiment:
             self.writeFunctionTail('getAlignedColumn')
 
         def runPart2(self):
-            '''
-            Should be relatively smooth, meaning should not need
-            user input
+            ''' Arguments:
+                    None
+                Returns:
+                    None
+
+                Runs Pipeline sequentially
+                Note: Does not include Quality control steps: Fastqc and trimmomatic
             '''
             os.chdir(self.samplePath)
             with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'a') as LOG:
@@ -675,11 +1092,19 @@ class Experiment:
                 N.write('{} is done'.format(self.samplePath))
 
         def runParts(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    None
+
+                Run QC and Pipeline part sequentially
+            '''
             self.runPart1()
             self.runPart2()
 
-    ################################################################
-    ################################################################
+        ########################################################
+        # End of Experiment class
+        ########################################################
 
     ################################################################
     # Stage Run Functions
@@ -711,7 +1136,7 @@ class Experiment:
 
         Run Pipeline
         '''
-        self.deployPipe()
+        print("Pipeline is running...")
         self.GO()
         self.createJsonMetadata()
         self.findPipeFinish()
@@ -741,7 +1166,7 @@ class Experiment:
     @funTime
     def runAll(self):
         '''
-        Runs Stage 1 through Stage 4
+        Runs Stage 1 through Stage 5
         '''
         self.runStage1()
         self.runStage2()
@@ -750,7 +1175,7 @@ class Experiment:
         self.runStage5()
 
     ################################################################
-    # End
+    # End of Experiment class
     ################################################################
 
 ################################################################
@@ -758,6 +1183,10 @@ class Experiment:
 ################################################################
 
 def main():
+    '''
+    USE runPipe.py
+    '''
+        
     arguments = docopt(__doc__, version='Version 0.99\nAuthor: Alberto')
     t1 = timer()
 
@@ -831,23 +1260,45 @@ def main():
             RUNTIMELOG = str(arguments['--runtime'] + '/Runtime.log')
 
 
+    ############################################################
     # Call for actually doing stuff
     ############################################################
-    #
-    #PROJ.runAll()
-    PROJ.runStage3()
-    PROJ.runStage4()
-    PROJ.runStage5()
-    #
+    # @@@
+    PROJ.runAll()
     ############################################################
-    #
 
     t2 = timer()
 
     timeused = str(time.strftime('%H:%M:%S', time.gmtime(t2-t1)))
     print('Total time elapsed: {}'.format(timeused))
+    """
+    def runStage1(self):
+        ''' Note: does not need to be run more than once
+        Prepare for Pipeline
+        '''
+    def runStage2(self):
+        '''
+        Prepare Reference Data
+        only needs to be run once
+        '''
+    def runStage3(self):
+        ''' Note: In future deployPipe will be split up into
+            multiple functions
+        Run Pipeline
+        '''
+    def runStage4(self):
+        ''' Note: Creating a metadata file should only need
+            to be done once
+        Prepare for DESeq2 Analysis
+        '''
+    def runStage5(self):
+        '''
+        Run R pipeline
+        '''
+    """
 
 ################################################################
-
 if __name__ == '__main__':
+    print('Please use runPipe.py\nSee runPipe --help')
+    raise SystemExit
     main()

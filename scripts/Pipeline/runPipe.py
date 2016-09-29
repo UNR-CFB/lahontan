@@ -34,6 +34,16 @@ import os
 ################################################################
 
 def main():
+    ''' Arguments:                   
+            None                     
+        Returns:                     
+            None                     
+                                     
+        Handles arguments from docopt
+        Creates Experiment Class     
+        Runs Experiment methods      
+        Tip: search for @@@          
+    '''                              
     arguments = docopt(__doc__, version='Version 0.99\nAuthor: Alberto')
     t1 = timer()
 
@@ -110,13 +120,12 @@ def main():
 
     pipeClasses.RUNTIMELOG = RUNTIMELOG
 
+    ############################################################
     # Call for actually doing stuff
     ############################################################
-    #
+    # @@@
     PROJ.runAll()
-    #
     ############################################################
-    #
 
     t2 = timer()
 
