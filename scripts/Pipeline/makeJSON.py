@@ -12,12 +12,38 @@ import json
 import os
 
 def getProjectInfo():
+    ''' Arguments:
+            None
+        Returns:
+            projectName, numberofSamples, numberofFeatures
+            = tuple containing:
+                projectName = str; Name of the Project
+                numberofSamples = int; number of samples
+                numberofFeatures = int; numberofFeatures
+
+        Asks for certain experiment characteristics
+    '''
     projectName = str(input("What is the name of the project? "))
     numberofSamples = int(input("How many samples are there? "))
     numberofFeatures = int(input("How many features does each sample have? "))
     return projectName,numberofSamples,numberofFeatures
 
 def getSampleInfo():
+    ''' Arguments:
+            None
+        Returns:
+            projectName,numberofSamples,numberofFeatures,
+            featureNames,mainFeature,SampleData = tuple containing:
+                projectName = str; Name of project
+                numberofSamples = int; number of samples
+                numberofFeatures = int; number of features
+                featureNames = list; name of features
+                mainFeature = str; name of main feature
+                SampleData = dict; dict containing all sample names
+                                and respective features
+
+        Asks for specific sample characteristics
+    '''
     projectName,numberofSamples,numberofFeatures = getProjectInfo()
 
     SampleData = {}
@@ -40,6 +66,13 @@ def getSampleInfo():
     return projectName,numberofSamples,numberofFeatures,featureNames,mainFeature,SampleData
 
 def makeJSON():
+    ''' Arguments:
+            None
+        Returns:
+            MetaData = dict; dict of all Experimental Data
+
+        Creates dictionary of metadata
+    '''
     MetaData = {}
 
     projectName,numberofSamples,numberofFeatures,featureNames,mainFeature,sampleData = getSampleInfo()
@@ -54,6 +87,13 @@ def makeJSON():
     return MetaData
 
 def writeJSON(name):
+    ''' Arguments:
+            name = str; name of JSON file to be written to
+        Returns:
+            None
+
+        Converts Metadata dictionary to a JSON file
+    '''
     MetaDict = makeJSON()
     with open(name,'w') as File:
         json.dump(MetaDict, File, sort_keys=True,indent=4)

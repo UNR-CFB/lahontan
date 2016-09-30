@@ -16,6 +16,15 @@ import makeCols
 import os
 
 def createRscript(jsontoRead,name):
+    ''' Arguments:
+            jsontoRead = str; name of JSON Metadata file
+                [default: Metadata.json]
+            name = str; name for edgeR script
+        Returns:
+            None
+
+        Creates DESeq2 analysis script by filling in a template
+    '''
     makeReportsTemplate = """
 'Usage: makeReports.r [-h | --help] [-p </path/to/data>] [--counts <name>] [--cols <name>]
 
@@ -136,10 +145,25 @@ close(fileConn)
         f.write(makeReportsTemplate.format(**Context))
 
 def getContext(jsontoRead):
+    ''' Arguments:
+            jsontoRead = str; name of JSON Metadata file
+                            [default: Metadata.json]
+        Returns:
+            factorlist,formulalistplus,formulalistcomma,mainFeature
+            = tuple containing:
+                factorlist = str; the list of features to be analyzed
+                                by DESeq2
+                formulalistplus = str; formula to be analyzed
+                formulalistcomma = str; list of factors to be analyzed
+                mainFeature = str; name of mainFeature
+
+        Scrapes Metadata for context to be filled into DESeq2
+        template
+    '''
     Metadata = jsontoRead
     mainFeature = Metadata['MainFeature']
 
-    #TODO Generalize 'Cols.dat'
+    #TODO Generalize 'Cols.dat' in case it's not named Cols.dat
     with open('Cols.dat','r') as f:
         colData = csv.reader(f,dialect='unix',delimiter='\t')
         x = []
@@ -164,6 +188,4 @@ def getContext(jsontoRead):
 
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='1.0')
-    #TODO Check for Cols.dat
-    #subprocess.run(["python","makeCols.py"],check=True)
     createRscript(makeCols.readJSON(arguments['-j']),arguments['-t'])

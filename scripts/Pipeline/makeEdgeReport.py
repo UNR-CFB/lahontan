@@ -1,5 +1,4 @@
-#!/usr/bin/python3
-
+#!/usr/bin/python3 
 '''Usage: makeEdgeReport.py [-h | --help] [-j <jsonfile>] [-t <tofile>]
                                                                                       
 Options:                                                                              
@@ -17,6 +16,15 @@ import makeCols
 import os
 
 def createEdgeR(jsontoRead,name):
+    ''' Arguments:
+            jsontoRead = str; name of JSON Metadata file
+                            [default: Metadata.json]
+            name = str; name for edgeR script
+        Returns:
+            None
+
+        Creates edgeR analysis script by filling in a template
+    '''
     makeReportsTemplate = """'Usage: makeEdge.r [-h | --help] [-p </path/to/data>] [--counts <name>] [--cols <name>]
 
 Options:
@@ -122,10 +130,29 @@ detach("package:docopt")
         f.write(makeReportsTemplate.format(**Context))
 
 def getContext(jsontoRead):
-    from pprint import pprint
+    ''' Arguments:
+            jsontoRead = str; name of JSON Metadata file
+                            [default: Metadata.json]
+        Returns:
+            Contrasts, GLM, regionReportName, mainFeature
+            = tuple containing:
+                Contrasts = str; Comparisons to be made in
+                            edgeR between all possible features
+                GLM = str; generalized linear model parameters
+                regionReportName = str; name of dataframe to be
+                                    analyzed with regionReport
+                mainFeature = str; name of main feature
+
+        Scrapes Metadata for context to be filled into edgeR
+        template
+    '''
+    # importing Metadata into a python dictionary
     Metadata = jsontoRead
+
+    # Pulling mainFeature key from dictionary
     mainFeature = Metadata['MainFeature']
 
+    # Making Contrasts
     Contrasts = 'QLcon <- makeContrasts(\n\t' + ',\n\t'.join(["{} = {}".format('{}_vs_{}'.format(a,b),'{} - {}'.format(a,b)) for (a,b) in list(combinations(set([Metadata['Samples'][samp]['Features'][mainFeature] for samp in Metadata['Samples']]),2))]) + ', levels=design)'
 
     newlist = []
@@ -141,6 +168,7 @@ def getContext(jsontoRead):
     Comparisons = '\n'.join(['lrt_{} <- glmLRT(GLfit, contrast=mycontrasts[,"{}"])'.format(a,a) for a in versus])
     Toptags = '\n'.join(['topTags(lrt_{})'.format(v) for v in versus])
 
+    # Making GLM and regionReportName
     GLM = Mycontrasts + '\n\n' + Comparisons + '\n\n' + Toptags
     regionReportName = 'lrt_' + versus[0]
 
@@ -148,6 +176,4 @@ def getContext(jsontoRead):
 
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='1.0')
-    #TODO Check for Cols.dat
-    #subprocess.run(["python","makeCols.py"],check=True)
     createEdgeR(makeCols.readJSON(arguments['-j']),arguments['-t'])
