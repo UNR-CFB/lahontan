@@ -1348,7 +1348,7 @@ def main():
     # @@@
     PROJ.runAll()
     ############################################################
-    """
+    StageTips = """
     runStage1: Prepare for Pipeline
 
     runStage2: Prepare Reference Data only needs to be run once
