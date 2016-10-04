@@ -233,11 +233,17 @@ class Experiment:
 
             Calls pipeUtils.createStructure to make Directory Structure
         '''
-        if self.checkStructure() == False:
+        if noconfirm == True:
             print("Creating Structure...")
             pipeUtils.createStructure(self.Project,
                                         self.ogOriginal)
             makeTimeFile(RUNTIMELOG)
+        else:
+            if self.checkStructure() == False:
+                print("Creating Structure...")
+                pipeUtils.createStructure(self.Project,
+                                            self.ogOriginal)
+                makeTimeFile(RUNTIMELOG)
 
     @funTime
     def makeSyms(self):
@@ -249,10 +255,15 @@ class Experiment:
             Calls pipeUtils.createSymLinks to make Symbolic Links for
             Original Data, Reference Data; and Metadata if available
         '''
-        if self.checkStructure() == False:
+        if noconfirm == True:
             pipeUtils.createSymLinks(self.Project,
                                         self.ogOriginal,
                                         self.ogReference)
+        else:
+            if self.checkStructure() == False:
+                pipeUtils.createSymLinks(self.Project,
+                                            self.ogOriginal,
+                                            self.ogReference)
         
     @funTime
     def qcRef(self):
@@ -477,6 +488,31 @@ class Experiment:
             shutil.rmtree(self.Project + '/runPipeNotify')
             os.mkdir(self.Project + '/runPipeNotify')
 
+    def gatherAllSampleOverrep(self, runNumber):
+        ''' Arguments:
+                runNumber = int; the fastqc trial number that you want
+                                to examine
+            Returns:
+                None
+
+            Collects all Sample Overrepresented Sequences for all samples
+            for a specific Fastqc trial. File will be in Postprocessing
+        '''
+        with open('{}/Run{}-OverrepSeq.txt'.format(self.Postprocessing, runNumber),'w') as R:
+            R.write('Overrepresented Sequences for fastqc number {}\n'.format(runNumber))
+            R.write('-------------------------------------------------------------\n\n')
+        samples = glob.glob(self.Data + '/sa*')
+        for sample in samples:
+            OverSeq = glob.glob(sample + '/Sample*Run{}*'.format(runNumber))
+            for ov in OverSeq:
+                header = '-'.join(ov.split('/')[-3:-1])                       
+                with open('{}/Run{}-OverrepSeq.txt'.format(self.Postprocessing,
+                                                            runNumber),'a') as R:
+                    R.write('\n' + header + '\n')                                
+                    with open(ov,'r') as O:                              
+                        contents = O.read()                                      
+                    R.write(contents + '\n')                                     
+
     ################################################################
     # Cleaning Functions
     ################################################################
@@ -562,6 +598,7 @@ class Experiment:
             Experiment.__init__(self,inputFile)
             assert sampleNumber <= Experiment.getNumberofSamples(self)
             assert sampleNumber > 0
+            self.sampleNumber = sampleNumber
             self.sampleName = 'sample_{}'.format(str(sampleNumber).zfill(2))
             self.samplePath = '{}/{}'.format(self.Data, self.sampleName)
             self.Read1 = self.getReadNames()[0]
@@ -760,6 +797,49 @@ class Experiment:
                     LOG.write('There are {} overrepresented sequence in {}'.format(thing,
                                 str('{}/{}'.format(fastqcFolder, directory))))
 
+        def initOverrepLog(self, runNumber):
+            ''' Arguments:
+                    runNumber = int; trial number for QC
+                Returns:
+                    None
+
+                Initializes Log for Overepresented Sequences
+            '''
+            with open('{}/Sample{}Run{}-OverrepSeq.txt'.format(self.samplePath,
+                                                                self.sampleNumber,
+                                                                runNumber), 'w') as Log:
+                Log.write('Overrepresented Sequences for {} and fastqc number {}\n'.format(
+                                                        self.sampleName,runNumber))
+                Log.write('-------------------------------------------------------------\n\n')
+
+        def gatherOverrep(self, runNumber):
+            ''' Arguments:
+                    runNumber = int; trial number for QC
+                Returns:
+                    None
+
+                Collects Overrepresented sequences together into a specific sample file
+            '''
+            QCs = glob.glob(self.samplePath + '/fastqc*')
+            goodQC = [qc for qc in QCs if 'fastqc{}'.format(runNumber) in qc]
+            if len(goodQC) != 1:
+                with open('{}/Sample{}Run{}-OverrepSeq.txt'.format(self.samplePath,
+                                                                    self.sampleNumber,
+                                                                    runNumber), 'a') as Log:
+                    Log.write('Error: Unable to gather Overrepresented Sequences for {}\n'.format(self.sampleName))
+            else:
+                unzipped = glob.glob(goodQC[0] + '/*/')
+                for unzip in unzipped:
+                    Overrep = glob.glob(unzip + '/Overrep*')
+                    header = '-'.join(unzip.split('/')[-3:-1])
+                    with open('{}/Sample{}Run{}-OverrepSeq.txt'.format(self.samplePath,
+                                                                        self.sampleNumber,
+                                                                        runNumber), 'a') as Log:
+                        Log.write('\n' + header + '\n')
+                        with open(Overrep[0],'r') as O:
+                            contents = O.read()
+                        Log.write(contents + '\n')
+
         def runQCheck(self, runNumber, read1, read2):
             ''' Arguments:
                     runNumber = int; trial number for QC
@@ -772,10 +852,12 @@ class Experiment:
             '''
             self.runFastqc(runNumber, read1, read2)
             self.findOverrepSeq(runNumber)
+            self.gatherOverrep(runNumber)
 
-        def runTrimmomatic(self):
+        def runTrimmomatic(self, read1, read2):
             ''' Arguments:
-                    None
+                    read1 = str; first read to run Trimmomatic on
+                    read2 = str; second read to run Trimmomatic on
                 Returns:
                     None
 
@@ -789,8 +871,8 @@ class Experiment:
             Context = {
                     "procs": self.Procs,
                     "phred": Phred,
-                    "Read1": self.Read1,
-                    "Read2": self.Read2,
+                    "Read1": read1,
+                    "Read2": read2,
                     "fastq": self.Fastq
                     }
             commandWithContext = command.format(**Context)
@@ -842,7 +924,7 @@ class Experiment:
                 LOG.write('\t\tRuntime Log Part 1 for {}\n'.format(self.sampleName))
                 LOG.write('----------------------------------------\n\n')
             self.runQCheck(1, self.Read1, self.Read2)
-            self.runTrimmomatic()
+            self.runTrimmomatic(self.Read1, self.Read2)
             self.runQCheck(2, 'read1.P.trim.{}.gz'.format(self.Fastq),
                                 'read2.P.trim.{}.gz'.format(self.Fastq))
             self.writeFunctionTail('runPart1')
@@ -954,6 +1036,7 @@ class Experiment:
                 Runs hisat2 on data
             '''
             self.writeFunctionHeader('runHisat')
+            strandedVar = self.findStranded()
             # hisat2 manual line 553
             # Making Command
             command = r"""hisat2 -k 5 -p {numProcs} --dta --phred{phred} --known-splicesite-infile {ref}/splice_sites.txt -x {ref}/{basename} -1 read1.P.trim.{fastq}.gz -2 read2.P.trim.{fastq}.gz -S aligned.{sample}.sam"""
@@ -966,7 +1049,6 @@ class Experiment:
                     "fastq": self.Fastq,
                     "sample": self.sampleName
                     }
-            
             goodCommand = self.formatCommand(command.format(**context)) 
             # Executing
             os.chdir(self.samplePath)
@@ -1131,15 +1213,15 @@ class Experiment:
 
     @funTime
     def runStage3(self):
-        ''' Note: In future deployPipe will be split up into
-            multiple functions
-
+        '''
         Run Pipeline
         '''
         print("Pipeline is running...")
         self.GO()
         self.createJsonMetadata()
         self.findPipeFinish()
+        self.gatherAllSampleOverrep(1)
+        self.gatherAllSampleOverrep(2)
 
     @funTime
     def runStage4(self):
@@ -1158,7 +1240,7 @@ class Experiment:
     @funTime
     def runStage5(self):
         '''
-        Run R pipeline
+        Run R Analysis
         '''
         self.runRProgram()
         self.findRFinish()
@@ -1266,36 +1348,22 @@ def main():
     # @@@
     PROJ.runAll()
     ############################################################
+    """
+    runStage1: Prepare for Pipeline
+
+    runStage2: Prepare Reference Data only needs to be run once
+
+    runStage3: Run Pipeline
+
+    runStage4: Prepare for DESeq2 Analysis
+
+    runStage5: Run R pipeline
+    """
 
     t2 = timer()
 
     timeused = str(time.strftime('%H:%M:%S', time.gmtime(t2-t1)))
     print('Total time elapsed: {}'.format(timeused))
-    """
-    def runStage1(self):
-        ''' Note: does not need to be run more than once
-        Prepare for Pipeline
-        '''
-    def runStage2(self):
-        '''
-        Prepare Reference Data
-        only needs to be run once
-        '''
-    def runStage3(self):
-        ''' Note: In future deployPipe will be split up into
-            multiple functions
-        Run Pipeline
-        '''
-    def runStage4(self):
-        ''' Note: Creating a metadata file should only need
-            to be done once
-        Prepare for DESeq2 Analysis
-        '''
-    def runStage5(self):
-        '''
-        Run R pipeline
-        '''
-    """
 
 ################################################################
 if __name__ == '__main__':

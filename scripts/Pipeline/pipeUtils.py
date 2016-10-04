@@ -281,10 +281,8 @@ def createSymLinks(projectPath,originalPath,referencePath):
             print("There are not an appropriate number of samples in {}".format(projectPath + '/Original'))
             raise SystemExit
 
-    if noconfirm == False:
-        os.chdir(projectPath)
-        with open('.init','w') as f:
-            f.write('S')
+    with open('{}/.init'.format(projectPath),'w') as f:
+        f.write('S')
 
 
 ################################################################
@@ -381,10 +379,8 @@ def preProcessingReference(referencePath,cdnaName,gtfName,genomeName,baseName):
         if 'known_exons.txt' not in os.listdir(referencePath):
             print("{} not in {}".format('known_exons.txt', referencePath))
             raise SystemExit
-    if noconfirm == False:
-        os.chdir(referencePath + '/..')
-        with open('.init','w') as f:
-            f.write('P')
+    with open('{}/../.init'.format(referencePath),'a') as f:
+        f.write('P')
 
 ################################################################
 # Run Pipeline
