@@ -25,8 +25,7 @@ def createRscript(jsontoRead,name):
 
         Creates DESeq2 analysis script by filling in a template
     '''
-    makeReportsTemplate = """
-'Usage: makeReports.r [-h | --help] [-p </path/to/data>] [--counts <name>] [--cols <name>]
+    makeReportsTemplate = """'Usage: makeReports.r [-h | --help] [-p </path/to/data>] [--counts <name>] [--cols <name>]
 
 Example:
 Rscript makeReports.r -p /path/to/project --counts CountName --cols ColumnsName
