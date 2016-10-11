@@ -13,7 +13,7 @@ Options:
 ################################################################
 
 from docopt import docopt
-from twilio.rest import TwilioRestClient
+#from twilio.rest import TwilioRestClient
 import subprocess
 import os
 import shutil
@@ -29,23 +29,24 @@ import makeEdgeReport
 ################################################################
 
 def textMe(toPhoneNumber,message):
-    ''' Arguments:
-            toPhoneNumber = string; phone number that you wish message to be sent to
-            message = string; message that you wish to send   
-        Returns:
-            None; Texts toPhoneNumber the message
-
-        Uses twilio to send a text message when finished.
-        Needs to be enabled first
-    '''
-    accountSID = 'AC17039a9f9b17f2ae2d188ca54db201ac'
-    authToken = 'da2a8dbeca04139270ed22e4d0224b5f'
-    twilioNumber = '+17756004137'
-    twilioCli = TwilioRestClient(accountSID, authToken)
-    message = twilioCli.messages.create(body=str(message), from_=twilioNumber, to=toPhoneNumber)
-
-    Notification = 'This message was sent to {}:\n{}'.format(toPhoneNumber,message.body)
-    print(Notification)
+    pass
+#    ''' Arguments:
+#            toPhoneNumber = string; phone number that you wish message to be sent to
+#            message = string; message that you wish to send   
+#        Returns:
+#            None; Texts toPhoneNumber the message
+#
+#        Uses twilio to send a text message when finished.
+#        Needs to be enabled first
+#    '''
+#    accountSID = 'AC17039a9f9b17f2ae2d188ca54db201ac'
+#    authToken = 'da2a8dbeca04139270ed22e4d0224b5f'
+#    twilioNumber = '+17756004137'
+#    twilioCli = TwilioRestClient(accountSID, authToken)
+#    message = twilioCli.messages.create(body=str(message), from_=twilioNumber, to=toPhoneNumber)
+#
+#    Notification = 'This message was sent to {}:\n{}'.format(toPhoneNumber,message.body)
+#    print(Notification)
 
 def getNumberofFiles(path):
     ''' Arguments:
