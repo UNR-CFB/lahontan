@@ -15,9 +15,19 @@ Options:
     -s <sampleName>, --sampleclean <sampleName>
         Similar to --clean; but instead just cleans a
         single sample directory, <sampleName>
-    -r <runlogPath>, --runtime <runlogPath>
-        Optional directory path for Runtime Log file to 
-        be created in [default: $Project]
+    -e <stage>, --execute <stage>
+        Comma-separated list of stages to be executed.
+        Possible stages include:
+            1: Creating Project Structure
+            2: Preparing Reference Data
+            3: Running actual Pipeline
+            4: Preparing for R analysis
+            5: Running R analysis
+            A: (1,2,3,4,5); A=all i.e. runs entire pipeline
+        [default: A]
+    -r <integer>, --runsample <integer>
+        Runs Stage 3 of the pipeline on the sample specified
+        by the integer,
     --noconfirm
         Ignore all user prompts except JSON file creation
     --NUKE
@@ -27,6 +37,15 @@ Examples:
     runPipe.py /path/to/INPUT
         This will run the pipeline using the input variables
         from /path/to/INPUT with all the default behavior
+
+    runPipe.py --execute 12 /path/to/INPUT
+        This will run the first and second stage of the
+        pipeline using the input variables from /path/to/INPUT
+
+    runPipe.py --runsample 1,2 /path/to/INPUT
+        This will run third stage on the first and second
+        sample. Note that it will also run first and second
+        stage if needed
 
     runPipe.py --jsonfile /path/to/Metadata /path/to/INPUT
         This will run the pipeline using the input variables
@@ -44,25 +63,6 @@ Examples:
         Note: Will leave original Reference and Data folders
         as they were originally made
 '''
-
-#'''Usage: runPipe.py [-h | --help] [-j <jsonFile> | --jsonfile <jsonFile>]
-#                     [--noconfirm] [-c <placeToClean> | --clean <placeToClean>]
-#                     [-s <sampleName> | --sampleclean <sampleName>]
-#                     [--NUKE] [-r <runlogPath> | --runtime <runlogPath>] <pathtoInputFile>
-#
-#Options:                                                                                           
-#    -h --help                                  :    Show this screen and exit
-#    -j <jsonFile>, --jsonfile <jsonFile>       :    Ignores JSON file creation and uses specified
-#                                                    path to JSON
-#    --noconfirm                                :    Ignore all user prompts except JSON file creation
-#    -c <placeToClean>, --clean <placeToClean>  :    Cleans <placeToClean>: Possible places include:
-#                                                    Reference, Data, Postprocessing, All
-#    -s <sampleName>, --sampleclean <sampleName>:    Similar to -c,--clean; but instead just cleans a
-#                                                    single sample directory <sampleName>
-#    --NUKE                                     :    Removes entire project Directory
-#    -r <runlogPath>, --runtime <runlogPath>    :    Optional directory path for Runtime Log file to 
-#                                                    be created in [default: $Project]
-#'''
 
 ################################################################
 # Importations
@@ -90,8 +90,9 @@ def main():
         Tip: search for @@@          
     '''                              
     arguments = docopt(__doc__, version='Version 0.99\nAuthor: Alberto')
-    print(arguments)
-    raise SystemExit
+    #print(arguments)
+    #raise SystemExit
+
     t1 = timer()
 
     global noconfirm
@@ -156,22 +157,98 @@ def main():
     PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'])
 
     global RUNTIMELOG
-    if arguments['--runtime'] == '$Project':
-        RUNTIMELOG = str(PROJ.Project + '/Runtime.log')
-    else:
-        if os.path.isdir(arguments['--runtime']) == False:
-            print('Need a valid directory to save Runtime file to')
-            raise SystemExit
-        else:
-            RUNTIMELOG = str(arguments['--runtime'] + '/Runtime.log')
+    RUNTIMELOG = str(PROJ.Project + '/Runtime.log')
 
     pipeClasses.RUNTIMELOG = RUNTIMELOG
+
+    def checkdashr():
+        if arguments['--runsample'] == None:
+            return None
+        else:
+            samples = arguments['--runsample'].split(',')
+            possibleSamples = [str(a+1) for a in range(PROJ.getNumberofSamples())]
+            if len(samples) == 0:
+                print('Argument not valid: {}'.format(
+                        arguments['--runsample']))
+                print('Possible arguments for --runsample: {}'.format(
+                        ','.join(possibleSamples)))
+                raise SystemExit
+            if len(set(samples)) != len(samples):
+                print('Argument not valid: {}'.format(
+                        arguments['--runsample']))
+                print('Possible arguments for --runsample: {}'.format(
+                        ','.join(possibleSamples)))
+                raise SystemExit('No repeats allowed')
+            for sample in samples:
+                if sample not in possibleSamples:
+                    print('Argument not valid: {}'.format(
+                            arguments['--runsample']))
+                    print('Possible arguments for --runsample: {}'.format(
+                            ','.join(possibleSamples)))
+                    raise SystemExit('Argument not possible')
+            return samples
+
+    def checkdashe():
+        executionStages = arguments['--execute'].split(',')
+        possibleStages = ["1","2","3","4","5","A"]
+        if len(executionStages) == 0:
+            print('Argument not valid: {}'.format(
+                    arguments['--execute']))
+            print('Possible arguments for --execute: {}'.format(
+                    ','.join(possibleStages)))
+            raise SystemExit
+        if len(set(executionStages)) != len(executionStages):
+            print('Argument not valid: {}'.format(
+                    arguments['--execute']))
+            print('Possible arguments for --execute: {}'.format(
+                    ','.join(possibleStages)))
+            raise SystemExit('No repeats allowed')
+        for stage in executionStages:
+            if stage not in possibleStages:
+                print('Argument not valid: {}'.format(
+                        arguments['--execute']))
+                print('Possible arguments for --execute: {}'.format(
+                        ','.join(possibleStages)))
+                raise SystemExit
+        return executionStages
+
+    def executeProject(ExperimentClass):
+        ''' Arguments:
+                ExperimentClass = class; experiment to run analysis on
+            Returns:
+                None
+
+            Runs Experiment methods based on --execute,--runsample or
+            just entire pipeline if not specified
+        '''
+        executionSamples = checkdashr()
+        executionStages = checkdashe()
+
+        if executionSamples == None:
+            if 'A' in executionStages:
+                ExperimentClass.runAll()
+            else:
+                for stageNumber in executionStages:
+                    exec('{}.runStage{}()'.format('ExperimentClass',stageNumber))
+        else:
+            if not os.path.exists(ExperimentClass.Data):
+                ExperimentClass.runStage1()
+            if not os.path.exists(ExperimentClass.Reference + '/{}'.format(
+                                                        'Reference_Report.txt')):
+                ExperimentClass.runStage2()
+            for stage in executionSamples:
+                ExperimentClass.executeSample(int(stage))
+            #print('Finished Running specified samples\n' + 
+            #'If you wish to run R analysis, you will need to run all samples\n' +
+            #'If you have run all samples, you can run R analysis by running:\n' +
+            #'runPipe.py --execute 45 /path/to/INPUT/file\n' +
+            #'along with any other arguments you wish')
 
     ############################################################
     # Call for actually doing stuff
     ############################################################
     # @@@
-    PROJ.runAll()
+    executeProject(PROJ)
     ############################################################
 
     t2 = timer()

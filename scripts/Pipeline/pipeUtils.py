@@ -19,6 +19,7 @@ import os
 import shutil
 import sys
 import time
+import imp
 import makeJSON
 import makeCols
 import makeReportr
@@ -80,8 +81,6 @@ def sourceInput(pathtoInput):
 
         Sources inputfile and returns contents in 3 variables
     '''
-    import imp
-
     assert type(pathtoInput) == str, "Path to INPUT not a string"
     if os.path.exists(pathtoInput) == False:
         print("Path is not a file:\n{}".format(pathtoInput))
@@ -103,7 +102,7 @@ def getReferenceVariables(referencePath):
         genome files
     '''
     if os.path.isdir(referencePath) == False:
-        print("Path is not a directory:\n{}".format(path))
+        print("Path is not a directory:\n{}".format(referencePath))
         raise SystemExit
 
     ls = os.listdir(referencePath)

@@ -297,7 +297,7 @@ class Experiment:
                                                 self.Basename)
 
     @funTime
-    def createSampleClasses(self):
+    def createSampleClasses(self,subject='all'):
         ''' Arguments:
                 None
             Returns:
@@ -306,9 +306,13 @@ class Experiment:
             Creates all Sample Classes necessary and returns them in a list
             Number of samples is based on self.getNumberofSamples() function
         '''
-        Samples = [Experiment.Sample(n, self.inputPath) for n 
-                in range(1,self.getNumberofSamples() + 1)]
-        return Samples
+        if subject == 'all':
+            Samples = [Experiment.Sample(n, self.inputPath) for n 
+                    in range(1,self.getNumberofSamples() + 1)]
+            return Samples
+        elif type(subject) == int:
+            Sample = Experiment.Sample(subject, self.inputPath)
+            return Sample
 
     @funTime
     def runSample(self, sample):
@@ -324,7 +328,7 @@ class Experiment:
         sample.runParts()
 
     @funTime
-    def GO(self):
+    def GO(self,subject='all'):
         ''' Arguments:
                 None
             Returns:
@@ -333,10 +337,18 @@ class Experiment:
             Uses python multiprocessing to distribute sample analysis to
             CPUs
         '''
-        self.makeNotifyFolder()
-        Samples = self.createSampleClasses()
-        with multiprocessing.Pool(self.Procs) as p:
-            p.map(unwrap_self_runSample, zip([self]*len(Samples), Samples))
+        if subject == 'all':
+            self.makeNotifyFolder()
+            Samples = self.createSampleClasses()
+            with multiprocessing.Pool(self.Procs) as p:
+                p.map(unwrap_self_runSample, zip([self]*len(Samples), Samples))
+        elif type(subject) == int:
+            name = 'sample_{:02g}'.format(subject)
+            if os.path.exists(self.Data + '/' + name):
+                Sample = self.createSampleClasses(subject)
+                self.runSample(Sample)
+        else:
+            raise SystemExit('There is a problem with executing sample')
  
     @funTime
     def findPipeFinish(self):
@@ -1185,7 +1197,7 @@ class Experiment:
             self.runPart2()
 
         ########################################################
-        # End of Experiment class
+        # End of Sample class
         ########################################################
 
     ################################################################
@@ -1218,10 +1230,19 @@ class Experiment:
         '''
         print("Pipeline is running...")
         self.GO()
-        self.createJsonMetadata()
         self.findPipeFinish()
-        self.gatherAllSampleOverrep(1)
-        self.gatherAllSampleOverrep(2)
+
+    @funTime
+    def executeSample(self, number):
+        ''' Arguments:
+                number = int; sample number
+            Returns:
+                None
+
+        Run Stage 3 for Sample #number
+        '''
+        print("Pipeline is running for sample_{}...".format(number))
+        self.GO(int(number))
 
     @funTime
     def runStage4(self):
@@ -1231,6 +1252,9 @@ class Experiment:
         Prepare for DESeq2 Analysis
         '''
         print('Preparing for DESeq2...')
+        self.gatherAllSampleOverrep(1)
+        self.gatherAllSampleOverrep(2)
+        self.createJsonMetadata()
         self.createNiceCounts()
         self.getPipeTime()
         self.createRCounts()
@@ -1260,113 +1284,113 @@ class Experiment:
     # End of Experiment class
     ################################################################
 
-################################################################
-# Handling Command line arguments
-################################################################
-
-def main():
-    '''
-    USE runPipe.py
-    '''
-        
-    arguments = docopt(__doc__, version='Version 0.99\nAuthor: Alberto')
-    t1 = timer()
-
-    global noconfirm
-    noconfirm = arguments['--noconfirm']
-    global JSFI
-    JSFI = arguments['--jsonfile']
-
-    # Handling --NUKE argument
-    if arguments['--NUKE'] == True:
-        if noconfirm == True:
-            PROJ = Experiment(arguments['<pathtoInput>'])
-            PROJ.nukeProject()
-            raise SystemExit
-        else:
-            PROJ = Experiment(arguments['<pathtoInput>'])
-            while True:
-                answer = input('Are you sure you wish to remove {}?(y/n) '.format(PROJ.Project))
-                if answer == 'y':
-                    PROJ.nukeProject()
-                    raise SystemExit
-                elif answer == 'n':
-                    raise SystemExit
-                else:
-                    print('Please answer y or n')
-
-    # Handling Cleaning Arguments
-    possibleCleanArguments = ['All','Reference','Data','Postprocessing']
-    if arguments['--clean'] != None:
-        assert arguments['--clean'] in possibleCleanArguments, 'Invalid Cleaning Argument: Run runPipe.py -h for available arguments'
-        PROJ = Experiment(arguments['<pathtoInput>'])
-        if arguments['--clean'] != 'All':
-            if arguments['--clean'] == 'Data':
-                if os.path.isdir(PROJ.Data) == False:
-                    print('{} does not exist'.format(PROJ.Data))
-                    raise SystemExit
-            if arguments['--clean'] == 'Reference':
-                if os.path.isdir(PROJ.Reference) == False:
-                    print('{} does not exist'.format(PROJ.Reference))
-                    raise SystemExit
-            if arguments['--clean'] == 'Postprocessing':
-                if os.path.isdir(PROJ.Postprocessing) == False:
-                    print('{} does not exist'.format(PROJ.Postprocessing))
-                    raise SystemExit
-        PROJ.clean(arguments['--clean'])
-        raise SystemExit
-    elif arguments['--sampleclean'] != None:
-        PROJ = Experiment(arguments['<pathtoInput>'])
-        if os.path.isdir(str(PROJ.Data + '/' + arguments['--sampleclean'])) == False:
-            print('{} does not exist'.format(str(PROJ.Data + '/' + arguments['--sampleclean'])))
-            raise SystemExit
-        PROJ.clean('Sample',arguments['--sampleclean'])
-        raise SystemExit
-
-    if JSFI != None:
-        checkJSON(JSFI)
-
-    pipeUtils.JSFI = JSFI
-    pipeUtils.noconfirm = noconfirm
-
-    PROJ = Experiment(arguments['<pathtoInput>'])
-
-    global RUNTIMELOG
-    if arguments['--runtime'] == '$Project':
-        RUNTIMELOG = str(PROJ.Project + '/Runtime.log')
-    else:
-        if os.path.isdir(arguments['--runtime']) == False:
-            print('Need a valid directory to save Runtime file to')
-            raise SystemExit
-        else:
-            RUNTIMELOG = str(arguments['--runtime'] + '/Runtime.log')
-
-
-    ############################################################
-    # Call for actually doing stuff
-    ############################################################
-    # @@@
-    PROJ.runAll()
-    ############################################################
-    StageTips = """
-    runStage1: Prepare for Pipeline
-
-    runStage2: Prepare Reference Data only needs to be run once
-
-    runStage3: Run Pipeline
-
-    runStage4: Prepare for DESeq2 Analysis
-
-    runStage5: Run R pipeline
-    """
-
-    t2 = timer()
-
-    timeused = str(time.strftime('%H:%M:%S', time.gmtime(t2-t1)))
-    print('Total time elapsed: {}'.format(timeused))
-
-################################################################
+#################################################################
+## Handling Command line arguments
+#################################################################
+#
+#def main():
+#    '''
+#    USE runPipe.py
+#    '''
+#        
+#    arguments = docopt(__doc__, version='Version 0.99\nAuthor: Alberto')
+#    t1 = timer()
+#
+#    global noconfirm
+#    noconfirm = arguments['--noconfirm']
+#    global JSFI
+#    JSFI = arguments['--jsonfile']
+#
+#    # Handling --NUKE argument
+#    if arguments['--NUKE'] == True:
+#        if noconfirm == True:
+#            PROJ = Experiment(arguments['<pathtoInput>'])
+#            PROJ.nukeProject()
+#            raise SystemExit
+#        else:
+#            PROJ = Experiment(arguments['<pathtoInput>'])
+#            while True:
+#                answer = input('Are you sure you wish to remove {}?(y/n) '.format(PROJ.Project))
+#                if answer == 'y':
+#                    PROJ.nukeProject()
+#                    raise SystemExit
+#                elif answer == 'n':
+#                    raise SystemExit
+#                else:
+#                    print('Please answer y or n')
+#
+#    # Handling Cleaning Arguments
+#    possibleCleanArguments = ['All','Reference','Data','Postprocessing']
+#    if arguments['--clean'] != None:
+#        assert arguments['--clean'] in possibleCleanArguments, 'Invalid Cleaning Argument: Run runPipe.py -h for available arguments'
+#        PROJ = Experiment(arguments['<pathtoInput>'])
+#        if arguments['--clean'] != 'All':
+#            if arguments['--clean'] == 'Data':
+#                if os.path.isdir(PROJ.Data) == False:
+#                    print('{} does not exist'.format(PROJ.Data))
+#                    raise SystemExit
+#            if arguments['--clean'] == 'Reference':
+#                if os.path.isdir(PROJ.Reference) == False:
+#                    print('{} does not exist'.format(PROJ.Reference))
+#                    raise SystemExit
+#            if arguments['--clean'] == 'Postprocessing':
+#                if os.path.isdir(PROJ.Postprocessing) == False:
+#                    print('{} does not exist'.format(PROJ.Postprocessing))
+#                    raise SystemExit
+#        PROJ.clean(arguments['--clean'])
+#        raise SystemExit
+#    elif arguments['--sampleclean'] != None:
+#        PROJ = Experiment(arguments['<pathtoInput>'])
+#        if os.path.isdir(str(PROJ.Data + '/' + arguments['--sampleclean'])) == False:
+#            print('{} does not exist'.format(str(PROJ.Data + '/' + arguments['--sampleclean'])))
+#            raise SystemExit
+#        PROJ.clean('Sample',arguments['--sampleclean'])
+#        raise SystemExit
+#
+#    if JSFI != None:
+#        checkJSON(JSFI)
+#
+#    pipeUtils.JSFI = JSFI
+#    pipeUtils.noconfirm = noconfirm
+#
+#    PROJ = Experiment(arguments['<pathtoInput>'])
+#
+#    global RUNTIMELOG
+#    if arguments['--runtime'] == '$Project':
+#        RUNTIMELOG = str(PROJ.Project + '/Runtime.log')
+#    else:
+#        if os.path.isdir(arguments['--runtime']) == False:
+#            print('Need a valid directory to save Runtime file to')
+#            raise SystemExit
+#        else:
+#            RUNTIMELOG = str(arguments['--runtime'] + '/Runtime.log')
+#
+#
+#    ############################################################
+#    # Call for actually doing stuff
+#    ############################################################
+#    # @@@
+#    PROJ.runAll()
+#    ############################################################
+#    StageTips = """
+#    runStage1: Prepare for Pipeline
+#
+#    runStage2: Prepare Reference Data only needs to be run once
+#
+#    runStage3: Run Pipeline
+#
+#    runStage4: Prepare for DESeq2 Analysis
+#
+#    runStage5: Run R pipeline
+#    """
+#
+#    t2 = timer()
+#
+#    timeused = str(time.strftime('%H:%M:%S', time.gmtime(t2-t1)))
+#    print('Total time elapsed: {}'.format(timeused))
+#
+#################################################################
 if __name__ == '__main__':
     print('Please use runPipe.py\nSee runPipe --help')
     raise SystemExit
-    main()
+    #main()
