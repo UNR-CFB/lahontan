@@ -500,6 +500,19 @@ class Experiment:
             shutil.rmtree(self.Project + '/runPipeNotify')
             os.mkdir(self.Project + '/runPipeNotify')
 
+    def makeNotifyFolder2(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Initializes notification folder that is used to determine when
+            Pipeline has finished running
+            'runPipeNotify/' in self.Project
+        '''
+        if not os.path.isdir(self.Project + '/runPipeNotify'):
+            os.mkdir(self.Project + '/runPipeNotify')
+
     def gatherAllSampleOverrep(self, runNumber):
         ''' Arguments:
                 runNumber = int; the fastqc trial number that you want
@@ -1229,6 +1242,7 @@ class Experiment:
         Run Pipeline
         '''
         print("Pipeline is running...")
+        self.makeNotifyFolder()
         self.GO()
         self.findPipeFinish()
 
@@ -1241,6 +1255,7 @@ class Experiment:
 
         Run Stage 3 for Sample #number
         '''
+        self.makeNotifyFolder2()
         print("Pipeline is running for sample_{}...".format(number))
         self.GO(int(number))
 
