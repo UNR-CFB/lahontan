@@ -38,7 +38,7 @@ Examples:
         This will run the pipeline using the input variables
         from /path/to/INPUT with all the default behavior
 
-    runPipe.py --execute 12 /path/to/INPUT
+    runPipe.py --execute 1,2 /path/to/INPUT
         This will run the first and second stage of the
         pipeline using the input variables from /path/to/INPUT
 
