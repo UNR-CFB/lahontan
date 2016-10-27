@@ -362,8 +362,8 @@ class Experiment:
         batch = """#!/bin/bash -l
 #SBATCH --nodes=3
 #SBATCH --time=120
-#SBATCH --cpus-per-task=48
-#SBATCH --ntasks={NUMSAMPLES}
+#SBATCH --cpus-per-task=16
+#SBATCH --ntasks=8
 #SBATCH --job-name="Pipeline"
 #SBATCH --export=PATH,RNASEQDIR
 
