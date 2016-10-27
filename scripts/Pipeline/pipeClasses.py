@@ -349,7 +349,78 @@ class Experiment:
                 self.runSample(Sample)
         else:
             raise SystemExit('There is a problem with executing sample')
- 
+
+    @funTime
+    def makeBatchScript(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Creates Pipeline batch script to be used with slurm
+        '''
+        batch = """#!/bin/bash -l
+#SBATCH --nodes=3
+#SBATCH --time=120
+#SBATCH --cpus-per-task=48
+#SBATCH --ntasks={NUMSAMPLES}
+#SBATCH --job-name="Pipeline"
+#SBATCH --export=PATH,RNASEQDIR
+
+inputFile='{INPUT}'
+{COMMANDS}
+
+wait"""
+        numSamps = self.getNumberofSamples()
+        com = 'srun -N1 -c48 -n48 runPipe.py --noconfirm -s {} "${{inputFile}}" &'
+        commands = '\n'.join([com.format(num) for num in range(1,numSamps+1)])
+        Context = {
+                "NUMSAMPLES": numSamps,
+                "INPUT": self.inputPath,
+                "COMMANDS": commands
+                }
+        batchScript = batch.format(**Context)
+        with open('pipeBatch','w') as f:
+            f.write(batchScript)
+
+    @funTime
+    def makeRScript(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Creates R batch script to be used with slurm
+        '''
+        batch = """#!/bin/bash -l
+#SBATCH --nodes=1
+#SBATCH --time=10
+#SBATCH --cpus-per-task=1
+#SBATCH --ntasks=2
+#SBATCH --job-name="R_Analysis"
+#SBATCH --export=PATH,RNASEQDIR
+
+inputFile='{INPUT}'
+{COMMAND1}
+{COMMAND2}
+
+wait"""
+        command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --execute 5 --edger "${inputFile}" &'
+        command2 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --execute 5 --deseq "${inputFile}" &'
+        Context = {
+                "INPUT": self.inputPath,
+                "COMMAND1": command1,
+                "COMMAND2": command2,
+                }
+        batchScript = batch.format(**Context)
+        with open('rBatch','w') as f:
+            f.write(batchScript)
+
+    @funTime
+    def makeSlurm(self):
+        self.makeBatchScript()
+        self.makeRScript()
+
     @funTime
     def findPipeFinish(self):
         ''' Arguments:
@@ -452,6 +523,13 @@ class Experiment:
         print("R program is running...")
         pipeUtils.makeEdgeRreport(self.Postprocessing)
         pipeUtils.makeRreports(self.Postprocessing)
+
+    @funTime
+    def runDESeq(self):
+        pipeUtils.makeRreports(self.Postprocessing)
+    @funTime
+    def runEdgeR(self):
+        pipeUtils.makeEdgeRreport(self.Postprocessing)
 
     @funTime
     def findRFinish(self):

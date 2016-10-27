@@ -333,7 +333,7 @@ def qcReference(referencePath,genomeName):
                     break
                 else:
                     print('Please answer y or n')
-        if STOP == True:
+        if STOP:
             break
 
 ################################################################

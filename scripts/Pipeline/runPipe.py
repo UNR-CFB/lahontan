@@ -32,6 +32,14 @@ Options:
         Ignore all user prompts except JSON file creation
     --NUKE
         Removes entire project Directory
+    --makeBatch
+        Makes batch files to be used with slurm. This includes
+        the Batch for the sample runs and the Batch for the
+        two R analyses
+    --edger
+        Runs edgeR analysis only. Default is to run both 
+    --deseq
+        Runs DESeq2 analysis only. Default is to run both
 
 Examples:
     runPipe.py /path/to/INPUT
@@ -161,6 +169,39 @@ def main():
 
     pipeClasses.RUNTIMELOG = RUNTIMELOG
 
+    def runR(ExperimentClass):
+        ''' Arguments:
+                ExperimentClass = class; experiment to run analysis on
+            Returns:
+                None
+
+            Runs R analysis, if:
+                --edger  :   Then only edgeR analysis done
+                --deseq  :   Then only DESeq2 analysis done
+                neither argument is provided then both are done
+        '''
+        if arguments['--edger'] or arguments['--deseq']:
+            if arguments['--edger']:
+                ExperimentClass.runEdgeR()
+            if arguments['--deseq']:
+                ExperimentClass.runDESeq()
+        else:
+            ExperimentClass.runStage5()
+
+    def makeBatch(ExperimentClass):
+        ''' Arguments:
+                ExperimentClass = class; experiment to run analysis on
+            Returns:
+                None
+
+            If --makeBatch argument given, then make batch script to be
+            used with slurm, and then exit
+        '''
+        if arguments['--makeBatch']:
+            ExperimentClass.makeSlurm()
+            cd = os.getcwd()
+            raise SystemExit('Batch files successfully created:\n\t{}/pipeBatch\n\t{}/rBatch'.format(cd,cd))
+
     def checkdashr():
         if arguments['--runsample'] == None:
             return None
@@ -221,6 +262,7 @@ def main():
             Runs Experiment methods based on --execute,--runsample or
             just entire pipeline if not specified
         '''
+        makeBatch(ExperimentClass)
         executionSamples = checkdashr()
         executionStages = checkdashe()
 
@@ -229,7 +271,10 @@ def main():
                 ExperimentClass.runAll()
             else:
                 for stageNumber in executionStages:
-                    exec('{}.runStage{}()'.format('ExperimentClass',stageNumber))
+                    if str(stageNumber) == '5':
+                        runR(ExperimentClass)
+                    else:
+                        exec('{}.runStage{}()'.format('ExperimentClass',stageNumber))
         else:
             if not os.path.exists(ExperimentClass.Data):
                 ExperimentClass.runStage1()
@@ -237,11 +282,14 @@ def main():
                                                         'Reference_Report.txt')):
                 ExperimentClass.runStage2()
             for stage in executionSamples:
-                ExperimentClass.executeSample(int(stage))
+                if str(stage) == '5':
+                    runR(ExperimentClass)
+                else:
+                    ExperimentClass.executeSample(int(stage))
             #print('Finished Running specified samples\n' + 
             #'If you wish to run R analysis, you will need to run all samples\n' +
             #'If you have run all samples, you can run R analysis by running:\n' +
-            #'runPipe.py --execute 45 /path/to/INPUT/file\n' +
+            #'runPipe.py --execute 4,5 /path/to/INPUT/file\n' +
             #'along with any other arguments you wish')
 
     ############################################################
