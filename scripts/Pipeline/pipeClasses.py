@@ -367,7 +367,7 @@ class Experiment:
 
             Creates Pipeline batch script to be used with slurm
         '''
-        batch = """#!/bin/bash -l
+        batch = """#!/bin/bash
 #SBATCH --nodes=2
 #SBATCH --time=120
 #SBATCH --cpus-per-task=48
@@ -400,7 +400,7 @@ wait"""
 
             Creates R batch script to be used with slurm
         '''
-        batch = """#!/bin/bash -l
+        batch = """#!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --time=10
 #SBATCH --cpus-per-task=1
@@ -438,7 +438,7 @@ wait"""
 
             Creates R batch script to be used with slurm
         '''
-        batch = """#!/bin/bash -l
+        batch = """#!/bin/bash
 #SBATCH --nodes=1
 #SBATCH --time=10
 #SBATCH --cpus-per-task=1
