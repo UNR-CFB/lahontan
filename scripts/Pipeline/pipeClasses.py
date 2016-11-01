@@ -360,10 +360,10 @@ class Experiment:
             Creates Pipeline batch script to be used with slurm
         '''
         batch = """#!/bin/bash -l
-#SBATCH --nodes=3
+#SBATCH --nodes=2
 #SBATCH --time=120
-#SBATCH --cpus-per-task=16
-#SBATCH --ntasks=8
+#SBATCH --cpus-per-task=48
+#SBATCH --ntasks=2
 #SBATCH --job-name="Pipeline"
 #SBATCH --export=PATH,RNASEQDIR
 
@@ -372,7 +372,7 @@ inputFile='{INPUT}'
 
 wait"""
         numSamps = self.getNumberofSamples()
-        com = 'srun -N1 -c48 -n1 runPipe.py --noconfirm -r {} "${{inputFile}}" &'
+        com = 'srun -N1 -c48 -n1 runPipe.py --noconfirm -e 3 -r {} "${{inputFile}}" &'
         commands = '\n'.join([com.format(num) for num in range(1,numSamps+1)])
         Context = {
                 "NUMSAMPLES": numSamps,
