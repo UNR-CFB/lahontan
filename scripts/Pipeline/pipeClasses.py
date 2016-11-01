@@ -64,7 +64,7 @@ def exportVariablesforClass(pathtoInput):
             }
     return Variables
 
-def checkJSON(jsonFile):
+def checkJSON(jsonFile, behavior='default'):
     ''' Arguments:
             jsonFile = string; path to JSON file
         Returns:
@@ -72,13 +72,21 @@ def checkJSON(jsonFile):
 
         Tests if JSON file has correct syntax
     '''
-    with open(jsonFile) as JF:
-        try:
-            json.load(JF)
-        except ValueError as e:
-            print("Invalid JSON: %s"%(e))
-            print("Check your JSON, exiting now")
-            raise SystemExit
+    if behavior == 'default':
+        with open(jsonFile) as JF:
+            try:
+                json.load(JF)
+            except ValueError as e:
+                raise SystemExit("Invalid JSON: %s"%(e))
+    else:
+        if jsonFile == None:
+            raise SystemExit("Need --json argument")
+        else:
+            with open(jsonFile) as JF:
+                try:
+                    json.load(JF)
+                except ValueError:
+                    raise SystemExit("Need --json argument with valid JSON file")
 
 def funTime(function):
     ''' Arguments:
@@ -401,25 +409,72 @@ wait"""
 #SBATCH --export=PATH,RNASEQDIR
 
 inputFile='{INPUT}'
+jsonFile='{JSON}'
 {COMMAND1}
 {COMMAND2}
+{COMMAND3}
 
 wait"""
-        command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --execute 5 --edger "${inputFile}" &'
-        command2 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --execute 5 --deseq "${inputFile}" &'
+        command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 4 "${inputFile}"'
+        command2 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &'
+        command3 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &'
         Context = {
                 "INPUT": self.inputPath,
+                "JSON": JSFI,
                 "COMMAND1": command1,
                 "COMMAND2": command2,
+                "COMMAND3": command3,
                 }
         batchScript = batch.format(**Context)
         with open('rBatch','w') as f:
             f.write(batchScript)
 
     @funTime
+    def makeMasterScript(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Creates R batch script to be used with slurm
+        '''
+        batch = """#!/bin/bash -l
+#SBATCH --nodes=1
+#SBATCH --time=10
+#SBATCH --cpus-per-task=1
+#SBATCH --ntasks=1
+#SBATCH --job-name="RNA-Seq"
+#SBATCH --export=PATH,RNASEQDIR
+
+inputFile='{INPUT}'
+jsonFile='{JSON}'
+{COMMAND1}
+
+step1ID=$SLURM_JOB_ID
+sbatch -d afterok:$step1ID "{PWD}/pipeBatch"
+
+step2ID=$(( step1ID++ ))
+sbatch -d afterok:$step2ID "{PWD}/rBatch"
+
+wait"""
+        command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 1,2 "${inputFile}"'
+        cd = os.getcwd()
+        Context = {
+                "INPUT": self.inputPath,
+                "JSON": JSFI,
+                "COMMAND1": command1,
+                "PWD": cd
+                }
+        batchScript = batch.format(**Context)
+        with open('MasterBatch','w') as f:
+            f.write(batchScript)
+ 
+    @funTime
     def makeSlurm(self):
-        self.makeBatchScript()
+        checkJSON(JSFI,behavior='makeSlurm')
         self.makeRScript()
+        self.makeBatchScript()
+        self.makeMasterScript()
 
     @funTime
     def findPipeFinish(self):
@@ -1356,15 +1411,20 @@ wait"""
 
         Prepare for DESeq2 Analysis
         '''
-        print('Preparing for DESeq2...')
-        self.gatherAllSampleOverrep(1)
-        self.gatherAllSampleOverrep(2)
-        self.createJsonMetadata()
-        self.createNiceCounts()
-        self.getPipeTime()
-        self.createRCounts()
-        self.createRCols()
-        self.createRProgram()
+        while True:
+            if self.is3Finished():
+                print('Preparing for DESeq2...')
+                self.gatherAllSampleOverrep(1)
+                self.gatherAllSampleOverrep(2)
+                self.createJsonMetadata()
+                self.createNiceCounts()
+                self.getPipeTime()
+                self.createRCounts()
+                self.createRCols()
+                self.createRProgram()
+                break
+            else:
+                time.sleep(30)
 
     @funTime
     def runStage5(self):

@@ -199,8 +199,7 @@ def main():
         '''
         if arguments['--makeBatch']:
             ExperimentClass.makeSlurm()
-            cd = os.getcwd()
-            raise SystemExit('Batch files successfully created:\n\t{}/pipeBatch\n\t{}/rBatch'.format(cd,cd))
+            raise SystemExit('Batch files successfully created:\n\t{0}/pipeBatch\n\t{0}/rBatch\n\t{0}/MasterBatch'.format(os.getcwd()))
 
     def checkdashr():
         if arguments['--runsample'] == None:
