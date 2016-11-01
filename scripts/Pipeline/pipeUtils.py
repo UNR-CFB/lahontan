@@ -386,7 +386,7 @@ def preProcessingReference(referencePath,cdnaName,gtfName,genomeName,baseName):
 # Run Pipeline
 ################################################################
 
-def findFinish(projectPath, originalPath):
+def findFinish(projectPath, originalPath, behavior='default'):
     ''' Arguments:
             projectPath = string; path to Project Directory
             originalPath = string; path to Original Directory
@@ -405,16 +405,24 @@ def findFinish(projectPath, originalPath):
         raise SystemExit
     else:
         os.chdir(projectPath + '/runPipeNotify')
-    while True:
+    if behavior == 'default':
+        while True:
+            if len([name for name in os.listdir('.') if os.path.isfile(name)]) == numSamp:
+                #textMe('+17756227884','This is sent from your python script; The first part of the \
+                #        Pipeline has finished. Please return to computer')
+                #print('At this point textMe would send you a text')
+                os.chdir(projectPath)
+                shutil.rmtree(projectPath + '/runPipeNotify')
+                break
+            else:
+                time.sleep(30)
+    else:
         if len([name for name in os.listdir('.') if os.path.isfile(name)]) == numSamp:
-            #textMe('+17756227884','This is sent from your python script; The first part of the \
-            #        Pipeline has finished. Please return to computer')
-            #print('At this point textMe would send you a text')
-            os.chdir(projectPath)
-            shutil.rmtree(projectPath + '/runPipeNotify')
-            break
+            return True
         else:
-            time.sleep(30)
+            return False
+
+
 
 ################################################################
 # Making JSON file

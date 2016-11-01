@@ -434,6 +434,18 @@ wait"""
         pipeUtils.findFinish(self.Project, self.ogOriginal)
 
     @funTime
+    def is3Finished(self):
+        ''' Arguments:
+                None
+            Returns:
+                boolean = True if finished, False if not finished
+
+            Calls pipeUtils.findFinish() to figure out when self.GO()
+            function has finished analysis on all samples
+        '''
+        return pipeUtils.findFinish(self.Project, self.ogOriginal, behavior='non-default')
+
+    @funTime
     def createJsonMetadata(self):
         ''' Arguments:
                 None

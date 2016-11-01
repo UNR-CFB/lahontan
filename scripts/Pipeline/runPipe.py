@@ -283,14 +283,15 @@ def main():
                 ExperimentClass.runStage2()
             for sample in executionSamples:
                 ExperimentClass.executeSample(int(sample))
-            if 'A' in executionStages:
-                ExperimentClass.runStage4()
-                runR(ExperimentClass)
-            else:
-                if '4' in executionStages:
+            if ExperimentClass.is3Finished():
+                if 'A' in executionStages:
                     ExperimentClass.runStage4()
-                if '5' in executionStages:
                     runR(ExperimentClass)
+                else:
+                    if '4' in executionStages:
+                        ExperimentClass.runStage4()
+                    if '5' in executionStages:
+                        runR(ExperimentClass)
             #print('Finished Running specified samples\n' + 
             #'If you wish to run R analysis, you will need to run all samples\n' +
             #'If you have run all samples, you can run R analysis by running:\n' +
