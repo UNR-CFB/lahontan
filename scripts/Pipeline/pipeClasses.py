@@ -356,7 +356,6 @@ class Experiment:
         else:
             raise SystemExit('There is a problem with executing sample')
 
-    @funTime
     def makeBatchScript(self,cpuLimit=None):
         ''' Arguments:
                 None
@@ -393,7 +392,6 @@ wait"""
         with open('pipeBatch','w') as f:
             f.write(batchScript)
 
-    @funTime
     def makeRScript(self,cpuLimit=None):
         ''' Arguments:
                 None
@@ -437,7 +435,6 @@ wait"""
         with open('rBatch','w') as f:
             f.write(batchScript)
 
-    @funTime
     def makeMasterScript(self,cpuLimit=None):
         ''' Arguments:
                 None
