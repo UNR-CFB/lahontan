@@ -480,7 +480,6 @@ wait"""
         with open('MasterBatch','w') as f:
             f.write(batchScript)
  
-    @funTime
     def makeSlurm(self,cpuLimit=True):
         checkJSON(JSFI,behavior='makeSlurm')
         self.makeRScript(cpuLimit)
