@@ -378,10 +378,10 @@ inputFile='{INPUT}'
 wait"""
         numSamps = self.getNumberofSamples()
         if cpuLimit == None:
-            com = 'srun -N1 -c48 -n1 runPipe.py --noconfirm -e 3 -r {} "${{inputFile}}" &'
+            com = 'srun -N1 -c48 -n1 runPipe.py --noconfirm -e 3 -r {} "${{inputFile}}"'
             commands = '\n'.join([com.format(num) for num in range(1,numSamps+1)])
         else:
-            com = 'srun -N1 -c48 -n1 runPipe.py --noconfirm --maxcpu {} -e 3 -r {} "${{inputFile}}" &'
+            com = 'srun -N1 -c48 -n1 runPipe.py --noconfirm --maxcpu {} -e 3 -r {} "${{inputFile}}"'
             commands = '\n'.join([com.format(self.Procs,num) for num in range(1,numSamps+1)])
         Context = {
                 "NUMSAMPLES": numSamps,
