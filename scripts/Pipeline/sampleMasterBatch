@@ -1,0 +1,19 @@
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --time=10
+#SBATCH --cpus-per-task=1
+#SBATCH --ntasks=1
+#SBATCH --job-name="RNA-Seq"
+#SBATCH --export=PATH,RNASEQDIR
+
+inputFile='/home/alberton/biox221/plantINPUT'
+jsonFile='/home/alberton/biox221/plantMetadata.json'
+srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu 2 --jsonfile "${jsonFile}" --execute 1,2 "${inputFile}"
+
+step1ID=$SLURM_JOB_ID
+sbatch -d afterok:$step1ID "/home/alberton/rna-seq/scripts/Pipeline/pipeBatch"
+
+step2ID=$(( step1ID++ ))
+sbatch -d afterok:$step2ID "/home/alberton/rna-seq/scripts/Pipeline/rBatch"
+
+wait

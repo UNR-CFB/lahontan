@@ -1,0 +1,15 @@
+#!/bin/bash
+#SBATCH --nodes=1
+#SBATCH --time=10
+#SBATCH --cpus-per-task=1
+#SBATCH --ntasks=2
+#SBATCH --job-name="R-Analysis"
+#SBATCH --export=PATH,RNASEQDIR
+
+inputFile='/home/alberton/biox221/plantINPUT'
+jsonFile='/home/alberton/biox221/plantMetadata.json'
+srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu 2 --jsonfile "${jsonFile}" --execute 4 "${inputFile}"
+srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu 2 --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &
+srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu 2 --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &
+
+wait
