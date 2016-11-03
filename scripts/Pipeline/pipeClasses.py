@@ -361,9 +361,7 @@ class Experiment:
             name = 'sample_{:02g}'.format(subject)
             if os.path.exists(self.Data + '/' + name):
                 Sample = self.createSampleClasses(subject)
-                #self.runSample(Sample)
-                print(Sample.Procs)
-                raise SystemExit
+                self.runSample(Sample)
         else:
             raise SystemExit('There is a problem with executing sample')
 
