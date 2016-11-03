@@ -1405,7 +1405,7 @@ wait"""
         '''
         self.makeNotifyFolder2()
         print("Pipeline is running for sample_{}...".format(number))
-        print("sample_{} on {}".format(number,os.uname[1]))
+        print("sample_{} on {}".format(number,os.uname()[1]))
         self.GO(int(number))
 
     @funTime
