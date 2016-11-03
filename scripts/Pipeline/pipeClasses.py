@@ -38,7 +38,7 @@ import json
 # Utilities
 ################################################################
 
-def exportVariablesforClass(pathtoInput):
+def exportVariablesforClass(pathtoInput,maxCPU=None):
     ''' Arguments:
             pathtoInput = string; path to INPUT file
         Returns:
@@ -50,7 +50,7 @@ def exportVariablesforClass(pathtoInput):
     Gtf, Cdna, Genome = pipeUtils.getReferenceVariables(Reference)
     Basename = pipeUtils.getBasename(Genome)
     Fastq = pipeUtils.getFastq(Original)
-    Procs = pipeUtils.countCPU()
+    Procs = pipeUtils.countCPU(maxCPU)
     Variables = {
             "Projectpath": Project,
             "ogReference": Reference,
@@ -130,7 +130,7 @@ class Experiment:
         This class provides tools to analyze data
     '''
 
-    def __init__(self, inputPath):
+    def __init__(self, inputPath, maxCPU=None):
         ''' Arguments:
                 inputPath = string; path to INPUT file
             Returns:
@@ -139,7 +139,7 @@ class Experiment:
             Initializes variables that get scraped from 
             exportVariablesforClass(inputPath)
         '''
-        variables = exportVariablesforClass(inputPath)
+        variables = exportVariablesforClass(inputPath,maxCPU)
         self.Project = variables["Projectpath"]
         self.ogReference = variables["ogReference"]
         self.ogOriginal = variables["ogOriginal"]
@@ -304,7 +304,6 @@ class Experiment:
                                                 self.Genome,
                                                 self.Basename)
 
-    @funTime
     def createSampleClasses(self,subject='all'):
         ''' Arguments:
                 None
@@ -322,7 +321,6 @@ class Experiment:
             Sample = Experiment.Sample(subject, self.inputPath)
             return Sample
 
-    @funTime
     def runSample(self, sample):
         ''' Arguments:
                 sample = class; runs pipeline on sample
@@ -359,7 +357,7 @@ class Experiment:
             raise SystemExit('There is a problem with executing sample')
 
     @funTime
-    def makeBatchScript(self):
+    def makeBatchScript(self,cpuLimit=None):
         ''' Arguments:
                 None
             Returns:
@@ -380,8 +378,12 @@ inputFile='{INPUT}'
 
 wait"""
         numSamps = self.getNumberofSamples()
-        com = 'srun -N1 -c48 -n1 runPipe.py --noconfirm -e 3 -r {} "${{inputFile}}" &'
-        commands = '\n'.join([com.format(num) for num in range(1,numSamps+1)])
+        if cpuLimit == None:
+            com = 'srun -N1 -c48 -n1 runPipe.py --noconfirm -e 3 -r {} "${{inputFile}}" &'
+            commands = '\n'.join([com.format(num) for num in range(1,numSamps+1)])
+        else:
+            com = 'srun -N1 -c48 -n1 runPipe.py --noconfirm --maxcpu {} -e 3 -r {} "${{inputFile}}" &'
+            commands = '\n'.join([com.format(self.Procs,num) for num in range(1,numSamps+1)])
         Context = {
                 "NUMSAMPLES": numSamps,
                 "INPUT": self.inputPath,
@@ -392,7 +394,7 @@ wait"""
             f.write(batchScript)
 
     @funTime
-    def makeRScript(self):
+    def makeRScript(self,cpuLimit=None):
         ''' Arguments:
                 None
             Returns:
@@ -405,7 +407,7 @@ wait"""
 #SBATCH --time=10
 #SBATCH --cpus-per-task=1
 #SBATCH --ntasks=2
-#SBATCH --job-name="R_Analysis"
+#SBATCH --job-name="R-Analysis"
 #SBATCH --export=PATH,RNASEQDIR
 
 inputFile='{INPUT}'
@@ -415,9 +417,15 @@ jsonFile='{JSON}'
 {COMMAND3}
 
 wait"""
-        command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 4 "${inputFile}"'
-        command2 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &'
-        command3 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &'
+        if cpuLimit == None:
+            command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 4 "${inputFile}"'
+            command2 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &'
+            command3 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &'
+        else:
+            command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(self.Procs)
+            command2 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 5 --edger "${{inputFile}}" &'.format(self.Procs)
+            command3 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 5 --deseq "${{inputFile}}" &'.format(self.Procs)
+
         Context = {
                 "INPUT": self.inputPath,
                 "JSON": JSFI,
@@ -430,7 +438,7 @@ wait"""
             f.write(batchScript)
 
     @funTime
-    def makeMasterScript(self):
+    def makeMasterScript(self,cpuLimit=None):
         ''' Arguments:
                 None
             Returns:
@@ -457,7 +465,10 @@ step2ID=$(( step1ID++ ))
 sbatch -d afterok:$step2ID "{PWD}/rBatch"
 
 wait"""
-        command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 1,2 "${inputFile}"'
+        if cpuLimit == None:
+            command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 1,2 "${inputFile}"'
+        else:
+            command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(self.Procs)
         cd = os.getcwd()
         Context = {
                 "INPUT": self.inputPath,
@@ -470,11 +481,11 @@ wait"""
             f.write(batchScript)
  
     @funTime
-    def makeSlurm(self):
+    def makeSlurm(self,cpuLimit=True):
         checkJSON(JSFI,behavior='makeSlurm')
-        self.makeRScript()
-        self.makeBatchScript()
-        self.makeMasterScript()
+        self.makeRScript(cpuLimit)
+        self.makeBatchScript(cpuLimit)
+        self.makeMasterScript(cpuLimit)
 
     @funTime
     def findPipeFinish(self):
@@ -488,7 +499,6 @@ wait"""
         '''
         pipeUtils.findFinish(self.Project, self.ogOriginal)
 
-    @funTime
     def is3Finished(self):
         ''' Arguments:
                 None
@@ -538,7 +548,6 @@ wait"""
         '''
         pipeUtils.makeTotalTime(self.Postprocessing, self.Data)
 
-    @funTime
     def createRCounts(self):
         ''' Arguments:
                 None
@@ -551,7 +560,6 @@ wait"""
         os.chdir(self.Postprocessing)
         pipeUtils.createCountFile(self.Postprocessing)
 
-    @funTime
     def createRCols(self):
         ''' Arguments:
                 None
@@ -1391,7 +1399,6 @@ wait"""
         self.GO()
         self.findPipeFinish()
 
-    @funTime
     def executeSample(self, number):
         ''' Arguments:
                 number = int; sample number
@@ -1402,6 +1409,7 @@ wait"""
         '''
         self.makeNotifyFolder2()
         print("Pipeline is running for sample_{}...".format(number))
+        print("sample_{} on {}".format(number,os.uname[1]))
         self.GO(int(number))
 
     @funTime

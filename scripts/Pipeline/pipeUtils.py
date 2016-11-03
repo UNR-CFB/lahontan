@@ -166,7 +166,7 @@ def getFastq(originalPath):
 
     return fastq
 
-def countCPU():
+def countCPU(maxCPU=None):
     ''' Arguments:
             None
         Returns:
@@ -174,7 +174,10 @@ def countCPU():
 
         Gets number of processors by running os.cpu_count()
     '''
-    procs = int(os.cpu_count())
+    if maxCPU == None:
+        procs = int(os.cpu_count())
+    else:
+        procs = int(maxCPU)
     return procs
 
 def exportVariables(pathtoInput):

@@ -40,6 +40,9 @@ Options:
         Runs edgeR analysis only. Default is to run both 
     --deseq
         Runs DESeq2 analysis only. Default is to run both
+    --maxcpu <CPUs>
+        Limits number of CPUs used by Pipeline. Without
+        argument, default is to use all available CPUs.
 
 Examples:
     runPipe.py /path/to/INPUT
@@ -162,7 +165,22 @@ def main():
     if JSFI != None:
         pipeClasses.checkJSON(JSFI)
 
-    PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'])
+    def checkMaxCPU():
+        if arguments['--maxcpu'] == None:
+            return None
+        else:
+            if arguments['--maxcpu'].isdigit():
+                Max = int(arguments['--maxcpu'])
+                if Max <= os.cpu_count() and Max > 0:
+                    return Max
+                else:
+                    raise SystemExit('--maxcpu greater than available CPUs')
+            else:
+                raise SystemExit('Invalid value to --maxcpu: {}'.format(
+                            arguments['--maxcpu']))
+
+
+    PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'], maxCPU=checkMaxCPU())
 
     global RUNTIMELOG
     RUNTIMELOG = str(PROJ.Project + '/Runtime.log')
