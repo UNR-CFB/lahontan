@@ -313,13 +313,22 @@ class Experiment:
             Creates all Sample Classes necessary and returns them in a list
             Number of samples is based on self.getNumberofSamples() function
         '''
-        if subject == 'all':
-            Samples = [Experiment.Sample(n, self.inputPath) for n 
-                    in range(1,self.getNumberofSamples() + 1)]
-            return Samples
-        elif type(subject) == int:
-            Sample = Experiment.Sample(subject, self.inputPath)
-            return Sample
+        if self.Procs < os.cpu_count():
+            if subject == 'all':
+                Samples = [Experiment.Sample(n, self.inputPath,self.Procs) for n 
+                        in range(1,self.getNumberofSamples() + 1)]
+                return Samples
+            elif type(subject) == int:
+                Sample = Experiment.Sample(subject, self.inputPath, self.Procs)
+                return Sample
+        else:
+            if subject == 'all':
+                Samples = [Experiment.Sample(n, self.inputPath) for n 
+                        in range(1,self.getNumberofSamples() + 1)]
+                return Samples
+            elif type(subject) == int:
+                Sample = Experiment.Sample(subject, self.inputPath)
+                return Sample
 
     def runSample(self, sample):
         ''' Arguments:
@@ -352,7 +361,9 @@ class Experiment:
             name = 'sample_{:02g}'.format(subject)
             if os.path.exists(self.Data + '/' + name):
                 Sample = self.createSampleClasses(subject)
-                self.runSample(Sample)
+                #self.runSample(Sample)
+                print(Sample.Procs)
+                raise SystemExit
         else:
             raise SystemExit('There is a problem with executing sample')
 
@@ -402,7 +413,7 @@ wait"""
         '''
         batch = """#!/bin/bash
 #SBATCH --nodes=1
-#SBATCH --time=10
+#SBATCH --time=130
 #SBATCH --cpus-per-task=1
 #SBATCH --ntasks=2
 #SBATCH --job-name="R-Analysis"
@@ -759,7 +770,7 @@ wait"""
         Inherits from Experiment Parent Class
         '''
 
-        def __init__(self,sampleNumber,inputFile):
+        def __init__(self,sampleNumber,inputFile, maxCPU=None):
             ''' Arguments:
                     sampleNumber = int; sample number used for naming
                     inputFile = str; path to inputFile
@@ -778,6 +789,8 @@ wait"""
             self.Read1 = self.getReadNames()[0]
             self.Read2 = self.getReadNames()[1]
             self.logPath = '{}/Runtime.{}.log'.format(self.samplePath, self.sampleName)
+            if maxCPU != None:
+                self.Procs = maxCPU
 
         def __repr__(self):
             ''' Arguments:
@@ -1404,8 +1417,7 @@ wait"""
         Run Stage 3 for Sample #number
         '''
         self.makeNotifyFolder2()
-        print("Pipeline is running for sample_{}...".format(number))
-        print("sample_{} on {}".format(number,os.uname()[1]))
+        print("Pipeline is running for sample_{} on {}...".format(number,os.uname()[1]))
         self.GO(int(number))
 
     @funTime
