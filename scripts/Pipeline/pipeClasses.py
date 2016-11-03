@@ -419,6 +419,7 @@ wait"""
 
 inputFile='{INPUT}'
 jsonFile='{JSON}'
+sleep 10
 {COMMAND1}
 {COMMAND2}
 {COMMAND3}
