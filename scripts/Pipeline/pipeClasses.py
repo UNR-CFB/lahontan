@@ -365,7 +365,10 @@ class Experiment:
         else:
             raise SystemExit('There is a problem with executing sample')
 
-    def makeBatchScript(self,cpuLimit=None):
+    def getOptimal(numCPU):
+        numSamps = self.getNumberofSamples()
+
+    def makeBatchScript(self,cpuLimit=None,behavior='default'):
         ''' Arguments:
                 None
             Returns:
@@ -376,8 +379,8 @@ class Experiment:
         batch = """#!/bin/bash
 #SBATCH --nodes=2
 #SBATCH --time=120
-#SBATCH --cpus-per-task=48
-#SBATCH --ntasks=2
+#SBATCH --cpus-per-task={CPT}
+#SBATCH --ntasks={NT}
 #SBATCH --job-name="Pipeline"
 #SBATCH --export=PATH,RNASEQDIR
 
@@ -386,16 +389,33 @@ inputFile='{INPUT}'
 
 wait"""
         numSamps = self.getNumberofSamples()
-        if cpuLimit == None:
-            com = 'srun -N1 -c48 -n1 --exclusive runPipe.py --noconfirm -e 3 -r {} "${{inputFile}}" &'
+        if behavior == 'default':
+            if cpuLimit == None:
+                com = 'srun -N1 -c48 -n1 --exclusive runPipe.py --noconfirm -e 3 -r {} "${{inputFile}}" &'
+                commands = '\n'.join([com.format(num) for num in range(1,numSamps+1)])
+                cpt = 48
+                nt = 2
+            else:
+                com = 'srun -N1 -c{0} -n1 --exclusive runPipe.py --noconfirm --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &'
+                commands = '\n'.join([com.format(self.Procs,num) for num in range(1,numSamps+1)])
+                cpt = self.Procs
+                nt = 80//cpt
+        elif behavior == 'biox':
+            cpt = 16
+            nt = 5
+            com = 'srun -N1 -c16 -n1 --exclusive runPipe.py --noconfirm --maxcpu 16 -e 3 -r {0} "${{inputFile}}" &'
             commands = '\n'.join([com.format(num) for num in range(1,numSamps+1)])
         else:
-            com = 'srun -N1 -c48 -n1 --exclusive runPipe.py --noconfirm --maxcpu {} -e 3 -r {} "${{inputFile}}" &'
-            commands = '\n'.join([com.format(self.Procs,num) for num in range(1,numSamps+1)])
+            com = 'srun -N1 -c32 -n1 --exclusive runPipe.py --noconfirm -e 3 -r {} "${{inputFile}}" &'
+            commands = '\n'.join([com.format(num) for num in range(1,numSamps+1)])
+            cpt = 48
+            nt = 2
         Context = {
                 "NUMSAMPLES": numSamps,
                 "INPUT": self.inputPath,
-                "COMMANDS": commands
+                "COMMANDS": commands,
+                "CPT": cpt,
+                "NT": nt
                 }
         batchScript = batch.format(**Context)
         with open('pipeBatch','w') as f:
@@ -486,13 +506,12 @@ wait"""
         with open('MasterBatch','w') as f:
             f.write(batchScript)
  
-    def makeSlurm(self,cpuLimit=True):
+    def makeSlurm(self,cpuLimit,batch='default'):
         checkJSON(JSFI,behavior='makeSlurm')
-        self.makeRScript(cpuLimit)
-        self.makeBatchScript(cpuLimit)
-        self.makeMasterScript(cpuLimit)
+        self.makeRScript(cpuLimit=None)
+        self.makeBatchScript(cpuLimit,batch)
+        self.makeMasterScript(cpuLimit=None)
 
-    @funTime
     def findPipeFinish(self):
         ''' Arguments:
                 None

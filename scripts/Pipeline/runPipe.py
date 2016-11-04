@@ -28,21 +28,25 @@ Options:
     -r <integer>, --runsample <integer>
         Runs Stage 3 of the pipeline on the sample specified
         by the integer,
+    --maxcpu <CPUs>
+        Limits number of CPUs used by Pipeline. Without
+        argument, default is to use all available CPUs.
     --noconfirm
         Ignore all user prompts except JSON file creation
     --NUKE
         Removes entire project Directory
     --makeBatch
         Makes batch files to be used with slurm. This includes
-        the Batch for the sample runs and the Batch for the
-        two R analyses
+        the Batch for the sample runs, the Batch for the
+        two R analyses, and a Master batch
+    --biox
+        Makes batch files with best behavior for our
+        cluster(compute-0,compute-1,compute-2). Will ignore any
+        value given to --maxcpu
     --edger
         Runs edgeR analysis only. Default is to run both 
     --deseq
         Runs DESeq2 analysis only. Default is to run both
-    --maxcpu <CPUs>
-        Limits number of CPUs used by Pipeline. Without
-        argument, default is to use all available CPUs.
 
 Examples:
     runPipe.py /path/to/INPUT
@@ -166,18 +170,21 @@ def main():
         pipeClasses.checkJSON(JSFI)
 
     def checkMaxCPU():
-        if arguments['--maxcpu'] == None:
-            return None
+        if arguments['--makeBatch'] == True and arguments['--biox'] == True:
+            return 16
         else:
-            if arguments['--maxcpu'].isdigit():
-                Max = int(arguments['--maxcpu'])
-                if Max <= os.cpu_count() and Max > 0:
-                    return Max
-                else:
-                    raise SystemExit('--maxcpu greater than available CPUs')
+            if arguments['--maxcpu'] == None:
+                return None
             else:
-                raise SystemExit('Invalid value to --maxcpu: {}'.format(
-                            arguments['--maxcpu']))
+                if arguments['--maxcpu'].isdigit():
+                    Max = int(arguments['--maxcpu'])
+                    if Max <= os.cpu_count() and Max > 0:
+                        return Max
+                    else:
+                        raise SystemExit('--maxcpu greater than available CPUs')
+                else:
+                    raise SystemExit('Invalid value to --maxcpu: {}'.format(
+                                arguments['--maxcpu']))
 
 
     PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'], maxCPU=checkMaxCPU())
@@ -216,8 +223,12 @@ def main():
             used with slurm, and then exit
         '''
         if arguments['--makeBatch']:
-            ExperimentClass.makeSlurm()
-            raise SystemExit('Batch files successfully created:\n\t{0}/pipeBatch\n\t{0}/rBatch\n\t{0}/MasterBatch'.format(os.getcwd()))
+            if arguments['--biox'] == False:
+                ExperimentClass.makeSlurm(cpuLimit=checkMaxCPU())
+                raise SystemExit('Batch files successfully created:\n\t{0}/pipeBatch\n\t{0}/rBatch\n\t{0}/MasterBatch'.format(os.getcwd()))
+            else:
+                ExperimentClass.makeSlurm(cpuLimit=checkMaxCPU(),batch='biox')
+                raise SystemExit('Batch files successfully created:\n\t{0}/pipeBatch\n\t{0}/rBatch\n\t{0}/MasterBatch'.format(os.getcwd()))
 
     def checkdashr():
         if arguments['--runsample'] == None:
