@@ -419,7 +419,6 @@ wait"""
 
 inputFile='{INPUT}'
 jsonFile='{JSON}'
-sleep 10
 {COMMAND1}
 {COMMAND2}
 {COMMAND3}
@@ -1428,6 +1427,7 @@ wait"""
         '''
         while True:
             if self.is3Finished():
+                time.sleep(10)
                 print('Preparing for DESeq2...')
                 self.gatherAllSampleOverrep(1)
                 self.gatherAllSampleOverrep(2)
