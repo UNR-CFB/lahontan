@@ -5,7 +5,7 @@
                     [-s <sampleName> | --sampleclean <sampleName>]
                     [--NUKE] [-r <runlogPath> | --runtime <runlogPath>] <pathtoInput>
 
-Options:                                                                                           
+Options:
     -h --help                                  :    Show this screen and exit
     -j <jsonFile>, --jsonfile <jsonFile>       :    Ignores JSON file creation and uses specified
                                                     path to JSON
@@ -15,7 +15,7 @@ Options:
     -s <sampleName>, --sampleclean <sampleName>:    Similar to -c,--clean; but instead just cleans a
                                                     single sample directory <sampleName>
     --NUKE                                     :    Removes entire project Directory
-    -r <runlogPath>, --runtime <runlogPath>    :    Optional directory path for Runtime Log file to 
+    -r <runlogPath>, --runtime <runlogPath>    :    Optional directory path for Runtime Log file to
                                                     be created in [default: $Project]
 '''
 
@@ -25,6 +25,7 @@ Options:
 
 from docopt import docopt
 from timeit import default_timer as timer
+from math import ceil as ceiling
 import multiprocessing
 import time
 import pipeUtils
@@ -136,7 +137,7 @@ class Experiment:
             Returns:
                 None
 
-            Initializes variables that get scraped from 
+            Initializes variables that get scraped from
             exportVariablesforClass(inputPath)
         '''
         variables = exportVariablesforClass(inputPath,maxCPU)
@@ -187,7 +188,7 @@ class Experiment:
         else:
             numSamp = pipeUtils.getNumberofFiles(self.ogOriginal)/2
         return int(numSamp)
-    
+
     def checkStructure(self):
         ''' Arguments:
                 None
@@ -223,7 +224,7 @@ class Experiment:
             if there is a 'P' in '.init' which is in the Project folder.
             The 'P' is added after pipeUtils.preProcessingReference has completed
         '''
- 
+
         if os.path.exists(self.Project + '/.init'):
             with open(self.Project + '/.init', 'r') as f:
                 G = f.read()
@@ -272,7 +273,7 @@ class Experiment:
                 pipeUtils.createSymLinks(self.Project,
                                             self.ogOriginal,
                                             self.ogReference)
-        
+
     @funTime
     def qcRef(self):
         ''' Arguments:
@@ -315,7 +316,7 @@ class Experiment:
         '''
         if self.Procs < os.cpu_count():
             if subject == 'all':
-                Samples = [Experiment.Sample(n, self.inputPath,self.Procs) for n 
+                Samples = [Experiment.Sample(n, self.inputPath,self.Procs) for n
                         in range(1,self.getNumberofSamples() + 1)]
                 return Samples
             elif type(subject) == int:
@@ -323,7 +324,7 @@ class Experiment:
                 return Sample
         else:
             if subject == 'all':
-                Samples = [Experiment.Sample(n, self.inputPath) for n 
+                Samples = [Experiment.Sample(n, self.inputPath) for n
                         in range(1,self.getNumberofSamples() + 1)]
                 return Samples
             elif type(subject) == int:
@@ -337,7 +338,7 @@ class Experiment:
                 None
 
             Function calls Sample class function runParts()
-            Function used in multiprocessing as map function on 
+            Function used in multiprocessing as map function on
                 self.createSampleClasses() list
         '''
         sample.runParts()
@@ -365,8 +366,201 @@ class Experiment:
         else:
             raise SystemExit('There is a problem with executing sample')
 
-    def getOptimal(numCPU):
+    def getOptimal(self, cluster):
+        ''' Arguments:
+                cluster = list; a list of integers that describes number of
+                            CPUs on each machine in a cluster
+                numSamples = int; the number of samples that you need to run
+            Returns:
+                blah = dict; what you need to run
+
+            Figures out best way to run your samples
+        '''
+        numSamples = self.getNumberofSamples()
+        def atatime(cpuPerSample,limits=cluster):
+            return sum([x//cpuPerSample for x in limits])
+        def iterationsTilFinish(cpuPerSample, numSamp=numSamples, limits=cluster):
+            return ceiling(numSamp/atatime(cpuPerSample,limits))
+        def timePerSample(cpuPerSample):
+            return 2221.85*cpuPerSample**-0.831626
+        def totalTime(cpuPerSample, numSamp=numSamples, limits=cluster):
+            ''' If your cpuPerSample is held constant for all iterations required'''
+            return iterationsTilFinish(cpuPerSample,numSamp,limits)*timePerSample(cpuPerSample)
+        def oneIteration(cpuPerSample, numSamp=numSamples, limits=cluster):
+            return [numSamp-atatime(cpuPerSample,limits),[cpuPerSample,timePerSample(cpuPerSample)]]
+        def chokePoints(limits=cluster):
+            chokes,final = [],[]
+            for amount in [(n,atatime(n,limits)) for n in range(1,49)]:
+                if amount[1] not in chokes:
+                    chokes.append(amount[1])
+                    final.append(amount)
+                else:
+                    final.pop(-1)
+                    final.append(amount)
+            return [a[0] for a in final]
+        def smart(numSamp=numSamples,limits=cluster):
+            Paths,Finished,Best,counter = [],[1],9E9,0
+            available = chokePoints(limits)
+            while True:
+                if counter == 0:
+                    for M in available:
+                        ITER = oneIteration(M,numSamp,limits)
+                        if ITER[0] <= 0:
+                            test = [sum(i) for i in zip(*ITER[1:])][1]
+                            if test < Best:
+                                Best = test
+                                del Finished[0]
+                                Finished.append(ITER[1:])
+                        else: Paths.append(ITER)
+                    counter += 1
+                else:
+                    for path in Paths:
+                        for n in available:
+                            ITER = path[:]
+                            ITER[0] = ITER[0] - atatime(n)
+                            ITER.append(oneIteration(n,numSamp,limits)[1])
+                            if ITER[0] <= 0:
+                                test = [sum(i) for i in zip(*ITER[1:])][1]
+                                if test < Best:
+                                    Best = test
+                                    del Finished[0]
+                                    Finished.append(ITER[1:])
+                            else:
+                                Paths.append(ITER)
+                        Paths.remove(path)
+                    counter += 1
+                if len(Paths) == 0:
+                    break
+            return Best,Finished
+        #def smartMultiprocessing(M,numSamp=numSamples,limits=cluster):
+        #    Paths,Finished,Best,counter = [],[1],9E9,0
+        #    available = chokePoints(limits)
+        #    while True:
+        #        if counter == 0:
+        #            ITER = oneIteration(M,numSamp,limits)
+        #            if ITER[0] <= 0:
+        #                test = [sum(i) for i in zip(*ITER[1:])][1]
+        #                if test < Best:
+        #                    Best = test
+        #                    del Finished[0]
+        #                    Finished.append(ITER[1:])
+        #            else:
+        #                Paths.append(ITER)
+        #            counter += 1
+        #        else:
+        #            for path in Paths:
+        #                for n in available:
+        #                    ITER = path[:]
+        #                    ITER[0] = ITER[0] - atatime(n)
+        #                    ITER.append(oneIteration(n,numSamp,limits)[1])
+        #                    if ITER[0] <= 0:
+        #                        test = [sum(i) for i in zip(*ITER[1:])][1]
+        #                        if test < Best:
+        #                            Best = test
+        #                            del Finished[0]
+        #                            Finished.append(ITER[1:])
+        #                    else:
+        #                        Paths.append(ITER)
+        #                Paths.remove(path)
+        #            #counter += 1
+        #        if len(Paths) == 0:
+        #            break
+        #    return Best,Finished
+        def scrapeResults(Best,numSamps=numSamples,limits=cluster):
+            resultDict,counter,totalSamps = {},0,numSamps
+            while True:
+                S = atatime(Best[1][0][counter][0],limits)
+                if S > totalSamps:
+                    S = totalSamps
+                else:
+                    totalSamps -= S
+                resultDict['Step {}'.format(counter+1)] = {}
+                resultDict['Step {}'.format(counter+1)]['Procs'] = Best[1][0][counter][0]
+                resultDict['Step {}'.format(counter+1)]['Samps'] = S
+                counter += 1
+                if counter+1 > len(Best[1][0]):
+                    break
+            return resultDict
+        #with multiprocessing.Pool(self.Procs) as p:
+        #    available = chokePoints(cluster)
+        #    Results = p.map(smartMultiprocessing, available)
+        #    bestResult = list(sorted(Results)[0])
+        #    return scrapeResults(bestResult)
+        return scrapeResults(smart())
+
+    def makeBatchBiox(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Creates Pipeline batch script to be used with slurm
+        '''
+        batch =  """#!/bin/bash
+#SBATCH --nodes={NODES}
+#SBATCH --time=120
+#SBATCH --cpus-per-task={CPT}
+#SBATCH --ntasks={NTASKS}
+#SBATCH --job-name="Pipeline"
+#SBATCH --export=PATH,RNASEQDIR
+
+inputFile='{INPUT}'
+jsonFile='{JSON}'
+
+# Stage 1 and 2
+{STAGE12}
+
+wait
+
+# Stage 3
+{STAGE3}
+wait
+
+# Stage 4
+{STAGE4}
+
+wait
+
+# Stage 5
+{STAGE5}
+
+wait
+"""
         numSamps = self.getNumberofSamples()
+        command12 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 1,2 "${inputFile}"'
+        bestPath = self.getOptimal([48,32])
+        command3 = ''
+        counter = 1
+        sampleNum = 1
+        for path in bestPath:
+            Pstep = bestPath[path]['Procs']
+            Sstep = bestPath[path]['Samps']
+            for S in range(sampleNum,sampleNum + Sstep):
+                com = 'srun -N1 -c{0} -n1 --exclusive runPipe.py --noconfirm --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S)
+                command3 += com
+            if counter != len(bestPath):
+                command3 += 'wait\n'
+            counter += 1
+            sampleNum += Sstep
+        command4 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 4 "${inputFile}"'
+        command5a = 'srun -N1 -c1 -n1 --exclusive runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &'
+        command5b = 'srun -N1 -c1 -n1 --exclusive runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &'
+        command5 = command5a + '\n' + command5b
+        Context = {
+                "NODES": 2,
+                "CPT": 16,
+                "NTASKS": 5,
+                "INPUT": self.inputPath,
+                "JSON": JSFI,
+                "STAGE12": command12,
+                "STAGE3": command3,
+                "STAGE4": command4,
+                "STAGE5": command5,
+                }
+        batchScript = batch.format(**Context)
+        with open('pipeBatch','w') as f:
+            f.write(batchScript)
+        #TODO Fix runPipe for actual batch
 
     def makeBatchScript(self,cpuLimit=None,behavior='default'):
         ''' Arguments:
@@ -405,11 +599,6 @@ wait"""
             nt = 5
             com = 'srun -N1 -c16 -n1 --exclusive runPipe.py --noconfirm --maxcpu 16 -e 3 -r {0} "${{inputFile}}" &'
             commands = '\n'.join([com.format(num) for num in range(1,numSamps+1)])
-        else:
-            com = 'srun -N1 -c32 -n1 --exclusive runPipe.py --noconfirm -e 3 -r {} "${{inputFile}}" &'
-            commands = '\n'.join([com.format(num) for num in range(1,numSamps+1)])
-            cpt = 48
-            nt = 2
         Context = {
                 "NUMSAMPLES": numSamps,
                 "INPUT": self.inputPath,
@@ -505,7 +694,7 @@ wait"""
         batchScript = batch.format(**Context)
         with open('MasterBatch','w') as f:
             f.write(batchScript)
- 
+
     def makeSlurm(self,cpuLimit,batch='default'):
         checkJSON(JSFI,behavior='makeSlurm')
         self.makeRScript(cpuLimit=None)
@@ -579,7 +768,7 @@ wait"""
                 None
 
             Calls pipeUtils.createCountFile() to make the Count file(Counts.dat)
-            that works in my R analysis 
+            that works in my R analysis
         '''
         os.chdir(self.Postprocessing)
         pipeUtils.createCountFile(self.Postprocessing)
@@ -660,7 +849,7 @@ wait"""
                 raise SystemExit
             else:
                 print('Please answer y or n')
-            
+
     def makeNotifyFolder(self):
         ''' Arguments:
                 None
@@ -707,13 +896,13 @@ wait"""
         for sample in samples:
             OverSeq = glob.glob(sample + '/Sample*Run{}*'.format(runNumber))
             for ov in OverSeq:
-                header = '-'.join(ov.split('/')[-3:-1])                       
+                header = '-'.join(ov.split('/')[-3:-1])
                 with open('{}/Run{}-OverrepSeq.txt'.format(self.Postprocessing,
                                                             runNumber),'a') as R:
-                    R.write('\n' + header + '\n')                                
-                    with open(ov,'r') as O:                              
-                        contents = O.read()                                      
-                    R.write(contents + '\n')                                     
+                    R.write('\n' + header + '\n')
+                    with open(ov,'r') as O:
+                        contents = O.read()
+                    R.write(contents + '\n')
 
     ################################################################
     # Cleaning Functions
@@ -905,7 +1094,7 @@ wait"""
                     None
                 Returns:
                     None
-                
+
                 Initializes sample log
             '''
             os.chdir(self.samplePath)
@@ -978,7 +1167,7 @@ wait"""
                     runNumber = int; trial number for QC
                 Returns:
                     None
-                
+
                 Scrapes Overrepresented Sequences from Fastqc output
                 and writes to a file in sample fastqc directory
             '''
@@ -1253,7 +1442,7 @@ wait"""
                     "fastq": self.Fastq,
                     "sample": self.sampleName
                     }
-            goodCommand = self.formatCommand(command.format(**context)) 
+            goodCommand = self.formatCommand(command.format(**context))
             # Executing
             os.chdir(self.samplePath)
             subprocess.run(goodCommand,
@@ -1491,7 +1680,7 @@ wait"""
 #    '''
 #    USE runPipe.py
 #    '''
-#        
+#
 #    arguments = docopt(__doc__, version='Version 0.99\nAuthor: Alberto')
 #    t1 = timer()
 #

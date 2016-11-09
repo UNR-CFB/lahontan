@@ -36,6 +36,7 @@ Options:
     --NUKE
         Removes entire project Directory
     --makeBatch
+        Note: For now should always be ran with --biox
         Makes batch files to be used with slurm. This includes
         the Batch for the sample runs, the Batch for the
         two R analyses, and a Master batch
@@ -171,7 +172,7 @@ def main():
 
     def checkMaxCPU():
         if arguments['--makeBatch'] == True and arguments['--biox'] == True:
-            return 16
+            return 6
         else:
             if arguments['--maxcpu'] == None:
                 return None
@@ -223,11 +224,12 @@ def main():
             used with slurm, and then exit
         '''
         if arguments['--makeBatch']:
-            if arguments['--biox'] == False:
+            if not arguments['--biox']:
                 ExperimentClass.makeSlurm(cpuLimit=checkMaxCPU())
                 raise SystemExit('Batch files successfully created:\n\t{0}/pipeBatch\n\t{0}/rBatch\n\t{0}/MasterBatch'.format(os.getcwd()))
             else:
-                ExperimentClass.makeSlurm(cpuLimit=checkMaxCPU(),batch='biox')
+                ExperimentClass.makeBatchBiox()
+                #ExperimentClass.makeSlurm(cpuLimit=checkMaxCPU(),batch='biox')
                 raise SystemExit('Batch files successfully created:\n\t{0}/pipeBatch\n\t{0}/rBatch\n\t{0}/MasterBatch'.format(os.getcwd()))
 
     def checkdashr():
