@@ -372,7 +372,7 @@ class Experiment:
                             CPUs on each machine in a cluster
                 numSamples = int; the number of samples that you need to run
             Returns:
-                blah = dict; what you need to run
+                dict; what you need to run
 
             Figures out best way to run your samples
         '''
@@ -390,7 +390,7 @@ class Experiment:
             return [numSamp-atatime(cpuPerSample,limits),[cpuPerSample,timePerSample(cpuPerSample)]]
         def chokePoints(limits=cluster):
             chokes,final = [],[]
-            for amount in [(n,atatime(n,limits)) for n in range(1,49)]:
+            for amount in [(n,atatime(n,limits)) for n in range(1,max(limits)+1)]:
                 if amount[1] not in chokes:
                     chokes.append(amount[1])
                     final.append(amount)
@@ -529,9 +529,7 @@ wait
         numSamps = self.getNumberofSamples()
         command12 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 1,2 "${inputFile}"'
         bestPath = self.getOptimal([48,32])
-        command3 = ''
-        counter = 1
-        sampleNum = 1
+        command3,counter,sampleNum = '',1,1
         for path in bestPath:
             Pstep = bestPath[path]['Procs']
             Sstep = bestPath[path]['Samps']
@@ -560,146 +558,217 @@ wait
         batchScript = batch.format(**Context)
         with open('pipeBatch','w') as f:
             f.write(batchScript)
-        #TODO Fix runPipe for actual batch
 
-    def makeBatchScript(self,cpuLimit=None,behavior='default'):
+    def makeBatch(self, cluster):
         ''' Arguments:
-                None
+                cluster = list; list of integers that describe number
+                            of CPUs in each node of your cluster
             Returns:
                 None
 
             Creates Pipeline batch script to be used with slurm
         '''
-        batch = """#!/bin/bash
-#SBATCH --nodes=2
+        batch =  """#!/bin/bash
+#SBATCH --nodes={NODES}
 #SBATCH --time=120
 #SBATCH --cpus-per-task={CPT}
-#SBATCH --ntasks={NT}
+#SBATCH --ntasks={NTASKS}
 #SBATCH --job-name="Pipeline"
 #SBATCH --export=PATH,RNASEQDIR
 
 inputFile='{INPUT}'
-{COMMANDS}
+jsonFile='{JSON}'
 
-wait"""
+# Stage 1 and 2
+{STAGE12}
+
+wait
+
+# Stage 3
+{STAGE3}
+wait
+
+# Stage 4
+{STAGE4}
+
+wait
+
+# Stage 5
+{STAGE5}
+
+wait
+"""
         numSamps = self.getNumberofSamples()
-        if behavior == 'default':
-            if cpuLimit == None:
-                com = 'srun -N1 -c48 -n1 --exclusive runPipe.py --noconfirm -e 3 -r {} "${{inputFile}}" &'
-                commands = '\n'.join([com.format(num) for num in range(1,numSamps+1)])
-                cpt = 48
-                nt = 2
-            else:
-                com = 'srun -N1 -c{0} -n1 --exclusive runPipe.py --noconfirm --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &'
-                commands = '\n'.join([com.format(self.Procs,num) for num in range(1,numSamps+1)])
-                cpt = self.Procs
-                nt = 80//cpt
-        elif behavior == 'biox':
-            cpt = 16
-            nt = 5
-            com = 'srun -N1 -c16 -n1 --exclusive runPipe.py --noconfirm --maxcpu 16 -e 3 -r {0} "${{inputFile}}" &'
-            commands = '\n'.join([com.format(num) for num in range(1,numSamps+1)])
+        command12 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 1,2 "${inputFile}"'
+        bestPath = self.getOptimal(cluster)
+        command3,counter,sampleNum = '',1,1
+        for path in bestPath:
+            Pstep = bestPath[path]['Procs']
+            Sstep = bestPath[path]['Samps']
+            for S in range(sampleNum,sampleNum + Sstep):
+                com = 'srun -N1 -c{0} -n1 --exclusive runPipe.py --noconfirm --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S)
+                command3 += com
+            if counter != len(bestPath):
+                command3 += 'wait\n'
+            counter += 1
+            sampleNum += Sstep
+        command4 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 4 "${inputFile}"'
+        command5a = 'srun -N1 -c1 -n1 --exclusive runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &'
+        command5b = 'srun -N1 -c1 -n1 --exclusive runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &'
+        command5 = command5a + '\n' + command5b
         Context = {
-                "NUMSAMPLES": numSamps,
+                "NODES": len(cluster),
+                "CPT": bestPath['Step 1']['Procs'],
+                "NTASKS": bestPath['Step 1']['Samps'],
                 "INPUT": self.inputPath,
-                "COMMANDS": commands,
-                "CPT": cpt,
-                "NT": nt
+                "JSON": JSFI,
+                "STAGE12": command12,
+                "STAGE3": command3,
+                "STAGE4": command4,
+                "STAGE5": command5,
                 }
         batchScript = batch.format(**Context)
         with open('pipeBatch','w') as f:
             f.write(batchScript)
 
-    def makeRScript(self,cpuLimit=None):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Creates R batch script to be used with slurm
-        '''
-        batch = """#!/bin/bash
-#SBATCH --nodes=1
-#SBATCH --time=130
-#SBATCH --cpus-per-task=1
-#SBATCH --ntasks=2
-#SBATCH --job-name="R-Analysis"
-#SBATCH --export=PATH,RNASEQDIR
-
-inputFile='{INPUT}'
-jsonFile='{JSON}'
-{COMMAND1}
-{COMMAND2}
-{COMMAND3}
-
-wait"""
-        if cpuLimit == None:
-            command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 4 "${inputFile}"'
-            command2 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &'
-            command3 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &'
-        else:
-            command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(self.Procs)
-            command2 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 5 --edger "${{inputFile}}" &'.format(self.Procs)
-            command3 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 5 --deseq "${{inputFile}}" &'.format(self.Procs)
-
-        Context = {
-                "INPUT": self.inputPath,
-                "JSON": JSFI,
-                "COMMAND1": command1,
-                "COMMAND2": command2,
-                "COMMAND3": command3,
-                }
-        batchScript = batch.format(**Context)
-        with open('rBatch','w') as f:
-            f.write(batchScript)
-
-    def makeMasterScript(self,cpuLimit=None):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Creates R batch script to be used with slurm
-        '''
-        batch = """#!/bin/bash
-#SBATCH --nodes=1
-#SBATCH --time=10
-#SBATCH --cpus-per-task=1
-#SBATCH --ntasks=1
-#SBATCH --job-name="RNA-Seq"
-#SBATCH --export=PATH,RNASEQDIR
-
-inputFile='{INPUT}'
-jsonFile='{JSON}'
-{COMMAND1}
-
-step1ID=$SLURM_JOB_ID
-sbatch -d afterok:$step1ID "{PWD}/pipeBatch"
-
-step2ID=$(( step1ID++ ))
-sbatch -d afterok:$step2ID "{PWD}/rBatch"
-
-wait"""
-        if cpuLimit == None:
-            command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 1,2 "${inputFile}"'
-        else:
-            command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(self.Procs)
-        cd = os.getcwd()
-        Context = {
-                "INPUT": self.inputPath,
-                "JSON": JSFI,
-                "COMMAND1": command1,
-                "PWD": cd
-                }
-        batchScript = batch.format(**Context)
-        with open('MasterBatch','w') as f:
-            f.write(batchScript)
-
-    def makeSlurm(self,cpuLimit,batch='default'):
-        checkJSON(JSFI,behavior='makeSlurm')
-        self.makeRScript(cpuLimit=None)
-        self.makeBatchScript(cpuLimit,batch)
-        self.makeMasterScript(cpuLimit=None)
+#    def makeBatchScript(self,cpuLimit=None,behavior='default'):
+#        ''' Arguments:
+#                None
+#            Returns:
+#                None
+#
+#            Creates Pipeline batch script to be used with slurm
+#        '''
+#        batch = """#!/bin/bash
+##SBATCH --nodes=2
+##SBATCH --time=120
+##SBATCH --cpus-per-task={CPT}
+##SBATCH --ntasks={NT}
+##SBATCH --job-name="Pipeline"
+##SBATCH --export=PATH,RNASEQDIR
+#
+#inputFile='{INPUT}'
+#{COMMANDS}
+#
+#wait"""
+#        numSamps = self.getNumberofSamples()
+#        if behavior == 'default':
+#            if cpuLimit == None:
+#                com = 'srun -N1 -c48 -n1 --exclusive runPipe.py --noconfirm -e 3 -r {} "${{inputFile}}" &'
+#                commands = '\n'.join([com.format(num) for num in range(1,numSamps+1)])
+#                cpt = 48
+#                nt = 2
+#            else:
+#                com = 'srun -N1 -c{0} -n1 --exclusive runPipe.py --noconfirm --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &'
+#                commands = '\n'.join([com.format(self.Procs,num) for num in range(1,numSamps+1)])
+#                cpt = self.Procs
+#                nt = 80//cpt
+#        elif behavior == 'biox':
+#            cpt = 16
+#            nt = 5
+#            com = 'srun -N1 -c16 -n1 --exclusive runPipe.py --noconfirm --maxcpu 16 -e 3 -r {0} "${{inputFile}}" &'
+#            commands = '\n'.join([com.format(num) for num in range(1,numSamps+1)])
+#        Context = {
+#                "NUMSAMPLES": numSamps,
+#                "INPUT": self.inputPath,
+#                "COMMANDS": commands,
+#                "CPT": cpt,
+#                "NT": nt
+#                }
+#        batchScript = batch.format(**Context)
+#        with open('pipeBatch','w') as f:
+#            f.write(batchScript)
+#
+#    def makeRScript(self,cpuLimit=None):
+#        ''' Arguments:
+#                None
+#            Returns:
+#                None
+#
+#            Creates R batch script to be used with slurm
+#        '''
+#        batch = """#!/bin/bash
+##SBATCH --nodes=1
+##SBATCH --time=130
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks=2
+##SBATCH --job-name="R-Analysis"
+##SBATCH --export=PATH,RNASEQDIR
+#
+#inputFile='{INPUT}'
+#jsonFile='{JSON}'
+#{COMMAND1}
+#{COMMAND2}
+#{COMMAND3}
+#
+#wait"""
+#        if cpuLimit == None:
+#            command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 4 "${inputFile}"'
+#            command2 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &'
+#            command3 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &'
+#        else:
+#            command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(self.Procs)
+#            command2 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 5 --edger "${{inputFile}}" &'.format(self.Procs)
+#            command3 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 5 --deseq "${{inputFile}}" &'.format(self.Procs)
+#
+#        Context = {
+#                "INPUT": self.inputPath,
+#                "JSON": JSFI,
+#                "COMMAND1": command1,
+#                "COMMAND2": command2,
+#                "COMMAND3": command3,
+#                }
+#        batchScript = batch.format(**Context)
+#        with open('rBatch','w') as f:
+#            f.write(batchScript)
+#
+#    def makeMasterScript(self,cpuLimit=None):
+#        ''' Arguments:
+#                None
+#            Returns:
+#                None
+#
+#            Creates R batch script to be used with slurm
+#        '''
+#        batch = """#!/bin/bash
+##SBATCH --nodes=1
+##SBATCH --time=10
+##SBATCH --cpus-per-task=1
+##SBATCH --ntasks=1
+##SBATCH --job-name="RNA-Seq"
+##SBATCH --export=PATH,RNASEQDIR
+#
+#inputFile='{INPUT}'
+#jsonFile='{JSON}'
+#{COMMAND1}
+#
+#step1ID=$SLURM_JOB_ID
+#sbatch -d afterok:$step1ID "{PWD}/pipeBatch"
+#
+#step2ID=$(( step1ID++ ))
+#sbatch -d afterok:$step2ID "{PWD}/rBatch"
+#
+#wait"""
+#        if cpuLimit == None:
+#            command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 1,2 "${inputFile}"'
+#        else:
+#            command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(self.Procs)
+#        cd = os.getcwd()
+#        Context = {
+#                "INPUT": self.inputPath,
+#                "JSON": JSFI,
+#                "COMMAND1": command1,
+#                "PWD": cd
+#                }
+#        batchScript = batch.format(**Context)
+#        with open('MasterBatch','w') as f:
+#            f.write(batchScript)
+#
+#    def makeSlurm(self,cpuLimit,batch='default'):
+#        checkJSON(JSFI,behavior='makeSlurm')
+#        self.makeRScript(cpuLimit=None)
+#        self.makeBatchScript(cpuLimit,batch)
+#        self.makeMasterScript(cpuLimit=None)
 
     def findPipeFinish(self):
         ''' Arguments:
