@@ -524,6 +524,7 @@ wait
 # Stage 5
 {STAGE5}
 
+scontrol show job $SLURM_JOB_ID
 wait
 """
         numSamps = self.getNumberofSamples()
@@ -596,6 +597,7 @@ wait
 # Stage 5
 {STAGE5}
 
+scontrol show job $SLURM_JOB_ID
 wait
 """
         numSamps = self.getNumberofSamples()
@@ -1706,6 +1708,7 @@ wait
             if self.is3Finished():
                 time.sleep(10)
                 print('Preparing for DESeq2...')
+                shutil.rmtree(self.Project + '/runPipeNotify')
                 self.gatherAllSampleOverrep(1)
                 self.gatherAllSampleOverrep(2)
                 self.createJsonMetadata()
