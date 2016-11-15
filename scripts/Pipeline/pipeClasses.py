@@ -948,7 +948,10 @@ wait
             'runPipeNotify/' in self.Project
         '''
         if not os.path.isdir(self.Project + '/runPipeNotify'):
-            os.mkdir(self.Project + '/runPipeNotify')
+            try:
+                os.mkdir(self.Project + '/runPipeNotify')
+            except:
+                pass
 
     def gatherAllSampleOverrep(self, runNumber):
         ''' Arguments:
