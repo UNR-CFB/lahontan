@@ -12,7 +12,7 @@
 <li><a href="#distinct-alignments-map-a-read-to-different-places">Distinct alignments map a read to different places</a></li>
 <li><a href="#default-mode-search-for-one-or-more-alignments-report-each">Default mode: search for one or more alignments, report each</a></li>
 </ul></li>
-<li><a href="#alignment-summmary">Alignment summmary</a></li>
+<li><a href="#alignment-summary">Alignment summary</a></li>
 <li><a href="#wrapper">Wrapper</a></li>
 <li><a href="#small-and-large-indexes">Small and large indexes</a></li>
 <li><a href="#performance-tuning">Performance tuning</a></li>
@@ -58,7 +58,7 @@
 <p>Download HISAT2 sources and binaries from the Releases sections on the right side. Binaries are available for Intel architectures (<code>x86_64</code>) running Linux, and Mac OS X.</p>
 <h2 id="building-from-source">Building from source</h2>
 <p>Building HISAT2 from source requires a GNU-like environment with GCC, GNU Make and other basics. It should be possible to build HISAT2 on most vanilla Linux installations or on a Mac installation with <a href="http://developer.apple.com/xcode/">Xcode</a> installed. HISAT2 can also be built on Windows using <a href="http://www.cygwin.com/">Cygwin</a> or <a href="http://www.mingw.org/">MinGW</a> (MinGW recommended). For a MinGW build the choice of what compiler is to be used is important since this will determine if a 32 or 64 bit code can be successfully compiled using it. If there is a need to generate both 32 and 64 bit on the same machine then a multilib MinGW has to be properly installed. <a href="http://www.mingw.org/wiki/msys">MSYS</a>, the <a href="http://cygwin.com/packages/mingw-zlib/">zlib</a> library, and depending on architecture <a href="http://sourceware.org/pthreads-win32/">pthreads</a> library are also required. We are recommending a 64 bit build since it has some clear advantages in real life research problems. In order to simplify the MinGW setup it might be worth investigating popular MinGW personal builds since these are coming already prepared with most of the toolchains needed.</p>
-<p>First, download the <a href="http://ccb.jhu.edu/software/hisat2/downloads/hisat2-2.0.0-beta-source.zip">source package</a> from the Releases secion on the right side. Unzip the file, change to the unzipped directory, and build the HISAT2 tools by running GNU <code>make</code> (usually with the command <code>make</code>, but sometimes with <code>gmake</code>) with no arguments. If building with MinGW, run <code>make</code> from the MSYS environment.</p>
+<p>First, download the <a href="http://ccb.jhu.edu/software/hisat2/downloads/hisat2-2.0.0-beta-source.zip">source package</a> from the Releases section on the right side. Unzip the file, change to the unzipped directory, and build the HISAT2 tools by running GNU <code>make</code> (usually with the command <code>make</code>, but sometimes with <code>gmake</code>) with no arguments. If building with MinGW, run <code>make</code> from the MSYS environment.</p>
 <p>HISAT2 is using the multithreading software model in order to speed up execution times on SMP architectures where this is possible. On POSIX platforms (like linux, Mac OS, etc) it needs the pthread library. Although it is possible to use pthread library on non-POSIX platform like Windows, due to performance reasons HISAT2 will try to use Windows native multithreading if possible.</p>
 <p>For the support of SRA data access in HISAT2, please download and install the <a href="https://github.com/ncbi/ngs/wiki/Downloads">NCBI-NGS</a> toolkit. When running <code>make</code>, specify additional variables as follow. <code>make USE_SRA=1 NCBI_NGS_DIR=/path/to/NCBI-NGS-directory NCBI_VDB_DIR=/path/to/NCBI-NGS-directory</code>, where <code>NCBI_NGS_DIR</code> and <code>NCBI_VDB_DIR</code> will be used in Makefile for -I and -L compilation options. For example, $(NCBI_NGS_DIR)/include and $(NCBI_NGS_DIR)/lib64 will be used.</p>
 <h1 id="running-hisat2">Running HISAT2</h1>
@@ -68,27 +68,14 @@
 <h2 id="reporting">Reporting</h2>
 <p>The reporting mode governs how many alignments HISAT2 looks for, and how to report them.</p>
 <p>In general, when we say that a read has an alignment, we mean that it has a <a href="#valid-alignments-meet-or-exceed-the-minimum-score-threshold">valid alignment</a>. When we say that a read has multiple alignments, we mean that it has multiple alignments that are valid and distinct from one another.</p>
+<p>By default, HISAT2 may soft-clip reads near their 5' and 3' ends. Users can control this behavior by setting different penalties for soft-clipping (<a href="#hisat2-options-no-softclip"><code>--sp</code></a>) or by disallowing soft-clipping ([<code>--no-softclip</code>]).</p>
 <h3 id="distinct-alignments-map-a-read-to-different-places">Distinct alignments map a read to different places</h3>
 <p>Two alignments for the same individual read are &quot;distinct&quot; if they map the same read to different places. Specifically, we say that two alignments are distinct if there are no alignment positions where a particular read offset is aligned opposite a particular reference offset in both alignments with the same orientation. E.g. if the first alignment is in the forward orientation and aligns the read character at read offset 10 to the reference character at chromosome 3, offset 3,445,245, and the second alignment is also in the forward orientation and also aligns the read character at read offset 10 to the reference character at chromosome 3, offset 3,445,245, they are not distinct alignments.</p>
 <p>Two alignments for the same pair are distinct if either the mate 1s in the two paired-end alignments are distinct or the mate 2s in the two alignments are distinct or both.</p>
-<!--
-### Default mode: search for multiple alignments, report the best one
-
-By default, HISAT2 searches for distinct, valid alignments for each read. When
-it finds a valid alignment, it generally will continue to look for alignments
-that are nearly as good or better.  It will eventually stop looking, either
-because it exceeded a limit placed on search effort (see [`-D`] and [`-R`]) or
-because it already knows all it needs to know to report an alignment.
-Information from the best alignments are used to estimate mapping quality (the
-`MAPQ` [SAM] field) and to set SAM optional fields, such as [`AS:i`] and
-[`XS:i`].  HISAT2 does not gaurantee that the alignment reported is the best
-possible in terms of alignment score.
--->
-
 <h3 id="default-mode-search-for-one-or-more-alignments-report-each">Default mode: search for one or more alignments, report each</h3>
-<p>HISAT2 searches for up to N distinct, primary alignments for each read, where N equals the integer specified with the <code>-k</code> parameter. Primary alignments mean alignments whose alignment score is equal or higher than any other alignments. It is possible that multiple distinct alignments whave the same score. That is, if <code>-k 2</code> is specified, HISAT2 will search for at most 2 distinct alignments. The alignment score for a paired-end alignment equals the sum of the alignment scores of the individual mates. Each reported read or pair alignment beyond the first has the SAM 'secondary' bit (which equals 256) set in its FLAGS field. See the <a href="http://samtools.sourceforge.net/SAM1.pdf">SAM specification</a> for details.</p>
-<p>HISAT2 does not &quot;find&quot; alignments in any specific order, so for reads that have more than N distinct, valid alignments, HISAT2 does not gaurantee that the N alignments reported are the best possible in terms of alignment score. Still, this mode can be effective and fast in situations where the user cares more about whether a read aligns (or aligns a certain number of times) than where exactly it originated.</p>
-<h2 id="alignment-summmary">Alignment summmary</h2>
+<p>HISAT2 searches for up to N distinct, primary alignments for each read, where N equals the integer specified with the <code>-k</code> parameter. Primary alignments mean alignments whose alignment score is equal or higher than any other alignments. It is possible that multiple distinct alignments have the same score. That is, if <code>-k 2</code> is specified, HISAT2 will search for at most 2 distinct alignments. The alignment score for a paired-end alignment equals the sum of the alignment scores of the individual mates. Each reported read or pair alignment beyond the first has the SAM 'secondary' bit (which equals 256) set in its FLAGS field. See the <a href="http://samtools.sourceforge.net/SAM1.pdf">SAM specification</a> for details.</p>
+<p>HISAT2 does not &quot;find&quot; alignments in any specific order, so for reads that have more than N distinct, valid alignments, HISAT2 does not guarantee that the N alignments reported are the best possible in terms of alignment score. Still, this mode can be effective and fast in situations where the user cares more about whether a read aligns (or aligns a certain number of times) than where exactly it originated.</p>
+<h2 id="alignment-summary">Alignment summary</h2>
 <p>When HISAT2 finishes running, it prints messages summarizing what happened. These messages are printed to the &quot;standard error&quot; (&quot;stderr&quot;) filehandle. For datasets consisting of unpaired reads, the summary might look like this:</p>
 <pre><code>20000 reads; of these:
   20000 (100.00%) were unpaired; of these:
@@ -114,7 +101,7 @@ possible in terms of alignment score.
 96.70% overall alignment rate</code></pre>
 <p>The indentation indicates how subtotals relate to totals.</p>
 <h2 id="wrapper">Wrapper</h2>
-<p>The <code>hisat2</code>, <code>hisat2-build</code> and <code>hisat2-inspect</code> executables are actually wrapper scripts that call binary programs as appropriate. The wrappers shield users from having to distinguish between &quot;small&quot; and &quot;large&quot; index formats, discussed briefly in the following section. Also, the <code>hisat2</code> wrapper provides some key functionality, like the ability to handle compressed inputs, and the fucntionality for <a href="#hisat2-options-un"><code>--un</code></a>, <a href="#hisat2-options-al"><code>--al</code></a> and related options.</p>
+<p>The <code>hisat2</code>, <code>hisat2-build</code> and <code>hisat2-inspect</code> executables are actually wrapper scripts that call binary programs as appropriate. The wrappers shield users from having to distinguish between &quot;small&quot; and &quot;large&quot; index formats, discussed briefly in the following section. Also, the <code>hisat2</code> wrapper provides some key functionality, like the ability to handle compressed inputs, and the functionality for <a href="#hisat2-options-un"><code>--un</code></a>, <a href="#hisat2-options-al"><code>--al</code></a> and related options.</p>
 <p>It is recommended that you always run the hisat2 wrappers and not run the binaries directly.</p>
 <h2 id="small-and-large-indexes">Small and large indexes</h2>
 <p><code>hisat2-build</code> can index reference genomes of any size. For genomes less than about 4 billion nucleotides in length, <code>hisat2-build</code> builds a &quot;small&quot; index using 32-bit numbers in various parts of the index. When the genome is longer, <code>hisat2-build</code> builds a &quot;large&quot; index using 64-bit numbers. Small indexes are stored in files with the <code>.ht2</code> extension, and large indexes are stored in files with the <code>.ht2l</code> extension. The user need not worry about whether a particular index is small or large; the wrapper scripts will automatically build and use the appropriate index.</p>
@@ -292,54 +279,11 @@ possible in terms of alignment score.
 <p>If <code>--nofw</code> is specified, <code>hisat2</code> will not attempt to align unpaired reads to the forward (Watson) reference strand. If <code>--norc</code> is specified, <code>hisat2</code> will not attempt to align unpaired reads against the reverse-complement (Crick) reference strand. In paired-end mode, <code>--nofw</code> and <code>--norc</code> pertain to the fragments; i.e. specifying <code>--nofw</code> causes <code>hisat2</code> to explore only those paired-end configurations corresponding to fragments from the reverse-complement (Crick) strand. Default: both strands enabled.</p>
 </td></tr>
 
-<!--
-<tr><td id="hisat2-options-end-to-end">
-
-[`--end-to-end`]: #hisat2-options-end-to-end
-
-    --end-to-end
-
-</td><td>
-
-In this mode, HISAT2 requires that the entire read align from one end to the
-other, without any trimming (or "soft clipping") of characters from either end.
-The match bonus [`--ma`] always equals 0 in this mode, so all alignment scores
-are less than or equal to 0, and the greatest possible alignment score is 0.
-This is mutually exclusive with [`--local`].  `--end-to-end` is the default mode.
-
-</td></tr>
-<tr><td id="hisat2-options-local">
-
-[`--local`]: #hisat2-options-local
-
-    --local
-
-</td><td>
-
-In this mode, HISAT2 does not require that the entire read align from one end
-to the other.  Rather, some characters may be omitted ("soft clipped") from the
-ends in order to achieve the greatest possible alignment score.  The match bonus
-[`--ma`] is used in this mode, and the best possible alignment score is equal to
-the match bonus ([`--ma`]) times the length of the read.  Specifying `--local`
-and one of the presets (e.g. `--local --very-fast`) is equivalent to specifying
-the local version of the preset (`--very-fast-local`).  This is mutually
-exclusive with [`--end-to-end`].  `--end-to-end` is the default mode.
-
-</td></tr>
--->
-
 </table>
 
 <h4 id="scoring-options">Scoring options</h4>
 <table>
 
-<tr><td id="hisat2-options-ma">
-
-<pre><code>--ma &lt;int&gt;</code></pre>
-</td><td>
-
-<p>Sets the match bonus. In [<code>--local</code>] mode <code>&lt;int&gt;</code> is added to the alignment score for each position where a read character aligns to a reference character and the characters match. Not used in [<code>--end-to-end</code>] mode. Default: 2.</p>
-</td></tr>
 <tr><td id="hisat2-options-mp">
 
 <pre><code>--mp MX,MN</code></pre>
@@ -354,6 +298,14 @@ exclusive with [`--end-to-end`].  `--end-to-end` is the default mode.
 
 <p>Sets the maximum (<code>MX</code>) and minimum (<code>MN</code>) penalties for soft-clipping per base, both integers. A number less than or equal to <code>MX</code> and greater than or equal to <code>MN</code> is subtracted from the alignment score for each position. The number subtracted is <code>MN + floor( (MX-MN)(MIN(Q, 40.0)/40.0) )</code> where Q is the Phred quality value. Default: <code>MX</code> = 2, <code>MN</code> = 1.</p>
 </td></tr>
+<tr><td id="hisat2-options-no-softclip">
+
+<pre><code>--no-softclip</code></pre>
+</td><td>
+
+<p>Disallow soft-clipping.</p>
+</td></tr>
+
 <tr><td id="hisat2-options-np">
 
 <pre><code>--np &lt;int&gt;</code></pre>
@@ -380,7 +332,7 @@ exclusive with [`--end-to-end`].  `--end-to-end` is the default mode.
 <pre><code>--score-min &lt;func&gt;</code></pre>
 </td><td>
 
-<p>Sets a function governing the minimum alignment score needed for an alignment to be considered &quot;valid&quot; (i.e. good enough to report). This is a function of read length. For instance, specifying <code>L,0,-0.6</code> sets the minimum-score function <code>f</code> to <code>f(x) = 0 + -0.6 * x</code>, where <code>x</code> is the read length. See also: [setting function options]. The default is <code>C,-18,0</code>.</p>
+<p>Sets a function governing the minimum alignment score needed for an alignment to be considered &quot;valid&quot; (i.e. good enough to report). This is a function of read length. For instance, specifying <code>L,0,-0.6</code> sets the minimum-score function <code>f</code> to <code>f(x) = 0 + -0.6 * x</code>, where <code>x</code> is the read length. See also: [setting function options]. The default is <code>L,0,-0.2</code>.</p>
 </td></tr>
 </table>
 
@@ -400,7 +352,7 @@ exclusive with [`--end-to-end`].  `--end-to-end` is the default mode.
 <pre><code>--pen-noncansplice &lt;int&gt;</code></pre>
 </td><td>
 
-<p>Sets the penalty for each pair of non-canonical splice sites (e.g. non-GT/AG). Default: 3.</p>
+<p>Sets the penalty for each pair of non-canonical splice sites (e.g. non-GT/AG). Default: 12.</p>
 </td></tr>
 <tr><td id="hisat2-options-pen-canintronlen">
 
@@ -438,7 +390,7 @@ exclusive with [`--end-to-end`].  `--end-to-end` is the default mode.
 <pre><code>--known-splicesite-infile &lt;path&gt;</code></pre>
 </td><td>
 
-<p>With this mode, you can provide a list of known splice sites, which HISAT2 makes use of to align reads with small anchors.<br />You can create such a list using <code>python extract_splice_sites.py genes.gtf &gt; splicesites.txt</code>, where <code>extract_splice_sites.py</code> is included in the HISAT2 package, <code>genes.gtf</code> is a gene annotation file, and <code>splicesites.txt</code> is a list of splice sites with which you provide HISAT2 in this mode.</p>
+<p>With this mode, you can provide a list of known splice sites, which HISAT2 makes use of to align reads with small anchors.<br />You can create such a list using <code>python hisat2_extract_splice_sites.py genes.gtf &gt; splicesites.txt</code>, where <code>hisat2_extract_splice_sites.py</code> is included in the HISAT2 package, <code>genes.gtf</code> is a gene annotation file, and <code>splicesites.txt</code> is a list of splice sites with which you provide HISAT2 in this mode. Note that it is better to use indexes built using annotated transcripts (such as <i>genome_tran</i> or <i>genome_snp_tran</i>), which works better than using this option. It has no effect to provide splice sites that are already included in the indexes.</p>
 </td></tr>
 
 <tr><td id="hisat-options-novel-splice-outfile">
@@ -493,7 +445,7 @@ exclusive with [`--end-to-end`].  `--end-to-end` is the default mode.
 <pre><code>--dta/--downstream-transcriptome-assembly</code></pre>
 </td><td>
 
-<p>Report alignments tailored for transcript assemblers including StringTie. With this option, HISAT2 requires longer anchor lengths for de novo discovery of splice sites. This leads to fewer alignments with short-anchors, which helps transcript assemblers improve significantly in computationa and memory usage.</p>
+<p>Report alignments tailored for transcript assemblers including StringTie. With this option, HISAT2 requires longer anchor lengths for de novo discovery of splice sites. This leads to fewer alignments with short-anchors, which helps transcript assemblers improve significantly in computation and memory usage.</p>
 </td></tr>
 
 <tr><td id="hisat2-options-dta-cufflinks">
@@ -513,8 +465,23 @@ exclusive with [`--end-to-end`].  `--end-to-end` is the default mode.
 <pre><code>-k &lt;int&gt;</code></pre>
 </td><td>
 
-<p>It searches for at most <code>&lt;int&gt;</code> distinct, primary alignments for each read. Primary alignments mean alignments whose alignment score is equal or higher than any other alignments. The search terminates when it can't find more distinct valid alignments, or when it finds <code>&lt;int&gt;</code>, whichever happens first. The alignment score for a paired-end alignment equals the sum of the alignment scores of the individual mates. Each reported read or pair alignment beyond the first has the SAM 'secondary' bit (which equals 256) set in its FLAGS field. For reads that have more than <code>&lt;int&gt;</code> distinct, valid alignments, <code>hisat2</code> does not gaurantee that the <code>&lt;int&gt;</code> alignments reported are the best possible in terms of alignment score. Default: 5 (HFM) or 10 (HGFM)</p>
+<p>It searches for at most <code>&lt;int&gt;</code> distinct, primary alignments for each read. Primary alignments mean alignments whose alignment score is equal or higher than any other alignments. The search terminates when it can't find more distinct valid alignments, or when it finds <code>&lt;int&gt;</code>, whichever happens first. The alignment score for a paired-end alignment equals the sum of the alignment scores of the individual mates. Each reported read or pair alignment beyond the first has the SAM 'secondary' bit (which equals 256) set in its FLAGS field. For reads that have more than <code>&lt;int&gt;</code> distinct, valid alignments, <code>hisat2</code> does not guarantee that the <code>&lt;int&gt;</code> alignments reported are the best possible in terms of alignment score. Default: 5 (HFM) or 10 (HGFM)</p>
 <p>Note: HISAT2 is not designed with large values for <code>-k</code> in mind, and when aligning reads to long, repetitive genomes large <code>-k</code> can be very, very slow.</p>
+</td></tr>
+<tr><td id="hisat2-options-max-seeds">
+
+<pre><code>--max-seeds &lt;int&gt;</code></pre>
+</td><td>
+
+<p>HISAT2, like other aligners, uses seed-and-extend approaches. HISAT2 tries to extend seeds to full-length alignments. In HISAT2, --max-seeds is used to control the maximum number of seeds that will be extended. HISAT2 extends up to these many seeds and skips the rest of the seeds. Large values for <code>--max-seeds</code> may improve alignment sensitivity, but HISAT2 is not designed with large values for <code>--max-seeds</code> in mind, and when aligning reads to long, repetitive genomes large <code>--max-seeds</code> can be very, very slow. The default value is the same as with <code>-k</code>.</p>
+</td></tr>
+
+<tr><td id="hisat2-options-secondary">
+
+<pre><code>--secondary</code></pre>
+</td><td>
+
+<p>Report secondary alignments.</p>
 </td></tr>
 
 </table>
@@ -527,8 +494,8 @@ exclusive with [`--end-to-end`].  `--end-to-end` is the default mode.
 <pre><code>-I/--minins &lt;int&gt;</code></pre>
 </td><td>
 
-<p>The minimum fragment length for valid paired-end alignments. E.g. if <code>-I 60</code> is specified and a paired-end alignment consists of two 20-bp alignments in the appropriate orientation with a 20-bp gap between them, that alignment is considered valid (as long as <a href="#hisat2-options-X"><code>-X</code></a> is also satisfied). A 19-bp gap would not be valid in that case. If trimming options <a href="#hisat2-options-3"><code>-3</code></a> or <a href="#hisat2-options-5"><code>-5</code></a> are also used, the <a href="#hisat2-options-I"><code>-I</code></a> constraint is applied with respect to the untrimmed mates.</p>
-<p>The larger the difference between <a href="#hisat2-options-I"><code>-I</code></a> and <a href="#hisat2-options-X"><code>-X</code></a>, the slower HISAT2 will run. This is because larger differences bewteen <a href="#hisat2-options-I"><code>-I</code></a> and <a href="#hisat2-options-X"><code>-X</code></a> require that HISAT2 scan a larger window to determine if a concordant alignment exists. For typical fragment length ranges (200 to 400 nucleotides), HISAT2 is very efficient.</p>
+<p>The minimum fragment length for valid paired-end alignments.This option is valid only with --no-spliced-alignment. E.g. if <code>-I 60</code> is specified and a paired-end alignment consists of two 20-bp alignments in the appropriate orientation with a 20-bp gap between them, that alignment is considered valid (as long as <a href="#hisat2-options-X"><code>-X</code></a> is also satisfied). A 19-bp gap would not be valid in that case. If trimming options <a href="#hisat2-options-3"><code>-3</code></a> or <a href="#hisat2-options-5"><code>-5</code></a> are also used, the <a href="#hisat2-options-I"><code>-I</code></a> constraint is applied with respect to the untrimmed mates.</p>
+<p>The larger the difference between <a href="#hisat2-options-I"><code>-I</code></a> and <a href="#hisat2-options-X"><code>-X</code></a>, the slower HISAT2 will run. This is because larger differences between <a href="#hisat2-options-I"><code>-I</code></a> and <a href="#hisat2-options-X"><code>-X</code></a> require that HISAT2 scan a larger window to determine if a concordant alignment exists. For typical fragment length ranges (200 to 400 nucleotides), HISAT2 is very efficient.</p>
 <p>Default: 0 (essentially imposing no minimum)</p>
 </td></tr>
 <tr><td id="hisat2-options-X">
@@ -536,8 +503,8 @@ exclusive with [`--end-to-end`].  `--end-to-end` is the default mode.
 <pre><code>-X/--maxins &lt;int&gt;</code></pre>
 </td><td>
 
-<p>The maximum fragment length for valid paired-end alignments. E.g. if <code>-X 100</code> is specified and a paired-end alignment consists of two 20-bp alignments in the proper orientation with a 60-bp gap between them, that alignment is considered valid (as long as <a href="#hisat2-options-I"><code>-I</code></a> is also satisfied). A 61-bp gap would not be valid in that case. If trimming options <a href="#hisat2-options-3"><code>-3</code></a> or <a href="#hisat2-options-5"><code>-5</code></a> are also used, the <code>-X</code> constraint is applied with respect to the untrimmed mates, not the trimmed mates.</p>
-<p>The larger the difference between <a href="#hisat2-options-I"><code>-I</code></a> and <a href="#hisat2-options-X"><code>-X</code></a>, the slower HISAT2 will run. This is because larger differences bewteen <a href="#hisat2-options-I"><code>-I</code></a> and <a href="#hisat2-options-X"><code>-X</code></a> require that HISAT2 scan a larger window to determine if a concordant alignment exists. For typical fragment length ranges (200 to 400 nucleotides), HISAT2 is very efficient.</p>
+<p>The maximum fragment length for valid paired-end alignments. This option is valid only with --no-spliced-alignment. E.g. if <code>-X 100</code> is specified and a paired-end alignment consists of two 20-bp alignments in the proper orientation with a 60-bp gap between them, that alignment is considered valid (as long as <a href="#hisat2-options-I"><code>-I</code></a> is also satisfied). A 61-bp gap would not be valid in that case. If trimming options <a href="#hisat2-options-3"><code>-3</code></a> or <a href="#hisat2-options-5"><code>-5</code></a> are also used, the <code>-X</code> constraint is applied with respect to the untrimmed mates, not the trimmed mates.</p>
+<p>The larger the difference between <a href="#hisat2-options-I"><code>-I</code></a> and <a href="#hisat2-options-X"><code>-X</code></a>, the slower HISAT2 will run. This is because larger differences between <a href="#hisat2-options-I"><code>-I</code></a> and <a href="#hisat2-options-X"><code>-X</code></a> require that HISAT2 scan a larger window to determine if a concordant alignment exists. For typical fragment length ranges (200 to 400 nucleotides), HISAT2 is very efficient.</p>
 <p>Default: 500.</p>
 </td></tr>
 <tr><td id="hisat2-options-fr">
@@ -560,27 +527,6 @@ exclusive with [`--end-to-end`].  `--end-to-end` is the default mode.
 </td><td>
 
 <p>By default, <code>hisat2</code> looks for discordant alignments if it cannot find any concordant alignments. A discordant alignment is an alignment where both mates align uniquely, but that does not satisfy the paired-end constraints (<a href="#hisat2-options-fr"><code>--fr</code>/<code>--rf</code>/<code>--ff</code></a>, <a href="#hisat2-options-I"><code>-I</code></a>, <a href="#hisat2-options-X"><code>-X</code></a>). This option disables that behavior.</p>
-</td></tr>
-<tr><td id="hisat2-options-dovetail">
-
-<pre><code>--dovetail</code></pre>
-</td><td>
-
-<p>If the mates &quot;dovetail&quot;, that is if one mate alignment extends past the beginning of the other such that the wrong mate begins upstream, consider that to be concordant. See also: <a href="#mates-can-overlap-contain-or-dovetail-each-other">Mates can overlap, contain or dovetail each other</a>. Default: mates cannot dovetail in a concordant alignment.</p>
-</td></tr>
-<tr><td id="hisat2-options-no-contain">
-
-<pre><code>--no-contain</code></pre>
-</td><td>
-
-<p>If one mate alignment contains the other, consider that to be non-concordant. See also: <a href="#mates-can-overlap-contain-or-dovetail-each-other">Mates can overlap, contain or dovetail each other</a>. Default: a mate can contain the other in a concordant alignment.</p>
-</td></tr>
-<tr><td id="hisat2-options-no-overlap">
-
-<pre><code>--no-overlap</code></pre>
-</td><td>
-
-<p>If one mate alignment overlaps the other at all, consider that to be non-concordant. See also: <a href="#mates-can-overlap-contain-or-dovetail-each-other">Mates can overlap, contain or dovetail each other</a>. Default: mates can overlap in a concordant alignment.</p>
 </td></tr></table>
 
 <h4 id="output-options">Output options</h4>
@@ -697,12 +643,26 @@ exclusive with [`--end-to-end`].  `--end-to-end` is the default mode.
 
 <p>Add <code>&lt;text&gt;</code> (usually of the form <code>TAG:VAL</code>, e.g. <code>SM:Pool1</code>) as a field on the <code>@RG</code> header line. Note: in order for the <code>@RG</code> line to appear, <a href="#hisat2-options-rg-id"><code>--rg-id</code></a> must also be specified. This is because the <code>ID</code> tag is required by the <a href="http://samtools.sourceforge.net/SAM1.pdf">SAM Spec</a>. Specify <code>--rg</code> multiple times to set multiple fields. See the <a href="http://samtools.sourceforge.net/SAM1.pdf">SAM Spec</a> for details about what fields are legal.</p>
 </td></tr>
+<tr><td id="hisat2-options-remove-chrname">
+
+<pre><code>--remove-chrname</code></pre>
+</td><td>
+
+<p>Remove 'chr' from reference names in alignment (e.g., chr18 to 18)</p>
+</td></tr>
+<tr><td id="hisat2-options-add-chrname">
+
+<pre><code>--add-chrname</code></pre>
+</td><td>
+
+<p>Add 'chr' to reference names in alignment (e.g., 18 to chr18)</p>
+</td></tr>
 <tr><td id="hisat2-options-omit-sec-seq">
 
 <pre><code>--omit-sec-seq</code></pre>
 </td><td>
 
-<p>When printing secondary alignments, HISAT2 by default will write out the <code>SEQ</code> and <code>QUAL</code> strings. Specifying this option causes HISAT2 to print an asterix in those fields instead.</p>
+<p>When printing secondary alignments, HISAT2 by default will write out the <code>SEQ</code> and <code>QUAL</code> strings. Specifying this option causes HISAT2 to print an asterisk in those fields instead.</p>
 </td></tr>
 
 
@@ -781,7 +741,7 @@ exclusive with [`--end-to-end`].  `--end-to-end` is the default mode.
 <h2 id="sam-output">SAM output</h2>
 <p>Following is a brief description of the <a href="http://samtools.sourceforge.net/SAM1.pdf">SAM</a> format as output by <code>hisat2</code>. For more details, see the <a href="http://samtools.sourceforge.net/SAM1.pdf">SAM format specification</a>.</p>
 <p>By default, <code>hisat2</code> prints a SAM header with <code>@HD</code>, <code>@SQ</code> and <code>@PG</code> lines. When one or more <a href="#hisat2-options-rg"><code>--rg</code></a> arguments are specified, <code>hisat2</code> will also print an <code>@RG</code> line that includes all user-specified <a href="#hisat2-options-rg"><code>--rg</code></a> tokens separated by tabs.</p>
-<p>Each subsequnt line describes an alignment or, if the read failed to align, a read. Each line is a collection of at least 12 fields separated by tabs; from left to right, the fields are:</p>
+<p>Each subsequent line describes an alignment or, if the read failed to align, a read. Each line is a collection of at least 12 fields separated by tabs; from left to right, the fields are:</p>
 <ol style="list-style-type: decimal">
 <li><p>Name of read that aligned.</p>
 <p>Note that the <a href="http://samtools.sourceforge.net/SAM1.pdf">SAM specification</a> disallows whitespace in the read name. If the read name contains any whitespace characters, HISAT2 will truncate the name at the first whitespace character. This is similar to the behavior of other tools.</p></li>
@@ -1005,7 +965,7 @@ Otherwise, you will be able to build an index on your desktop with 8GB RAM.</cod
 <pre><code>--large-index</code></pre>
 </td><td>
 
-<p>Force <code>hisat2-build</code> to build a <a href="#small-and-large-indexes">large index</a>, even if the reference is less than ~ 4 billion nucleotides inlong.</p>
+<p>Force <code>hisat2-build</code> to build a <a href="#small-and-large-indexes">large index</a>, even if the reference is less than ~ 4 billion nucleotides long.</p>
 </td></tr>
 <tr><td id="hisat2-build-options-a">
 
@@ -1085,16 +1045,26 @@ Otherwise, you will be able to build an index on your desktop with 8GB RAM.</cod
 </td><td>
 
 <p>Provide a list of SNPs (in the HISAT2's own format) as follows (five columns).</p>
-<p>SNP ID <code>&lt;tab&gt;</code> chromosome name <code>&lt;tab&gt;</code> snp type (single, deletion, or insertion) <code>&lt;tab&gt;</code> zero-offset based genomic position of a SNP <code>&lt;tab&gt;</code> alternative base (single), the length of SNP (deletion), or insertion sequence (insertion)</p>
-<p>Use <code>extract_snps.py</code> (in the HISAT2 package) to extract SNPs from a dbSNP file (e.g. snpCommon.txt).</p>
+<p>SNP ID <code>&lt;tab&gt;</code> snp type (single, deletion, or insertion) <code>&lt;tab&gt;</code> chromosome name <code>&lt;tab&gt;</code> zero-offset based genomic position of a SNP <code>&lt;tab&gt;</code> alternative base (single), the length of SNP (deletion), or insertion sequence (insertion)</p>
+<p>For example, rs58784443 single 13 18447947 T</p>
+<p>Use <code>hisat2_extract_snps_haplotypes_UCSC.py</code> (in the HISAT2 package) to extract SNPs and haplotypes from a dbSNP file (e.g. http://hgdownload.soe.ucsc.edu/goldenPath/hg38/database/snp144Common.txt.gz). or <code>hisat2_extract_snps_haplotypes_VCF.py</code> to extract SNPs and haplotypes from a VCF file (e.g. ftp://ftp.1000genomes.ebi.ac.uk/vol1/ftp/release/20130502/supporting/GRCh38_positions/ALL.chr22.phase3_shapeit2_mvncall_integrated_v3plus_nounphased.rsID.genotypes.GRCh38_dbSNP_no_SVs.vcf.gz).</p>
+</td></tr><tr><td>
+
+<pre><code>--haplotype &lt;path&gt;</code></pre>
+</td><td>
+
+<p>Provide a list of haplotypes (in the HISAT2's own format) as follows (five columns).</p>
+<p>Haplotype ID <code>&lt;tab&gt;</code> chromosome name <code>&lt;tab&gt;</code> zero-offset based left coordinate of haplotype <code>&lt;tab&gt;</code> zero-offset based right coordinate of haplotype <code>&lt;tab&gt;</code> a comma separated list of SNP ids in the haplotype</p>
+<p>For example, ht35 13 18446877 18446945 rs12381094,rs12381056,rs192016659,rs538569910</p>
+<p>See the above option, --snp, about how to extract haplotypes. This option is not required, but haplotype information can keep the index construction from exploding and reduce the index size substantially.</p>
 </td></tr><tr><td>
 
 <pre><code>--ss &lt;path&gt;</code></pre>
 </td><td>
 
-<p>Note this option should be used with the followig --exon option. Provide a list of splice sites (in the HISAT2's own format) as follows (four columns).</p>
+<p>Note this option should be used with the following --exon option. Provide a list of splice sites (in the HISAT2's own format) as follows (four columns).</p>
 <p>chromosome name <code>&lt;tab&gt;</code> zero-offset based genomic position of the flanking base on the left side of an intron <code>&lt;tab&gt;</code> zero-offset based genomic position of the flanking base on the right <code>&lt;tab&gt;</code> strand</p>
-<p>Use <code>extract_splice_sites.py</code> (in the HISAT2 package) to extract splice sites from a GTF file.</p>
+<p>Use <code>hisat2_extract_splice_sites.py</code> (in the HISAT2 package) to extract splice sites from a GTF file.</p>
 </td></tr><tr><td>
 
 <pre><code>--exon &lt;path&gt;</code></pre>
@@ -1102,7 +1072,7 @@ Otherwise, you will be able to build an index on your desktop with 8GB RAM.</cod
 
 <p>Note this option should be used with the above --ss option. Provide a list of exons (in the HISAT2's own format) as follows (three columns).</p>
 <p>chromosome name <code>&lt;tab&gt;</code> zero-offset based left genomic position of an exon <code>&lt;tab&gt;</code> zero-offset based right genomic position of an exon</p>
-<p>Use <code>extract_exons.py</code> (in the HISAT2 package) to extract exons from a GTF file.</p>
+<p>Use <code>hisat2_extract_exons.py</code> (in the HISAT2 package) to extract exons from a GTF file.</p>
 </td></tr><tr><td>
 
 <pre><code>--seed &lt;int&gt;</code></pre>
@@ -1231,7 +1201,7 @@ Sequence-N  &lt;name&gt;  &lt;len&gt;</code></pre>
 <h2 id="aligning-example-reads">Aligning example reads</h2>
 <p>Stay in the directory created in the previous step, which now contains the <code>22_20-21M</code> index files. Next, run:</p>
 <pre><code>$HISAT2_HOME/hisat2 -f -x $HISAT2_HOME/example/index/22_20-21M_snp -U $HISAT2_HOME/example/reads/reads_1.fa -S eg1.sam</code></pre>
-<p>This runs the HISAT2 aligner, which aligns a set of unpaired reads to the the genome region using the index generated in the previous step. The alignment results in SAM format are written to the file <code>eg1.sam</code>, and a short alignment summary is written to the console. (Actually, the summary is written to the &quot;standard error&quot; or &quot;stderr&quot; filehandle, which is typically printed to the console.)</p>
+<p>This runs the HISAT2 aligner, which aligns a set of unpaired reads to the genome region using the index generated in the previous step. The alignment results in SAM format are written to the file <code>eg1.sam</code>, and a short alignment summary is written to the console. (Actually, the summary is written to the &quot;standard error&quot; or &quot;stderr&quot; filehandle, which is typically printed to the console.)</p>
 <p>To see the first few lines of the SAM output, run:</p>
 <pre><code>head eg1.sam</code></pre>
 <p>You will see something like this:</p>
@@ -1259,9 +1229,9 @@ Sequence-N  &lt;name&gt;  &lt;len&gt;</code></pre>
 <pre><code>$HISAT2_HOME/hisat -f -x $HISAT2_HOME/example/index/22_20-21M_snp -1 $HISAT2_HOME/example/reads/reads_1.fa -2 $HISAT2_HOME/example/reads/reads_2.fa -S eg2.sam</code></pre>
 <p>Use <code>samtools view</code> to convert the SAM file into a BAM file. BAM is a the binary format corresponding to the SAM text format. Run:</p>
 <pre><code>samtools view -bS eg2.sam &gt; eg2.bam</code></pre>
-<p>Use <code>samtools sort</code> to convert the BAM file to a sorted BAM file.</p>
-<pre><code>samtools sort eg2.bam eg2.sorted</code></pre>
-<p>We now have a sorted BAM file called <code>eg2.sorted.bam</code>. Sorted BAM is a useful format because the alignments are (a) compressed, which is convenient for long-term storage, and (b) sorted, which is conveneint for variant discovery. To generate variant calls in VCF format, run:</p>
+<p>Use <code>samtools sort</code> to convert the BAM file to a sorted BAM file. The following command requires samtools version 1.2 or higher.</p>
+<pre><code>samtools sort eg2.bam -o eg2.sorted.bam</code></pre>
+<p>We now have a sorted BAM file called <code>eg2.sorted.bam</code>. Sorted BAM is a useful format because the alignments are (a) compressed, which is convenient for long-term storage, and (b) sorted, which is convenient for variant discovery. To generate variant calls in VCF format, run:</p>
 <pre><code>samtools mpileup -uf $HISAT2_HOME/example/reference/22_20-21M.fa eg2.sorted.bam | bcftools view -bvcg - &gt; eg2.raw.bcf</code></pre>
 <p>Then to view the variants, run:</p>
 <pre><code>bcftools view eg2.raw.bcf</code></pre>

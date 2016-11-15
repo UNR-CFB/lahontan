@@ -1,3 +1,20 @@
+RELEASE NOTES FOR FastQC v0.11.5
+--------------------------------
+
+This is a minor bug-fix release which addresses issues found in
+the previous release.
+
+1)  Fixed a bug in the per-base sequence content module where the warn
+    error flags were incorrectly being calculated on G-A and C-T instead
+    of G-C and T-A. 
+
+2)  Fixed the small-RNA adapter molecule sequence so that all possible
+    adapter variants would be found - the previous version would 
+    under-estimate the amount of small RNA adapter which was present in
+    a sample.
+
+3)  Fixed a typo in the documentation for the duplication plot.
+
 RELEASE NOTES FOR FastQC v0.11.4
 --------------------------------
 
@@ -28,6 +45,7 @@ the previous release.
 	plot for positions with fewer than 100 observations, where we can't
 	calculate a sensible percentile value.  Changed the text report to
 	assign NaN to these positions rather than 0.
+	
 
 
 
