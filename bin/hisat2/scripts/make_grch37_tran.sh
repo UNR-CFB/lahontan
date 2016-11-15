@@ -1,7 +1,7 @@
 #!/bin/sh
 
 #
-# Downloads sequence for the GRCh37 release 75 version of H. spiens (human) from
+# Downloads sequence for the GRCh37 release 75 version of H. sapiens (human) from
 # Ensembl.
 #
 # Note that Ensembl's GRCh37 build has three categories of compressed fasta
@@ -45,23 +45,23 @@ if [ ! -x "$HISAT2_BUILD_EXE" ] ; then
 	fi
 fi
 
-HISAT2_SS_SCRIPT=./extract_splice_sites.py
+HISAT2_SS_SCRIPT=./hisat2_extract_splice_sites.py
 if [ ! -x "$HISAT2_SS_SCRIPT" ] ; then
-	if ! which extract_snps.py ; then
-		echo "Could not find extract_splice_sites.py in current directory or in PATH"
+	if ! which hisat2_extract_splice_sites.py ; then
+		echo "Could not find hisat2_extract_splice_sites.py in current directory or in PATH"
 		exit 1
 	else
-		HISAT2_SS_SCRIPT=`which extract_splice_sites.py`
+		HISAT2_SS_SCRIPT=`which hisat2_extract_splice_sites.py`
 	fi
 fi
 
-HISAT2_EXON_SCRIPT=./extract_exons.py
+HISAT2_EXON_SCRIPT=./hisat2_extract_exons.py
 if [ ! -x "$HISAT2_EXON_SCRIPT" ] ; then
-	if ! which extract_exons.py ; then
-		echo "Could not find extract_exons.py in current directory or in PATH"
+	if ! which hisat2_extract_exons.py ; then
+		echo "Could not find hisat2_extract_exons.py in current directory or in PATH"
 		exit 1
 	else
-		HISAT2_SS_SCRIPT=`which extract_exons.py`
+		HISAT2_EXON_SCRIPT=`which hisat2_extract_exons.py`
 	fi
 fi
 
@@ -70,8 +70,7 @@ F=Homo_sapiens.GRCh37.${ENSEMBL_RELEASE}.dna.primary_assembly.fa
 if [ ! -f $F ] ; then
 	get ${ENSEMBL_GRCh37_BASE}/$F.gz || (echo "Error getting $F" && exit 1)
 	gunzip $F.gz || (echo "Error unzipping $F" && exit 1)
-	awk '{if($1 ~ /^>/) {print $1} else {print}}' $F > genome.fa
-	rm $F
+	mv $F genome.fa
 fi
 
 if [ ! -f $GTF_FILE ] ; then

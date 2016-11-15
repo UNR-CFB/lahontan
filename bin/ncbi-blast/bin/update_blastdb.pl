@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-# $Id: update_blastdb.pl 446062 2014-09-10 21:38:05Z camacho $
+# $Id: update_blastdb.pl 504861 2016-06-20 15:45:40Z boratyng $
 # ===========================================================================
 #
 #                            PUBLIC DOMAIN NOTICE
@@ -82,7 +82,7 @@ $|++;
 # Connect and download files
 my $ftp = &connect_to_ftp() unless ($opt_show_version);
 if ($opt_show_version) {
-    my $revision = '$Revision: 446062 $';
+    my $revision = '$Revision: 504861 $';
     $revision =~ s/\$Revision: | \$//g;
     print "$0 version $revision\n";
 } elsif ($opt_showall) {

@@ -21,7 +21,8 @@ $SH_CMD data/compare.sh data/test-junc.sam data/corner-BothEnds.ora data/test-mi
 $SH_CMD data/compare.sh data/test-junc.sam data/corner-Chimeric.ora data/test-minimum.SAF "-p -F SAF -C " "disallowing chimeric fragments"
 $SH_CMD data/compare.sh data/test-junc.sam data/corner-MultiMapping.ora data/test-minimum.SAF "-p -F SAF -M " "Allowing multi-mapped reads"
 $SH_CMD data/compare.sh data/test-junc.sam data/corner-DoNotSort.ora data/test-minimum.SAF " -p -F SAF --donotsort " "not sorting input file"
-$SH_CMD data/compare.sh data/test-junc.sam data/corner-MinOverlap.ora data/test-minimum.SAF " --minOverlap 185 -p -F SAF " "minimum overlapping length"
+$SH_CMD data/compare.sh data/test-junc.sam data/corner-MinOverlap.ora data/test-minimum.SAF " --minOverlap 125 -p -F SAF " "minimum overlapping length"
+$SH_CMD data/compare.sh data/test-fracOverlap.sam data/test-fracOverlap.ora data/corner-fractions.SAF " --fracOverlap 0.62 -O -p -F SAF " "minimum overlapping fraction"
 $SH_CMD data/compare.sh data/test-junc.sam data/corner-LargestOverlap.ora data/test-minimum.SAF "-p -F SAF --largestOverlap" "Largest Overlapping"
 $SH_CMD data/compare.sh data/test-junc.sam data/corner-PEdist.ora data/test-minimum.SAF " -p -F SAF -B -C -P -d 130 -D 770 " "paired-end distance"
 $SH_CMD data/compare.sh data/test-junc.sam data/corner-Read2Pos5.ora data/test-minimum.SAF " -p -F SAF --read2pos 5 " "Read to position (5' end)"
@@ -32,6 +33,7 @@ $SH_CMD data/compare.sh data/test-junc.sam data/corner-MaxOPs.ora data/test-mini
 $SH_CMD data/compare.sh data/test-junc.sam data/corner-MinMAPQ.ora data/test-minimum.SAF " -p -F SAF -Q 58" "minimum mapping quality"
 $SH_CMD data/compare.sh data/test-dup.sam data/corner-IgnoreDup.ora data/test-minimum.SAF "-p -F SAF --ignoreDup " "Ignoring duplicated reads"
 $SH_CMD data/compare.sh data/test-junc.sam data/corner-Fraction.ora data/test-minimum.SAF "-p -F SAF --fraction -M " "Fraction counting"
+$SH_CMD data/compare.sh data/corner-fractions.sam data/corner-fractions.ora data/corner-fractions.SAF "  -O -M -F SAF --fraction  " "Advanced fractions"
 $SH_CMD data/compare.sh data/test-junc.sam data/corner-Jcounts.ora data/test-minimum.SAF "-p -F SAF -J " "Junction counting" JC
 
 if test -f /usr/local/work/liao/subread/chromosomes/all_34_alt.fa
@@ -57,6 +59,7 @@ $SH_CMD data/compare.sh data/test-minimum.sam data/test-minimum-UNSTR.ora data/t
 
 # test 5' and 3' end extension
 $SH_CMD data/compare.sh data/test-chrname.sam data/test-minimum-dup.ora data/test-minimum.GTF " -p --ignoreDup " "Ignoring duplicate fragments" 
-$SH_CMD data/compare.sh data/corner-JUNC.sam data/corner-JUNC-ONLY.ora data/test-minimum.GTF "--countSplitAlignmentsOnly -O -f " "Junction reads only" FL
+$SH_CMD data/compare.sh data/corner-JUNC.sam data/corner-JUNC-ONLY.ora data/test-minimum.GTF " --splitOnly -O -f " "Junction reads only" FL
+$SH_CMD data/compare.sh data/corner-JUNC.sam data/corner-EXON-ONLY.ora data/test-minimum.GTF " --nonSplitOnly -p " "Exonic reads only" 
 
 echo

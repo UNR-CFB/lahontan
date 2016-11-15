@@ -11,7 +11,7 @@
 # variable below.
 #
 
-ENSEMBL_RELEASE=81
+ENSEMBL_RELEASE=84
 ENSEMBL_GRCm38_BASE=ftp://ftp.ensembl.org/pub/release-${ENSEMBL_RELEASE}/fasta/mus_musculus/dna
 ENSEMBL_GRCm38_GTF_BASE=ftp://ftp.ensembl.org/pub/release-${ENSEMBL_RELEASE}/gtf/mus_musculus
 GTF_FILE=Mus_musculus.GRCm38.${ENSEMBL_RELEASE}.gtf
@@ -41,23 +41,23 @@ if [ ! -x "$HISAT2_BUILD_EXE" ] ; then
 	fi
 fi
 
-HISAT2_SS_SCRIPT=./extract_splice_sites.py
+HISAT2_SS_SCRIPT=./hisat2_extract_splice_sites.py
 if [ ! -x "$HISAT2_SS_SCRIPT" ] ; then
-	if ! which extract_snps.py ; then
-		echo "Could not find extract_splice_sites.py in current directory or in PATH"
+	if ! which hisat2_extract_splice_sites.py ; then
+		echo "Could not find hisat2_extract_splice_sites.py in current directory or in PATH"
 		exit 1
 	else
-		HISAT2_SS_SCRIPT=`which extract_splice_sites.py`
+		HISAT2_SS_SCRIPT=`which hisat2_extract_splice_sites.py`
 	fi
 fi
 
-HISAT2_EXON_SCRIPT=./extract_exons.py
+HISAT2_EXON_SCRIPT=./hisat2_extract_exons.py
 if [ ! -x "$HISAT2_EXON_SCRIPT" ] ; then
-	if ! which extract_exons.py ; then
-		echo "Could not find extract_exons.py in current directory or in PATH"
+	if ! which hisat2_extract_exons.py ; then
+		echo "Could not find hisat2_extract_exons.py in current directory or in PATH"
 		exit 1
 	else
-		HISAT2_SS_SCRIPT=`which extract_exons.py`
+		HISAT2_EXON_SCRIPT=`which hisat2_extract_exons.py`
 	fi
 fi
 
@@ -66,8 +66,7 @@ F=Mus_musculus.GRCm38.dna.primary_assembly.fa
 if [ ! -f $F ] ; then
 	get ${ENSEMBL_GRCm38_BASE}/$F.gz || (echo "Error getting $F" && exit 1)
 	gunzip $F.gz || (echo "Error unzipping $F" && exit 1)
-	awk '{if($1 ~ /^>/) {print $1} else {print}}' $F > genome.fa
-	rm $F
+	mv $F genome.fa
 fi
 
 if [ ! -f $GTF_FILE ] ; then
