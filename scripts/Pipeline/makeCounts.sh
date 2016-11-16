@@ -26,10 +26,12 @@ function makeCounts {
     local toName=$1
     local Postprocessing=$2
 
-	cut -sf 2 --complement "${Postprocessing}/NiceCounts.dat" > tempData
+	cd "${Postprocessing}"
 	
-	head -n +1 tempData | cut -sf 1 --complement > "${Postprocessing}/${toName}"
-	tail -n +2 tempData >> "${Postprocessing}/${toName}"
+	cut -sf 2 --complement NiceCounts.dat > tempData
+	
+	head -n +1 tempData | cut -sf 1 --complement > "${toName}"
+	tail -n +2 tempData >> "${toName}"
 	
 	rm tempData
 }

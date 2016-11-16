@@ -841,6 +841,7 @@ wait
             Calls pipeUtils.createCountFile() to make the Count file(Counts.dat)
             that works in my R analysis
         '''
+        os.chdir(self.Postprocessing)
         pipeUtils.createCountFile(self.Postprocessing)
 
     def createRCols(self):
@@ -852,6 +853,7 @@ wait
             Calls pipeUtils.createColumnFile() to make column file(Cols.dat)
             that describes Experiment. Uses Metadata JSON file for this
         '''
+        os.chdir(self.Postprocessing)
         pipeUtils.createColumnFile(self.Postprocessing)
 
     @funTime
@@ -1169,6 +1171,7 @@ wait
 
                 Initializes sample log
             '''
+            os.chdir(self.samplePath)
             with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'w') as LOG:
                 LOG.write('\t\tRuntime Log for {}\n'.format(sampleName))
                 LOG.write('----------------------------------------\n\n')

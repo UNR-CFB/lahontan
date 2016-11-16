@@ -516,7 +516,8 @@ def createColumnFile(postProcessingPath,jsonName='Metadata.json',columnName='Col
         print("Path is not a directory:\n{}".format(postProcessingPath))
         raise SystemExit
 
-    makeCols.makeCols(makeCols.readJSON(jsonName),postProcessingPath + '/' + columnName) 
+    os.chdir(postProcessingPath)
+    makeCols.makeCols(makeCols.readJSON(jsonName),columnName)
 
 def createCountFile(postProcessingPath,countName='Counts.dat'):
     ''' Arguments:
@@ -531,6 +532,7 @@ def createCountFile(postProcessingPath,countName='Counts.dat'):
     if os.path.isdir(postProcessingPath) == False:
         print("Path is not a directory:\n{}".format(postProcessingPath))
         raise SystemExit
+    os.chdir(postProcessingPath)
     # Executing shell script
     subprocess.run(["makeCounts.sh",postProcessingPath,countName],check=True)
 
@@ -547,7 +549,8 @@ def createRScript(postProcessingPath,jsonName='Metadata.json',rName='makeReport.
     if os.path.isdir(postProcessingPath) == False:
         print("Path is not a directory:\n{}".format(postProcessingPath))
         raise SystemExit
-    makeReportr.createRscript(makeCols.readJSON(jsonName),postProcessingPath+'/'+rName)
+    os.chdir(postProcessingPath)
+    makeReportr.createRscript(makeCols.readJSON(jsonName),rName)
 
 def createEdgeRScript(postProcessingPath,jsonName='Metadata.json',rName='makeEdge.r'):
     ''' Arguments:
@@ -561,7 +564,8 @@ def createEdgeRScript(postProcessingPath,jsonName='Metadata.json',rName='makeEdg
     if os.path.isdir(postProcessingPath) == False:
         print("Path is not a directory:\n{}".format(postProcessingPath))
         raise SystemExit
-    makeEdgeReport.createEdgeR(makeCols.readJSON(jsonName),postProcessingPath+'/'+rName)
+    os.chdir(postProcessingPath)
+    makeEdgeReport.createEdgeR(makeCols.readJSON(jsonName),rName)
 
 ################################################################
 # Running DESeq2
