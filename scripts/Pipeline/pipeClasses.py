@@ -978,6 +978,13 @@ wait
                         contents = O.read()
                     R.write(contents + '\n')
 
+    def checkEach(self):
+        Check = [os.path.exists(sample+'/.done') for sample in glob.glob(self.Data + '/sample*')]
+        if False in Check:
+            return False
+        else:
+            return True
+
     ################################################################
     # Cleaning Functions
     ################################################################
@@ -1639,6 +1646,8 @@ wait
             self.writeFunctionTail('runPart2')
             with open(self.Project + '/runPipeNotify/{}'.format('done'+self.sampleName), 'w') as N:
                 N.write('{} is done'.format(self.samplePath))
+            with open(self.samplePath + '/.done', 'w') as N:
+                N.write('{} is done'.format(self.samplePath))
 
         def runParts(self):
             ''' Arguments:
@@ -1708,7 +1717,7 @@ wait
         Prepare for DESeq2 Analysis
         '''
         while True:
-            if self.is3Finished():
+            if self.is3Finished() or self.checkEach():
                 time.sleep(10)
                 print('Preparing for DESeq2...')
                 shutil.rmtree(self.Project + '/runPipeNotify')
