@@ -111,7 +111,7 @@ def getReferenceVariables(referencePath):
         raise SystemExit
 
     for filename in ls:
-        if filename.split(".")[-1] == 'gtf':
+        if "gtf" in filename.split("."):
             gtf = str(filename)
         elif "cdna" in filename:
             cdna = str(filename)
