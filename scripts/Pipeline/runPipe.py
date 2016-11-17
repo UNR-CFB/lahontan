@@ -31,10 +31,10 @@ Options:
     --maxcpu <CPUs>
         Limits number of CPUs used by Pipeline. Without
         argument, default is to use all available CPUs
-    --noconfirm
-        Ignore all user prompts except JSON file creation
-    --NUKE
-        Removes entire project Directory
+    --reference-qc <pathtoReferences>
+        Runs Quality Control check on Reference files
+    --reference-pp <pathtoReferences>
+        Pre processes Reference data
     --makebatch <cluster>
         Makes batch file to be used with slurm. The argument
         it takes is a comma-separated list of CPUs on each
@@ -42,6 +42,10 @@ Options:
     --makebatchbiox
         Modifies behavior of --makebatch. Makes batch file
         with best behavior for our cluster(compute-1,compute-2)
+    --noconfirm
+        Ignore all user prompts except JSON file creation
+    --NUKE
+        Removes entire project Directory
     --edger
         Runs edgeR analysis only. Default is to run both 
     --deseq
@@ -92,7 +96,7 @@ import os
 # Handling Command line arguments
 ################################################################
 
-def main():
+def main(arguments):
     ''' Arguments:                   
             None                     
         Returns:                     
@@ -103,10 +107,6 @@ def main():
         Runs Experiment methods      
         Tip: search for @@@          
     '''                              
-    arguments = docopt(__doc__, version='Version 0.99\nAuthor: Alberto')
-    #print(arguments)
-    #raise SystemExit
-
     t1 = timer()
 
     global noconfirm
@@ -339,7 +339,34 @@ def main():
     timeused = str(time.strftime('%H:%M:%S', time.gmtime(t2-t1)))
     print('Total time elapsed: {}'.format(timeused))
 
-################################################################
+def side(arguments):
+    ''' Arguments:                   
+            None                     
+        Returns:                     
+            None                     
 
+        Runs Alternate Analysis
+    '''                              
+    if arguments['--reference-qc'] != None:
+        pipeClasses.pipeUtils.qcReference(arguments['--reference-qc'],pipeClasses.pipeUtils.getReferenceVariables(arguments['--reference-qc'])[2])
+        raise SystemExit
+    if arguments['--reference-pp'] != None:
+        Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(arguments['--reference-pp'])
+        Basename = pipeClasses.pipeUtils.getBasename(Genome)
+        pipeClasses.pipeUtils.preProcessingReference(arguments['--reference-pp'],Cdna,Gtf,Genome,Basename)
+        raise SystemExit
+
+def MainVsSide(arguments):
+    if arguments['--reference-pp'] != None:
+        return 'side'
+    if arguments['--reference-qc'] != None:
+        return 'side'
+    return 'main'
+
+################################################################
 if __name__ == '__main__':
-    main()
+    argument = docopt(__doc__, version='Version 0.99\nAuthor: Alberto')
+    if MainVsSide(argument) == 'main':
+        main(argument)
+    else:
+        side(argument)
