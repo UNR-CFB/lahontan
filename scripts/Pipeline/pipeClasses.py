@@ -39,7 +39,7 @@ import json
 # Utilities
 ################################################################
 
-def exportVariablesforClass(pathtoInput,maxCPU=None):
+def exportVariablesforClass(pathtoInput,maxCPU=None,exists=False):
     ''' Arguments:
             pathtoInput = string; path to INPUT file
         Returns:
@@ -48,7 +48,15 @@ def exportVariablesforClass(pathtoInput,maxCPU=None):
         Gathers instance variables for Experiment Class
     '''
     Project, Reference, Original = pipeUtils.sourceInput(pathtoInput)
-    Gtf, Cdna, Genome = pipeUtils.getReferenceVariables(Reference)
+    if not exists:
+        Gtf, Cdna, Genome = pipeUtils.getReferenceVariables(Reference)
+    else:
+        Init = Reference + '/.init'
+        with open(Init,'r') as f:
+            Stuff = f.readlines()
+        Gtf = Stuff[0].rstrip('\n')
+        Cdna = Stuff[1].rstrip('\n')
+        Genome = Stuff[2].rstrip('\n')
     Basename = pipeUtils.getBasename(Genome)
     Fastq = pipeUtils.getFastq(Original)
     Procs = pipeUtils.countCPU(maxCPU)
@@ -131,7 +139,7 @@ class Experiment:
         This class provides tools to analyze data
     '''
 
-    def __init__(self, inputPath, maxCPU=None):
+    def __init__(self, inputPath, maxCPU=None, exists=False):
         ''' Arguments:
                 inputPath = string; path to INPUT file
             Returns:
@@ -140,7 +148,7 @@ class Experiment:
             Initializes variables that get scraped from
             exportVariablesforClass(inputPath)
         '''
-        variables = exportVariablesforClass(inputPath,maxCPU)
+        variables = exportVariablesforClass(inputPath,maxCPU,exists)
         self.Project = variables["Projectpath"]
         self.ogReference = variables["ogReference"]
         self.ogOriginal = variables["ogOriginal"]
@@ -490,7 +498,7 @@ class Experiment:
         #    return scrapeResults(bestResult)
         return scrapeResults(smart())
 
-    def makeBatchBiox(self):
+    def makeBatchBiox(self,exists=False):
         ''' Arguments:
                 None
             Returns:
@@ -530,7 +538,11 @@ scontrol show job $SLURM_JOB_ID
 wait
 """
         numSamps = self.getNumberofSamples()
-        command12 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 1,2 "${inputFile}"'
+        if not exists:
+            ref = ''
+        else:
+            ref = ' --use-reference'
+        command12 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
         bestPath = self.getOptimal([48,32])
         command3,counter,sampleNum = '',1,1
         for path in bestPath:
@@ -603,7 +615,11 @@ scontrol show job $SLURM_JOB_ID
 wait
 """
         numSamps = self.getNumberofSamples()
-        command12 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 1,2 "${inputFile}"'
+        if not exists:
+            ref = ''
+        else:
+            ref = ' --use-reference'
+        command12 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
         bestPath = self.getOptimal(cluster)
         command3,counter,sampleNum = '',1,1
         for path in bestPath:

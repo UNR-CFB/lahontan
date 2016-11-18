@@ -173,6 +173,11 @@ def main(arguments):
     if JSFI != None:
         pipeClasses.checkJSON(JSFI)
 
+    def Ref():
+        if arguments['--use-reference']:
+            return True
+        return False
+
     def makeBatch(ExperimentClass):
         ''' Arguments:
                 ExperimentClass = class; experiment to run analysis on
@@ -183,7 +188,7 @@ def main(arguments):
             used with slurm, and then exit
         '''
         if arguments['--makebatchbiox']:
-            ExperimentClass.makeBatchBiox()
+            ExperimentClass.makeBatchBiox(exists=Ref())
             raise SystemExit('Batch file successfully created:\n\t{0}/pipeBatch'.format(os.getcwd()))
         elif arguments['--makebatch'] != None:
             preNodes,Nodes = arguments['--makebatch'].split(','),[]
@@ -209,8 +214,7 @@ def main(arguments):
                 raise SystemExit('Invalid value to --maxcpu: {}'.format(
                             arguments['--maxcpu']))
 
-
-    PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'], maxCPU=checkMaxCPU())
+    PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'], maxCPU=checkMaxCPU(), exists=Ref())
 
     global RUNTIMELOG
     RUNTIMELOG = str(PROJ.Project + '/Runtime.log')
@@ -287,11 +291,6 @@ def main(arguments):
                 raise SystemExit
         return executionStages
 
-    def checkRefArg():
-        if arguments['--use-reference']:
-            return True
-        return False
-
     def executeProject(ExperimentClass):
         ''' Arguments:
                 ExperimentClass = class; experiment to run analysis on
@@ -313,15 +312,15 @@ def main(arguments):
                     if str(stageNumber) == '5':
                         runR(ExperimentClass)
                     elif str(stageNumber) == '1' or str(stageNumber) == '2':
-                        exec('{}.runStage{}({})'.format('ExperimentClass',stageNumber,checkRefArg()))
+                        exec('{}.runStage{}({})'.format('ExperimentClass',stageNumber,Ref()))
                     else:
                         exec('{}.runStage{}()'.format('ExperimentClass',stageNumber))
         else:
             if not os.path.exists(ExperimentClass.Data):
-                ExperimentClass.runStage1(checkRefArg())
+                ExperimentClass.runStage1(Ref())
             if not os.path.exists(ExperimentClass.Reference + '/{}'.format(
                                                         'Reference_Report.txt')):
-                ExperimentClass.runStage2(checkRefArg())
+                ExperimentClass.runStage2(Ref())
             for sample in executionSamples:
                 ExperimentClass.executeSample(int(sample))
             if ExperimentClass.is3Finished():
