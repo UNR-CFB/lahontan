@@ -1,3 +1,9 @@
 [submodule "src/seqtk"]
 	path = src/seqtk
 	url = https://github.com/lh3/seqtk.git
+[submodule "src/gclib"]
+	path = src/GFF/gclib
+    url = https://github.com/gpertea/gclib
+[submodule "src/gffread"]
+	path = src/GFF/gffread
+    url = https://github.com/gpertea/gffread
