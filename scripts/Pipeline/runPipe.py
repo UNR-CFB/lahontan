@@ -35,6 +35,9 @@ Options:
         Runs Quality Control check on Reference files
     --reference-pp <pathtoReferences>
         Pre processes Reference data
+    --use-reference <pathtoReferences>
+        Use Reference data that has already been prepared.
+        Note: Need to run Stage 1 with this argument
     --makebatch <cluster>
         Makes batch file to be used with slurm. The argument
         it takes is a comma-separated list of CPUs on each
@@ -350,7 +353,7 @@ def side(arguments):
     if arguments['--reference-qc'] != None:
         noconfirm = arguments['--noconfirm']
         pipeClasses.pipeUtils.noconfirm = noconfirm
-        Init = arguments['--reference-qc']+'.init'
+        Init = arguments['--reference-qc']+'/.init'
         if not os.path.exists(Init):
             Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(arguments['--reference-qc'])
             with open(Init,'w') as f:
@@ -366,9 +369,9 @@ def side(arguments):
     if arguments['--reference-pp'] != None:
         noconfirm = arguments['--noconfirm']
         pipeClasses.pipeUtils.noconfirm = noconfirm
-        Init = arguments['--reference-qc']+'.init'
+        Init = arguments['--reference-pp']+'/.init'
         if not os.path.exists(Init):
-            Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(arguments['--reference-qc'])
+            Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(arguments['--reference-pp'])
             with open(Init,'w') as f:
                 f.write('\n'.join([Gtf,Cdna,Genome]))
         else:
