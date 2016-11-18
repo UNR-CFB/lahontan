@@ -348,10 +348,35 @@ def side(arguments):
         Runs Alternate Analysis
     '''                              
     if arguments['--reference-qc'] != None:
-        pipeClasses.pipeUtils.qcReference(arguments['--reference-qc'],pipeClasses.pipeUtils.getReferenceVariables(arguments['--reference-qc'])[2])
+        noconfirm = arguments['--noconfirm']
+        pipeClasses.pipeUtils.noconfirm = noconfirm
+        Init = arguments['--reference-qc']+'.init'
+        if not os.path.exists(Init):
+            Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(arguments['--reference-qc'])
+            with open(Init,'w') as f:
+                f.write('\n'.join([Gtf,Cdna,Genome]))
+        else:
+            with open(Init,'r') as f:
+                Stuff = f.readlines()
+            Gtf = Stuff[0].rstrip('\n')
+            Cdna = Stuff[1].rstrip('\n')
+            Genome = Stuff[2].rstrip('\n')
+        pipeClasses.pipeUtils.qcReference(arguments['--reference-qc'],Genome)
         raise SystemExit
     if arguments['--reference-pp'] != None:
-        Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(arguments['--reference-pp'])
+        noconfirm = arguments['--noconfirm']
+        pipeClasses.pipeUtils.noconfirm = noconfirm
+        Init = arguments['--reference-qc']+'.init'
+        if not os.path.exists(Init):
+            Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(arguments['--reference-qc'])
+            with open(Init,'w') as f:
+                f.write('\n'.join([Gtf,Cdna,Genome]))
+        else:
+            with open(Init,'r') as f:
+                Stuff = f.readlines()
+            Gtf = Stuff[0].rstrip('\n')
+            Cdna = Stuff[1].rstrip('\n')
+            Genome = Stuff[2].rstrip('\n')
         Basename = pipeClasses.pipeUtils.getBasename(Genome)
         pipeClasses.pipeUtils.preProcessingReference(arguments['--reference-pp'],Cdna,Gtf,Genome,Basename)
         raise SystemExit
