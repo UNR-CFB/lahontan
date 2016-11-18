@@ -35,8 +35,10 @@ Options:
         Runs Quality Control check on Reference files
     --reference-pp <pathtoReferences>
         Pre processes Reference data
-    --use-reference <pathtoReferences>
+    --use-reference
         Use Reference data that has already been prepared.
+        Put path to already prepared reference data in 
+        INPUT file
         Note: Need to run Stage 1 with this argument
     --makebatch <cluster>
         Makes batch file to be used with slurm. The argument
@@ -285,6 +287,11 @@ def main(arguments):
                 raise SystemExit
         return executionStages
 
+    def checkRefArg():
+        if arguments['--use-reference']:
+            return True
+        return False
+
     def executeProject(ExperimentClass):
         ''' Arguments:
                 ExperimentClass = class; experiment to run analysis on
@@ -305,14 +312,16 @@ def main(arguments):
                 for stageNumber in executionStages:
                     if str(stageNumber) == '5':
                         runR(ExperimentClass)
+                    elif str(stageNumber) == '1' or str(stageNumber) == '2':
+                        exec('{}.runStage{}({})'.format('ExperimentClass',stageNumber,checkRefArg()))
                     else:
                         exec('{}.runStage{}()'.format('ExperimentClass',stageNumber))
         else:
             if not os.path.exists(ExperimentClass.Data):
-                ExperimentClass.runStage1()
+                ExperimentClass.runStage1(checkRefArg())
             if not os.path.exists(ExperimentClass.Reference + '/{}'.format(
                                                         'Reference_Report.txt')):
-                ExperimentClass.runStage2()
+                ExperimentClass.runStage2(checkRefArg())
             for sample in executionSamples:
                 ExperimentClass.executeSample(int(sample))
             if ExperimentClass.is3Finished():

@@ -243,7 +243,7 @@ def createStructure(projectPath, originalPath):
 # Make Pointers to Data
 ################################################################
 
-def createSymLinks(projectPath,originalPath,referencePath):
+def createSymLinks(projectPath,originalPath,referencePath,exists=False):
     ''' Arguments:
             projectPath = string of the path to the Project Directory
             originalPath = string of the path to the Original Directory
@@ -274,9 +274,10 @@ def createSymLinks(projectPath,originalPath,referencePath):
             print('There are not an even number of files in {}!'.format(originalPath))
         else:
             numSamp = int(getNumberofFiles(originalPath)/2)
-        if len(os.listdir(projectPath + '/Reference')) != 3:
-            print("There are not an appropriate amount of Symlinks in {}".format(projectPath + '/Reference'))
-            raise SystemExit
+        if not exists:
+            if len(os.listdir(projectPath + '/Reference')) != 3:
+                print("There are not an appropriate amount of Symlinks in {}".format(projectPath + '/Reference'))
+                raise SystemExit
         if len(os.listdir(projectPath + '/Data')) != numSamp:
             print("There are not an appropriate number of Samples in {}".format(projectPath + '/Data'))
             raise SystemExit

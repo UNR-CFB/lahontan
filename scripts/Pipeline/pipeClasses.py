@@ -255,7 +255,7 @@ class Experiment:
                 makeTimeFile(RUNTIMELOG)
 
     @funTime
-    def makeSyms(self):
+    def makeSyms(self,exists=False):
         ''' Arguments:
                 None
             Returns:
@@ -267,12 +267,14 @@ class Experiment:
         if noconfirm == True:
             pipeUtils.createSymLinks(self.Project,
                                         self.ogOriginal,
-                                        self.ogReference)
+                                        self.ogReference,
+                                        exists)
         else:
             if self.checkStructure() == False:
                 pipeUtils.createSymLinks(self.Project,
                                             self.ogOriginal,
-                                            self.ogReference)
+                                            self.ogReference,
+                                            exists)
 
     @funTime
     def qcRef(self):
@@ -1669,7 +1671,7 @@ wait
     ################################################################
 
     @funTime
-    def runStage1(self):
+    def runStage1(self,exists=False):
         ''' Note: does not need to be run more than once
 
         Prepare for Pipeline
@@ -1677,15 +1679,16 @@ wait
         if noconfirm == False:
             self.checkX11()
         self.makeStructure()
-        self.makeSyms()
+        self.makeSyms(exists)
 
     @funTime
-    def runStage2(self):
+    def runStage2(self,exists=False):
         '''
         Prepare Reference Data
         '''
-        self.qcRef()
-        self.ppRef()
+        if not exists:
+            self.qcRef()
+            self.ppRef()
 
     @funTime
     def runStage3(self):
@@ -1742,12 +1745,12 @@ wait
         self.findRFinish()
 
     @funTime
-    def runAll(self):
+    def runAll(self,exists=False):
         '''
         Runs Stage 1 through Stage 5
         '''
-        self.runStage1()
-        self.runStage2()
+        self.runStage1(exists)
+        self.runStage2(exists)
         self.runStage3()
         self.runStage4()
         self.runStage5()
@@ -1756,111 +1759,6 @@ wait
     # End of Experiment class
     ################################################################
 
-#################################################################
-## Handling Command line arguments
-#################################################################
-#
-#def main():
-#    '''
-#    USE runPipe.py
-#    '''
-#
-#    arguments = docopt(__doc__, version='Version 0.99\nAuthor: Alberto')
-#    t1 = timer()
-#
-#    global noconfirm
-#    noconfirm = arguments['--noconfirm']
-#    global JSFI
-#    JSFI = arguments['--jsonfile']
-#
-#    # Handling --NUKE argument
-#    if arguments['--NUKE'] == True:
-#        if noconfirm == True:
-#            PROJ = Experiment(arguments['<pathtoInput>'])
-#            PROJ.nukeProject()
-#            raise SystemExit
-#        else:
-#            PROJ = Experiment(arguments['<pathtoInput>'])
-#            while True:
-#                answer = input('Are you sure you wish to remove {}?(y/n) '.format(PROJ.Project))
-#                if answer == 'y':
-#                    PROJ.nukeProject()
-#                    raise SystemExit
-#                elif answer == 'n':
-#                    raise SystemExit
-#                else:
-#                    print('Please answer y or n')
-#
-#    # Handling Cleaning Arguments
-#    possibleCleanArguments = ['All','Reference','Data','Postprocessing']
-#    if arguments['--clean'] != None:
-#        assert arguments['--clean'] in possibleCleanArguments, 'Invalid Cleaning Argument: Run runPipe.py -h for available arguments'
-#        PROJ = Experiment(arguments['<pathtoInput>'])
-#        if arguments['--clean'] != 'All':
-#            if arguments['--clean'] == 'Data':
-#                if os.path.isdir(PROJ.Data) == False:
-#                    print('{} does not exist'.format(PROJ.Data))
-#                    raise SystemExit
-#            if arguments['--clean'] == 'Reference':
-#                if os.path.isdir(PROJ.Reference) == False:
-#                    print('{} does not exist'.format(PROJ.Reference))
-#                    raise SystemExit
-#            if arguments['--clean'] == 'Postprocessing':
-#                if os.path.isdir(PROJ.Postprocessing) == False:
-#                    print('{} does not exist'.format(PROJ.Postprocessing))
-#                    raise SystemExit
-#        PROJ.clean(arguments['--clean'])
-#        raise SystemExit
-#    elif arguments['--sampleclean'] != None:
-#        PROJ = Experiment(arguments['<pathtoInput>'])
-#        if os.path.isdir(str(PROJ.Data + '/' + arguments['--sampleclean'])) == False:
-#            print('{} does not exist'.format(str(PROJ.Data + '/' + arguments['--sampleclean'])))
-#            raise SystemExit
-#        PROJ.clean('Sample',arguments['--sampleclean'])
-#        raise SystemExit
-#
-#    if JSFI != None:
-#        checkJSON(JSFI)
-#
-#    pipeUtils.JSFI = JSFI
-#    pipeUtils.noconfirm = noconfirm
-#
-#    PROJ = Experiment(arguments['<pathtoInput>'])
-#
-#    global RUNTIMELOG
-#    if arguments['--runtime'] == '$Project':
-#        RUNTIMELOG = str(PROJ.Project + '/Runtime.log')
-#    else:
-#        if os.path.isdir(arguments['--runtime']) == False:
-#            print('Need a valid directory to save Runtime file to')
-#            raise SystemExit
-#        else:
-#            RUNTIMELOG = str(arguments['--runtime'] + '/Runtime.log')
-#
-#
-#    ############################################################
-#    # Call for actually doing stuff
-#    ############################################################
-#    # @@@
-#    PROJ.runAll()
-#    ############################################################
-#    StageTips = """
-#    runStage1: Prepare for Pipeline
-#
-#    runStage2: Prepare Reference Data only needs to be run once
-#
-#    runStage3: Run Pipeline
-#
-#    runStage4: Prepare for DESeq2 Analysis
-#
-#    runStage5: Run R pipeline
-#    """
-#
-#    t2 = timer()
-#
-#    timeused = str(time.strftime('%H:%M:%S', time.gmtime(t2-t1)))
-#    print('Total time elapsed: {}'.format(timeused))
-#
 #################################################################
 if __name__ == '__main__':
     print('Please use runPipe.py\nSee runPipe --help')
