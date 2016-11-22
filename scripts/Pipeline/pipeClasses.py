@@ -562,15 +562,15 @@ wait
             Pstep = bestPath[path]['Procs']
             Sstep = bestPath[path]['Samps']
             for S in range(sampleNum,sampleNum + Sstep):
-                com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S)
+                com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm{2} --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref)
                 command3 += com
             if counter != len(bestPath):
                 command3 += 'wait\n'
             counter += 1
             sampleNum += Sstep
-        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm --jsonfile "${jsonFile}" --execute 4 "${inputFile}"'
-        command5a = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &'
-        command5b = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &'
+        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
+        command5a = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --edger "${{inputFile}}" &'.format(ref)
+        command5b = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --deseq "${{inputFile}}" &'.format(ref)
         command5 = command5a + '\n' + command5b
         Context = {
                 "NODES": len(cluster),
@@ -639,15 +639,15 @@ wait
             Pstep = bestPath[path]['Procs']
             Sstep = bestPath[path]['Samps']
             for S in range(sampleNum,sampleNum + Sstep):
-                com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S)
+                com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm{2} --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref)
                 command3 += com
             if counter != len(bestPath):
                 command3 += 'wait\n'
             counter += 1
             sampleNum += Sstep
-        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm --jsonfile "${jsonFile}" --execute 4 "${inputFile}"'
-        command5a = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &'
-        command5b = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &'
+        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
+        command5a = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --edger "${{inputFile}}" &'.format(ref)
+        command5b = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --deseq "${{inputFile}}" &'.format(ref)
         command5 = command5a + '\n' + command5b
         Context = {
                 "NODES": len(cluster),
