@@ -4,6 +4,7 @@ from math import ceil as ceiling
 import multiprocessing
 import sys
 import json
+from pprint import pprint
 
 numSamples = int(sys.argv[1])
 procs = int(sys.argv[2])
@@ -28,14 +29,15 @@ def chokePoints(limits=cluster):
         else:
             final.pop(-1)
             final.append(amount)
-    return [a[0] for a in final[1:]]
+    return [2,3,4,5,6,8,16,48]
+    #return [a[0] for a in final[1:]]
 def allIteration(numSamp=numSamples, limits=cluster):
     Total = [[numSamp-atatime(cpuPerSample,limits),[cpuPerSample,timePerSample(cpuPerSample)]] for cpuPerSample in chokePoints(limits)]
-    print(Total)
-
-allIteration(24,[48,32])
-raise SystemExit
-def smartMultiprocessing(M,numSamp=numSamples,limits=cluster):
+    Final = {}
+    for test in Total:
+        Final[str(test[1][0])] = test[1]
+    return Final
+def smartMultiprocessing2(M,numSamp=numSamples,limits=cluster):
     Paths,Finished,Best,counter = [],[1],9E9,0
     available = chokePoints(limits)
     while True:
@@ -51,13 +53,50 @@ def smartMultiprocessing(M,numSamp=numSamples,limits=cluster):
                 Paths.append(ITER)
             counter += 1
         else:
-            if counter == 2:
-                break
+            #if counter == 4:
+            #    break
             for path in Paths:
                 for n in available:
                     ITER = path[:]
                     ITER[0] = ITER[0] - atatime(n)
                     ITER.append(oneIteration(n,numSamp,limits)[1])
+                    if ITER[0] <= 0:
+                        test = [sum(i) for i in zip(*ITER[1:])][1]
+                        if test < Best:
+                            Best = test
+                            del Finished[0]
+                            Finished.append(ITER[1:])
+                    else:
+                        Paths.append(ITER)
+                Paths.remove(path)
+            counter += 1
+        if len(Paths) == 0:
+            break
+    return Best,Finished
+def smartMultiprocessing(M,numSamp=numSamples,limits=cluster):
+    Paths,Finished,Best,counter = [],[1],9E9,0
+    available = chokePoints(limits)
+    calcIter = allIteration(numSamp, limits)
+    while True:
+        if counter == 0:
+            ITER = oneIteration(M,numSamp,limits)
+            if ITER[0] <= 0:
+                test = [sum(i) for i in zip(*ITER[1:])][1]
+                if test < Best:
+                    Best = test
+                    del Finished[0]
+                    Finished.append(ITER[1:])
+            else:
+                Paths.append(ITER)
+            counter += 1
+        else:
+            if counter == 8:
+                break
+            for path in Paths:
+                for n in available:
+                    ITER = path[:]
+                    ITER[0] = ITER[0] - atatime(n)
+                    ITER.append(calcIter[str(n)][:])
                     if ITER[0] <= 0:
                         test = [sum(i) for i in zip(*ITER[1:])][1]
                         if test < Best:
@@ -86,14 +125,12 @@ def scrapeResults(Best,numSamps=numSamples,limits=cluster):
         counter += 1
         if counter+1 > len(Best[1][0]):
             break
-    with open('scrapeResultsresult.dat','w') as JF:
+    with open('OptimalPath.dat','w') as JF:
         json.dump(resultDict, JF, sort_keys=True, indent=4)
     return resultDict
 with multiprocessing.Pool(procs) as p:
     available = chokePoints(cluster)
     Results = p.map(smartMultiprocessing, available)
-    sortedResults = list(sorted(Results))
-    bestResult = sortedResults[0]
-    with open('blahblahblah.dat','w') as f:
-        f.write(str(sortedResults))
-    print(scrapeResults(bestResult))
+sortedResults = list(sorted(Results))
+bestResult = sortedResults[0]
+print(scrapeResults(bestResult))
