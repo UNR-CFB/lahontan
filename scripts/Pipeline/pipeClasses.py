@@ -560,9 +560,9 @@ wait
         command5b = 'srun -N1 -c1 -n1 --exclusive runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &'
         command5 = command5a + '\n' + command5b
         Context = {
-                "NODES": 2,
-                "CPT": 16,
-                "NTASKS": 5,
+                "NODES": len(cluster),
+                "CPT": bestPath['Step 1']['Procs'],
+                "NTASKS": bestPath['Step 1']['Samps'],
                 "INPUT": self.inputPath,
                 "JSON": JSFI,
                 "STAGE12": command12,
