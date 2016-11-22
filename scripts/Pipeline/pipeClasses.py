@@ -124,7 +124,7 @@ def makeTimeFile(logPath):
         Initializes log file
     '''
     with open(logPath, 'w') as R:
-        R.write('runPipe.py Runtime File\n-----------------------------------------\n\n')
+        R.write('runPipe Runtime File\n-----------------------------------------\n\n')
 
 def unwrap_self_runSample(arg, **kwarg):
     ''' Magic for multiprocessing '''
@@ -555,22 +555,22 @@ wait
             ref = ''
         else:
             ref = ' --use-reference'
-        command12 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
+        command12 = 'srun -N1 -c1 -n1 runPipe --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
         bestPath = self.getOptimal([48,32])
         command3,counter,sampleNum = '',1,1
         for path in bestPath:
             Pstep = bestPath[path]['Procs']
             Sstep = bestPath[path]['Samps']
             for S in range(sampleNum,sampleNum + Sstep):
-                com = 'srun -N1 -c{0} -n1 --exclusive runPipe.py --noconfirm --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S)
+                com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S)
                 command3 += com
             if counter != len(bestPath):
                 command3 += 'wait\n'
             counter += 1
             sampleNum += Sstep
-        command4 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 4 "${inputFile}"'
-        command5a = 'srun -N1 -c1 -n1 --exclusive runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &'
-        command5b = 'srun -N1 -c1 -n1 --exclusive runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &'
+        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm --jsonfile "${jsonFile}" --execute 4 "${inputFile}"'
+        command5a = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &'
+        command5b = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &'
         command5 = command5a + '\n' + command5b
         Context = {
                 "NODES": len(cluster),
@@ -632,22 +632,22 @@ wait
             ref = ''
         else:
             ref = ' --use-reference'
-        command12 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
+        command12 = 'srun -N1 -c1 -n1 runPipe --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
         bestPath = self.getOptimal(cluster,behavior='non')
         command3,counter,sampleNum = '',1,1
         for path in sorted(bestPath):
             Pstep = bestPath[path]['Procs']
             Sstep = bestPath[path]['Samps']
             for S in range(sampleNum,sampleNum + Sstep):
-                com = 'srun -N1 -c{0} -n1 --exclusive runPipe.py --noconfirm --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S)
+                com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S)
                 command3 += com
             if counter != len(bestPath):
                 command3 += 'wait\n'
             counter += 1
             sampleNum += Sstep
-        command4 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 4 "${inputFile}"'
-        command5a = 'srun -N1 -c1 -n1 --exclusive runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &'
-        command5b = 'srun -N1 -c1 -n1 --exclusive runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &'
+        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm --jsonfile "${jsonFile}" --execute 4 "${inputFile}"'
+        command5a = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &'
+        command5b = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &'
         command5 = command5a + '\n' + command5b
         Context = {
                 "NODES": len(cluster),
@@ -687,19 +687,19 @@ wait
 #        numSamps = self.getNumberofSamples()
 #        if behavior == 'default':
 #            if cpuLimit == None:
-#                com = 'srun -N1 -c48 -n1 --exclusive runPipe.py --noconfirm -e 3 -r {} "${{inputFile}}" &'
+#                com = 'srun -N1 -c48 -n1 --exclusive runPipe --noconfirm -e 3 -r {} "${{inputFile}}" &'
 #                commands = '\n'.join([com.format(num) for num in range(1,numSamps+1)])
 #                cpt = 48
 #                nt = 2
 #            else:
-#                com = 'srun -N1 -c{0} -n1 --exclusive runPipe.py --noconfirm --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &'
+#                com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &'
 #                commands = '\n'.join([com.format(self.Procs,num) for num in range(1,numSamps+1)])
 #                cpt = self.Procs
 #                nt = 80//cpt
 #        elif behavior == 'biox':
 #            cpt = 16
 #            nt = 5
-#            com = 'srun -N1 -c16 -n1 --exclusive runPipe.py --noconfirm --maxcpu 16 -e 3 -r {0} "${{inputFile}}" &'
+#            com = 'srun -N1 -c16 -n1 --exclusive runPipe --noconfirm --maxcpu 16 -e 3 -r {0} "${{inputFile}}" &'
 #            commands = '\n'.join([com.format(num) for num in range(1,numSamps+1)])
 #        Context = {
 #                "NUMSAMPLES": numSamps,
@@ -736,13 +736,13 @@ wait
 #
 #wait"""
 #        if cpuLimit == None:
-#            command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 4 "${inputFile}"'
-#            command2 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &'
-#            command3 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &'
+#            command1 = 'srun -N1 -c1 -n1 runPipe --noconfirm --jsonfile "${jsonFile}" --execute 4 "${inputFile}"'
+#            command2 = 'srun -N1 -c1 -n1 runPipe --noconfirm --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &'
+#            command3 = 'srun -N1 -c1 -n1 runPipe --noconfirm --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &'
 #        else:
-#            command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(self.Procs)
-#            command2 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 5 --edger "${{inputFile}}" &'.format(self.Procs)
-#            command3 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 5 --deseq "${{inputFile}}" &'.format(self.Procs)
+#            command1 = 'srun -N1 -c1 -n1 runPipe --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(self.Procs)
+#            command2 = 'srun -N1 -c1 -n1 runPipe --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 5 --edger "${{inputFile}}" &'.format(self.Procs)
+#            command3 = 'srun -N1 -c1 -n1 runPipe --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 5 --deseq "${{inputFile}}" &'.format(self.Procs)
 #
 #        Context = {
 #                "INPUT": self.inputPath,
@@ -783,9 +783,9 @@ wait
 #
 #wait"""
 #        if cpuLimit == None:
-#            command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 1,2 "${inputFile}"'
+#            command1 = 'srun -N1 -c1 -n1 runPipe --noconfirm --jsonfile "${jsonFile}" --execute 1,2 "${inputFile}"'
 #        else:
-#            command1 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(self.Procs)
+#            command1 = 'srun -N1 -c1 -n1 runPipe --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(self.Procs)
 #        cd = os.getcwd()
 #        Context = {
 #                "INPUT": self.inputPath,
@@ -1030,7 +1030,7 @@ wait
                 None; cleans directories
 
             Cleaning function for Experiment.
-            See runPipe.py --help for help
+            See runPipe --help for help
         '''
         assert type(thingToClean) == str, '{} is not a valid argument'.format(thingToClean)
         if thingToClean == 'Reference':
@@ -1790,6 +1790,6 @@ wait
 
 #################################################################
 if __name__ == '__main__':
-    print('Please use runPipe.py\nSee runPipe --help')
+    print('Please use runPipe\nSee runPipe --help')
     raise SystemExit
     #main()
