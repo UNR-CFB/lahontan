@@ -197,7 +197,7 @@ def main(arguments):
                     raise SystemExit('Not a valid argument to --makebatch: {}'.format(
                                             arguments['--makebatch']))
                 Nodes.append(int(node))
-            ExperimentClass.makeBatch(cluster=Nodes)
+            ExperimentClass.makeBatch(cluster=Nodes,exists=Ref())
             raise SystemExit('Batch file successfully created:\n\t{0}/pipeBatch'.format(os.getcwd()))
 
     def checkMaxCPU():

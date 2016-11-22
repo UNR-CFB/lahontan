@@ -376,7 +376,7 @@ class Experiment:
         else:
             raise SystemExit('There is a problem with executing sample')
 
-    def getOptimal(self, cluster):
+    def getOptimal(self, cluster, behavior='default'):
         ''' Arguments:
                 cluster = list; a list of integers that describes number of
                             CPUs on each machine in a cluster
@@ -491,12 +491,25 @@ class Experiment:
                 if counter+1 > len(Best[1][0]):
                     break
             return resultDict
+        def regularResults(numSamps=numSamples,limits=cluster):
+            iteration = atatime(self.Procs,limits)
+            numItes = iterationsTilFinish(self.Procs, numSamples, limits)
+            resultDict,counter,totalSamps = {},0,numSamps
+            for i in range(1,numItes+1):
+                resultDict['Step {}'.format(counter+1)] = {}
+                resultDict['Step {}'.format(counter+1)]['Procs'] = self.Procs
+                resultDict['Step {}'.format(counter+1)]['Samps'] = iteration
+                counter += 1
+            return resultDict
         #with multiprocessing.Pool(self.Procs) as p:
         #    available = chokePoints(cluster)
         #    Results = p.map(smartMultiprocessing, available)
         #    bestResult = list(sorted(Results)[0])
         #    return scrapeResults(bestResult)
-        return scrapeResults(smart())
+        if behavior == 'default':
+            return scrapeResults(smart())
+        else:
+            return regularResults(numSamples,cluster)
 
     def makeBatchBiox(self,exists=False):
         ''' Arguments:
@@ -574,7 +587,7 @@ wait
         with open('pipeBatch','w') as f:
             f.write(batchScript)
 
-    def makeBatch(self, cluster):
+    def makeBatch(self, cluster, exists=False):
         ''' Arguments:
                 cluster = list; list of integers that describe number
                             of CPUs in each node of your cluster
@@ -620,9 +633,9 @@ wait
         else:
             ref = ' --use-reference'
         command12 = 'srun -N1 -c1 -n1 runPipe.py --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
-        bestPath = self.getOptimal(cluster)
+        bestPath = self.getOptimal(cluster,behavior='non')
         command3,counter,sampleNum = '',1,1
-        for path in bestPath:
+        for path in sorted(bestPath):
             Pstep = bestPath[path]['Procs']
             Sstep = bestPath[path]['Samps']
             for S in range(sampleNum,sampleNum + Sstep):
