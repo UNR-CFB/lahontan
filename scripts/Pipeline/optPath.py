@@ -29,6 +29,12 @@ def chokePoints(limits=cluster):
             final.pop(-1)
             final.append(amount)
     return [a[0] for a in final[1:]]
+def allIteration(numSamp=numSamples, limits=cluster):
+    Total = [[numSamp-atatime(cpuPerSample,limits),[cpuPerSample,timePerSample(cpuPerSample)]] for cpuPerSample in chokePoints(limits)]
+    print(Total)
+
+allIteration(24,[48,32])
+raise SystemExit
 def smartMultiprocessing(M,numSamp=numSamples,limits=cluster):
     Paths,Finished,Best,counter = [],[1],9E9,0
     available = chokePoints(limits)
@@ -45,6 +51,8 @@ def smartMultiprocessing(M,numSamp=numSamples,limits=cluster):
                 Paths.append(ITER)
             counter += 1
         else:
+            if counter == 2:
+                break
             for path in Paths:
                 for n in available:
                     ITER = path[:]
@@ -59,13 +67,14 @@ def smartMultiprocessing(M,numSamp=numSamples,limits=cluster):
                     else:
                         Paths.append(ITER)
                 Paths.remove(path)
-            #counter += 1
+            counter += 1
         if len(Paths) == 0:
             break
     return Best,Finished
 def scrapeResults(Best,numSamps=numSamples,limits=cluster):
     resultDict,counter,totalSamps = {},0,numSamps
     while True:
+        print(Best)
         S = atatime(Best[1][0][counter][0],limits)
         if S > totalSamps:
             S = totalSamps
