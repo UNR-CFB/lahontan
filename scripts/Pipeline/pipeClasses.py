@@ -1544,7 +1544,7 @@ wait
             strandedVar = self.findStranded()
             # hisat2 manual line 553
             # Making Command
-            command = r"""hisat2 -k 5 -p {numProcs} --dta --phred{phred} --known-splicesite-infile {ref}/splice_sites.txt -x {ref}/{basename} -1 read1.P.trim.{fastq}.gz -2 read2.P.trim.{fastq}.gz -S aligned.{sample}.sam"""
+            command = r"""hisat2 -k 5 -p {numProcs} --rna-strandness {FRoRF} --dta --phred{phred} --known-splicesite-infile {ref}/splice_sites.txt -x {ref}/{basename} -1 read1.P.trim.{fastq}.gz -2 read2.P.trim.{fastq}.gz -S aligned.{sample}.sam"""
             Phred = self.getPhred()
             context = {
                     "numProcs": self.Procs,
@@ -1552,7 +1552,8 @@ wait
                     "ref": self.Reference,
                     "basename": self.Basename,
                     "fastq": self.Fastq,
-                    "sample": self.sampleName
+                    "sample": self.sampleName,
+                    "FRoRF": 'FR'
                     }
             goodCommand = self.formatCommand(command.format(**context))
             # Executing
