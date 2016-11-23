@@ -163,6 +163,7 @@ class Experiment:
         self.Fastq = str(variables["Fastq"])
         self.Procs = int(variables["Procs"])
         self.inputPath = str(inputPath)
+        self.Exists = exists
 
     def __repr__(self):
         ''' Arguments:
@@ -326,19 +327,19 @@ class Experiment:
         '''
         if self.Procs < os.cpu_count():
             if subject == 'all':
-                Samples = [Experiment.Sample(n, self.inputPath,self.Procs) for n
+                Samples = [Experiment.Sample(n, self.inputPath, maxCPU=self.Procs, exists=self.Exists) for n
                         in range(1,self.getNumberofSamples() + 1)]
                 return Samples
             elif type(subject) == int:
-                Sample = Experiment.Sample(subject, self.inputPath, self.Procs)
+                Sample = Experiment.Sample(subject, self.inputPath, maxCPU=self.Procs, exists=self.Exists)
                 return Sample
         else:
             if subject == 'all':
-                Samples = [Experiment.Sample(n, self.inputPath) for n
+                Samples = [Experiment.Sample(n, self.inputPath, exists=self.Exists) for n
                         in range(1,self.getNumberofSamples() + 1)]
                 return Samples
             elif type(subject) == int:
-                Sample = Experiment.Sample(subject, self.inputPath)
+                Sample = Experiment.Sample(subject, self.inputPath, exists=self.Exists)
                 return Sample
 
     def runSample(self, sample):
@@ -494,8 +495,11 @@ class Experiment:
         def regularResults(numSamps=numSamples,limits=cluster):
             iteration = atatime(self.Procs,limits)
             numItes = iterationsTilFinish(self.Procs, numSamples, limits)
-            resultDict,counter,totalSamps = {},0,numSamps
+            resultDict,counter,totalSamps = {},0,0
             for i in range(1,numItes+1):
+                if totalSamps+iteration > numSamps:
+                    iteration = numSamps - totalSamps
+                totalSamps += iteration
                 resultDict['Step {}'.format(counter+1)] = {}
                 resultDict['Step {}'.format(counter+1)]['Procs'] = self.Procs
                 resultDict['Step {}'.format(counter+1)]['Samps'] = iteration
@@ -1088,7 +1092,7 @@ wait
         Inherits from Experiment Parent Class
         '''
 
-        def __init__(self,sampleNumber,inputFile, maxCPU=None):
+        def __init__(self,sampleNumber,inputFile, maxCPU=None, exists=False):
             ''' Arguments:
                     sampleNumber = int; sample number used for naming
                     inputFile = str; path to inputFile
@@ -1098,7 +1102,7 @@ wait
                 Initializes class variables from Parent class and also
                 initializes some sample specific variables
             '''
-            Experiment.__init__(self,inputFile)
+            Experiment.__init__(self,inputFile,exists=exists)
             assert sampleNumber <= Experiment.getNumberofSamples(self)
             assert sampleNumber > 0
             self.sampleNumber = sampleNumber
