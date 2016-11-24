@@ -7,8 +7,8 @@ Options:
     -h, --help
         Show this screen and exit
     -j <jsonFile>, --jsonfile <jsonFile>
-        Ignores JSON file creation and uses specified path
-        to JSON
+        Ignores JSON Metadata file creation and uses specified
+        path to JSON Metadata
     -c <placeToClean>, --clean <placeToClean>
         Cleans <placeToClean>; Possible places include:
             Reference, Data, Postprocessing, All
@@ -47,6 +47,9 @@ Options:
     --makebatchbiox
         Modifies behavior of --makebatch. Makes batch file
         with best behavior for our cluster(compute-1,compute-2)
+    --batchjson <pathtoJSON>
+        Uses json file already created to make batch file
+        [default: False]
     --noconfirm
         Ignore all user prompts except JSON file creation
     --NUKE
@@ -55,37 +58,38 @@ Options:
         Runs edgeR analysis only. Default is to run both 
     --deseq
         Runs DESeq2 analysis only. Default is to run both
-
-Examples:
-    runPipe.py /path/to/INPUT
-        This will run the pipeline using the input variables
-        from /path/to/INPUT with all the default behavior
-
-    runPipe.py --execute 1,2 /path/to/INPUT
-        This will run the first and second stage of the
-        pipeline using the input variables from /path/to/INPUT
-
-    runPipe.py --runsample 1,2 /path/to/INPUT
-        This will run third stage on the first and second
-        sample. Note that it will also run first and second
-        stage if needed
-
-    runPipe.py --jsonfile /path/to/Metadata /path/to/INPUT
-        This will run the pipeline using the input variables
-        from /path/to/INPUTfile and will use the JSON located
-        at /path/to/Metadata for DESeq2 and edgeR analysis
-
-    runPipe.py --clean Data /path/to/INPUT
-        This will wipe all of the pipeline's actions on all
-        samples within the respective Project Directory
-        leaving only the symlinks that were created
-
-    runPipe.py --NUKE /path/to/INPUT
-        This will remove entire Project directory denoted by
-        the INPUT variable "Project".
-        Note: Will leave original Reference and Data folders
-        as they were originally made
 '''
+
+#Examples:
+#    runPipe.py /path/to/INPUT
+#        This will run the pipeline using the input variables
+#        from /path/to/INPUT with all the default behavior
+#
+#    runPipe.py --execute 1,2 /path/to/INPUT
+#        This will run the first and second stage of the
+#        pipeline using the input variables from /path/to/INPUT
+#
+#    runPipe.py --runsample 1,2 /path/to/INPUT
+#        This will run third stage on the first and second
+#        sample. Note that it will also run first and second
+#        stage if needed
+#
+#    runPipe.py --jsonfile /path/to/Metadata /path/to/INPUT
+#        This will run the pipeline using the input variables
+#        from /path/to/INPUTfile and will use the JSON located
+#        at /path/to/Metadata for DESeq2 and edgeR analysis
+#
+#    runPipe.py --clean Data /path/to/INPUT
+#        This will wipe all of the pipeline's actions on all
+#        samples within the respective Project Directory
+#        leaving only the symlinks that were created
+#
+#    runPipe.py --NUKE /path/to/INPUT
+#        This will remove entire Project directory denoted by
+#        the INPUT variable "Project".
+#        Note: Will leave original Reference and Data folders
+#        as they were originally made
+#'''
 
 ################################################################
 # Importations
@@ -187,8 +191,11 @@ def main(arguments):
             If --makebatch argument given, then make batch script to be
             used with slurm, and then exit
         '''
+        if arguments['--batchjson'] != False:
+            print(arguments['--batchjson'])
+            pipeClasses.checkJSON(arguments['--batchjson'])
         if arguments['--makebatchbiox']:
-            ExperimentClass.makeBatchBiox(exists=Ref())
+            ExperimentClass.makeBatchBiox(exists=Ref(),jsonFile=arguments['--batchjson'])
             raise SystemExit('Batch file successfully created:\n\t{0}/pipeBatch'.format(os.getcwd()))
         elif arguments['--makebatch'] != None:
             preNodes,Nodes = arguments['--makebatch'].split(','),[]
@@ -197,7 +204,7 @@ def main(arguments):
                     raise SystemExit('Not a valid argument to --makebatch: {}'.format(
                                             arguments['--makebatch']))
                 Nodes.append(int(node))
-            ExperimentClass.makeBatch(cluster=Nodes,exists=Ref())
+            ExperimentClass.makeBatch(cluster=Nodes,exists=Ref(),jsonFile=arguments['--batchjson'])
             raise SystemExit('Batch file successfully created:\n\t{0}/pipeBatch'.format(os.getcwd()))
 
     def checkMaxCPU():

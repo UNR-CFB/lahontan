@@ -377,7 +377,7 @@ class Experiment:
         else:
             raise SystemExit('There is a problem with executing sample')
 
-    def getOptimal(self, cluster, behavior='default'):
+    def getOptimal(self, cluster, behavior='default',jsonPath=False):
         ''' Arguments:
                 cluster = list; a list of integers that describes number of
                             CPUs on each machine in a cluster
@@ -510,12 +510,17 @@ class Experiment:
         #    Results = p.map(smartMultiprocessing, available)
         #    bestResult = list(sorted(Results)[0])
         #    return scrapeResults(bestResult)
-        if behavior == 'default':
-            return scrapeResults(smart())
+        if jsonPath != False:
+            with open(jsonPath) as JF:
+                jsonData = json.load(JF,object_pairs_hook=pipeUtils.makeCols.OrderedDict)
+            return jsonData
         else:
-            return regularResults(numSamples,cluster)
+            if behavior == 'default':
+                return scrapeResults(smart())
+            else:
+                return regularResults(numSamples,cluster)
 
-    def makeBatchBiox(self,exists=False):
+    def makeBatchBiox(self,exists=False,jsonFile=False):
         ''' Arguments:
                 None
             Returns:
@@ -525,7 +530,7 @@ class Experiment:
         '''
         batch =  """#!/bin/bash
 #SBATCH --nodes={NODES}
-#SBATCH --time=120
+#SBATCH --time=400
 #SBATCH --cpus-per-task={CPT}
 #SBATCH --ntasks={NTASKS}
 #SBATCH --job-name="Pipeline"
@@ -560,7 +565,7 @@ wait
         else:
             ref = ' --use-reference'
         command12 = 'srun -N1 -c1 -n1 runPipe --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
-        bestPath = self.getOptimal([48,32])
+        bestPath = self.getOptimal([48,32],jsonPath=jsonFile)
         command3,counter,sampleNum = '',1,1
         for path in bestPath:
             Pstep = bestPath[path]['Procs']
@@ -591,7 +596,7 @@ wait
         with open('pipeBatch','w') as f:
             f.write(batchScript)
 
-    def makeBatch(self, cluster, exists=False):
+    def makeBatch(self, cluster, exists=False, jsonFile=False):
         ''' Arguments:
                 cluster = list; list of integers that describe number
                             of CPUs in each node of your cluster
@@ -602,7 +607,7 @@ wait
         '''
         batch =  """#!/bin/bash
 #SBATCH --nodes={NODES}
-#SBATCH --time=120
+#SBATCH --time=400
 #SBATCH --cpus-per-task={CPT}
 #SBATCH --ntasks={NTASKS}
 #SBATCH --job-name="Pipeline"
@@ -637,7 +642,7 @@ wait
         else:
             ref = ' --use-reference'
         command12 = 'srun -N1 -c1 -n1 runPipe --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
-        bestPath = self.getOptimal(cluster,behavior='non')
+        bestPath = self.getOptimal(cluster,behavior='non',jsonPath=jsonFile)
         command3,counter,sampleNum = '',1,1
         for path in sorted(bestPath):
             Pstep = bestPath[path]['Procs']
