@@ -510,7 +510,7 @@ class Experiment:
         #    Results = p.map(smartMultiprocessing, available)
         #    bestResult = list(sorted(Results)[0])
         #    return scrapeResults(bestResult)
-        if jsonPath != False:
+        if jsonPath != str(False):
             with open(jsonPath) as JF:
                 jsonData = json.load(JF,object_pairs_hook=pipeUtils.makeCols.OrderedDict)
             return jsonData
@@ -560,6 +560,7 @@ scontrol show job $SLURM_JOB_ID
 wait
 """
         numSamps = self.getNumberofSamples()
+        cluster=[48,32]
         if not exists:
             ref = ''
         else:

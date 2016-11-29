@@ -191,8 +191,7 @@ def main(arguments):
             If --makebatch argument given, then make batch script to be
             used with slurm, and then exit
         '''
-        if arguments['--batchjson'] != False:
-            print(arguments['--batchjson'])
+        if arguments['--batchjson'] != str(False):
             pipeClasses.checkJSON(arguments['--batchjson'])
         if arguments['--makebatchbiox']:
             ExperimentClass.makeBatchBiox(exists=Ref(),jsonFile=arguments['--batchjson'])
