@@ -23,7 +23,8 @@ function runR {
     local Postprocessing=$1
 
     cd "${Postprocessing}"
-    { time Rscript "makeEdge.r"; } > makeEdgeTime.log 2>&1 &
+    { time Rscript "makeEdge.r"; } > makeEdgeTime.log 2>&1
+    echo '' > "${Postprocessing}/.doneE"
 }
 
 postProcessingPath=$1

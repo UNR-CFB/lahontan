@@ -927,9 +927,11 @@ wait
     @funTime
     def runDESeq(self):
         pipeUtils.makeRreports(self.Postprocessing)
+        pipeUtils.notifyEnding(self.Postprocessing,behavior='deseq')
     @funTime
     def runEdgeR(self):
         pipeUtils.makeEdgeRreport(self.Postprocessing)
+        pipeUtils.notifyEnding(self.Postprocessing,behavior='edger')
 
     @funTime
     def findRFinish(self):
@@ -1020,7 +1022,7 @@ wait
                     R.write(contents + '\n')
 
     def checkEach(self):
-        Check = [os.path.exists(sample+'/.done') for sample in glob.glob(self.Data + '/sample*')]
+        Check = [os.path.exists(sample+'/.done') for sample in glob.glob(os.path.join(self.Data,'/sample*'))]
         if False in Check:
             return False
         else:
@@ -1767,7 +1769,8 @@ wait
             if self.is3Finished() or self.checkEach():
                 time.sleep(10)
                 print('Preparing for DESeq2...')
-                shutil.rmtree(self.Project + '/runPipeNotify')
+                if os.path.isdir(os.path.join(self.Project,'runPipeNotify')):
+                    shutil.rmtree(os.path.join(self.Project + '/runPipeNotify'))
                 self.gatherAllSampleOverrep(1)
                 self.gatherAllSampleOverrep(2)
                 self.createJsonMetadata()

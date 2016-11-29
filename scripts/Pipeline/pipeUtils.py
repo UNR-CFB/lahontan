@@ -404,12 +404,12 @@ def findFinish(projectPath, originalPath, behavior='default'):
         print('There are not an even number of files in {}!'.format(originalPath))
     else:
         numSamp = int(getNumberofFiles(originalPath)/2)
-    if os.path.isdir(projectPath + '/runPipeNotify') == False:
-        print("Path is not a directory:\n{}".format(projectPath + '/runPipeNotify'))
-        raise SystemExit
-    else:
-        os.chdir(projectPath + '/runPipeNotify')
     if behavior == 'default':
+        if os.path.isdir(projectPath + '/runPipeNotify') == False:
+            print("Path is not a directory:\n{}".format(projectPath + '/runPipeNotify'))
+            raise SystemExit
+        else:
+            os.chdir(projectPath + '/runPipeNotify')
         while True:
             if len([name for name in os.listdir('.') if os.path.isfile(name)]) == numSamp:
                 #textMe('+17756227884','This is sent from your python script; The first part of the \
@@ -419,8 +419,12 @@ def findFinish(projectPath, originalPath, behavior='default'):
                 shutil.rmtree(projectPath + '/runPipeNotify')
                 break
             else:
-                time.sleep(30)
+                time.sleep(15)
     else:
+        if os.path.isdir(projectPath + '/runPipeNotify') == False:
+            return False
+        else:
+            os.chdir(projectPath + '/runPipeNotify')
         if len([name for name in os.listdir('.') if os.path.isfile(name)]) == numSamp:
             return True
         else:
@@ -599,7 +603,7 @@ def makeRreports(postProcessingPath):
     # Executing shell script
     subprocess.run(["runDESeq.sh",postProcessingPath],check=True)
 
-def notifyEnding(postProcessingPath):
+def notifyEnding(postProcessingPath,behavior='default'):
     ''' Arguments:
             postProcessingPath = string; path to Postprocessing Directory
         Returns:
@@ -610,15 +614,34 @@ def notifyEnding(postProcessingPath):
     if os.path.isdir(postProcessingPath) == False:
         print("Path is not a directory:\n{}".format(postProcessingPath))
         raise SystemExit
-    while True:
-        if 'FINISHED.txt' in os.listdir(postProcessingPath):
-            #textMe('+17756227884','This is sent from your python script; The first part of the \
-            #        Pipeline has finished. Please return to computer')
-            print('DESeq2 reports are finished')
-            os.remove(str(postProcessingPath + "/FINISHED.txt"))
-            break
-        else:
-            time.sleep(30)
+    if behavior == 'default':
+        while True:
+            Stuff = os.listdir(postProcessingPath)
+            if '.doneD' in Stuff and '.doneE' in Stuff:
+                #textMe('+17756227884','This is sent from your python script; The first part of the \
+                #        Pipeline has finished. Please return to computer')
+                print('DESeq2 reports are finished')
+                break
+            else:
+                time.sleep(10)
+    else:
+        if behavior == 'deseq':
+            while True:
+                Stuff = os.listdir(postProcessingPath)
+                if '.doneD' in Stuff:
+                    print('DESeq2 reports are finished')
+                    break
+                else:
+                    time.sleep(10)
+        if behavior == 'edger':
+            while True:
+                Stuff = os.listdir(postProcessingPath)
+                if '.doneE' in Stuff:
+                    print('DESeq2 reports are finished')
+                    break
+                else:
+                    time.sleep(10)
+ 
 
 def makeEdgeRreport(postProcessingPath):
     ''' Arguments:

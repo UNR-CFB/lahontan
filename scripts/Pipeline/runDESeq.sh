@@ -23,7 +23,8 @@ function runR {
     local Postprocessing=$1
 
     cd "${Postprocessing}"
-    { time Rscript "makeReport.r"; } > makeReportTime.log 2>&1 &
+    { time Rscript "makeReport.r"; } > makeReportTime.log 2>&1
+    echo '' > "${Postprocessing}/.doneD"
 }
 function askx11 {
     while true; do
