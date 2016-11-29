@@ -43,7 +43,7 @@ def parseJSON(jsontoRead):
     projectName = jsontoRead['ProjectName']
     numberofFeatures = jsontoRead['NumberofFeatures']
     numberofSamples = jsontoRead['NumberofSamples']
-    featureNames = jsontoRead['FeatureNames']
+    featureNames = sorted(jsontoRead['FeatureNames'])
     return featureNames,projectName,numberofFeatures,numberofSamples
 
 def parseSamples(jsontoRead):

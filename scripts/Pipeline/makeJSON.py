@@ -80,7 +80,7 @@ def makeJSON():
     MetaData['ProjectName'] = projectName
     MetaData['NumberofSamples'] = numberofSamples
     MetaData['NumberofFeatures'] = numberofFeatures
-    MetaData['FeatureNames'] = featureNames
+    MetaData['FeatureNames'] = sorted(featureNames)
     MetaData['MainFeature'] = mainFeature
     MetaData['Samples'] = sampleData
 
