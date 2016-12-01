@@ -534,7 +534,7 @@ class Experiment:
 #SBATCH --cpus-per-task={CPT}
 #SBATCH --ntasks={NTASKS}
 #SBATCH --job-name="Pipeline"
-#SBATCH --export=PATH,RNASEQDIR
+#SBATCH --export=PATH,RNASEQDIR,HOME
 
 inputFile='{INPUT}'
 jsonFile='{JSON}'
@@ -612,7 +612,7 @@ wait
 #SBATCH --cpus-per-task={CPT}
 #SBATCH --ntasks={NTASKS}
 #SBATCH --job-name="Pipeline"
-#SBATCH --export=PATH,RNASEQDIR
+#SBATCH --export=PATH,RNASEQDIR,HOME
 
 inputFile='{INPUT}'
 jsonFile='{JSON}'

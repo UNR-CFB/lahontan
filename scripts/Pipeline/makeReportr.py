@@ -123,9 +123,9 @@ detach("package:regionReport")
 detach("package:docopt")
 
 # Make file to notify when done
-fileConn <- file("FINISHED.txt")
-writeLines("We are finished", fileConn)
-close(fileConn)
+#fileConn <- file("FINISHED.txt")
+#writeLines("We are finished", fileConn)
+#close(fileConn)
 """
     factorlist,formulalistplus,formulalistcomma,mainFeature = getContext(jsontoRead)
     Context = {
