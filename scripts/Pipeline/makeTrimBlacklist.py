@@ -33,17 +33,18 @@ TTTTTTTTTTCAAGCAGAAGACGGCATACGA
 {A}
 {T}
 {C}
-{G}
+{G}'''
+    blah='''
 {A2}
 {T2}
 {C2}
 {G2}
 '''
 
-    As = '>ConsecutiveA\n'+'A'*50
-    Ts = '>ConsecutiveT\n'+'T'*50
-    Cs = '>ConsecutiveC\n'+'C'*50
-    Gs = '>ConsecutiveG\n'+'G'*50
+    As = '>ConsecutiveA\n'+'A'*500
+    Ts = '>ConsecutiveT\n'+'T'*500
+    Cs = '>ConsecutiveC\n'+'C'*500
+    Gs = '>ConsecutiveG\n'+'G'*500
     As2 = '>ConsecutiveAb\n'+'A'*30
     Ts2 = '>ConsecutiveTb\n'+'T'*30
     Cs2 = '>ConsecutiveCb\n'+'C'*30
