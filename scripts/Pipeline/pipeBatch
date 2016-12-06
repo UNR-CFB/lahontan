@@ -1,0 +1,80 @@
+#!/bin/bash
+#SBATCH --nodes=2
+#SBATCH --time=400
+#SBATCH --cpus-per-task=2
+#SBATCH --ntasks=40
+#SBATCH --job-name="Pipeline"
+#SBATCH --export=PATH,RNASEQDIR
+
+inputFile='/data/ceph/alberton/INPUT-A'
+jsonFile='/data/ceph/alberton/test/plantMetadata.json'
+
+# Stage 1 and 2
+srun -N1 -c1 -n1 runPipe --noconfirm --use-reference --jsonfile "${jsonFile}" --execute 1,2 "${inputFile}"
+
+wait
+
+# Stage 3
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 1 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 2 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 3 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 4 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 5 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 6 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 7 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 8 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 9 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 10 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 11 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 12 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 13 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 14 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 15 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 16 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 17 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 18 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 19 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 20 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 21 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 22 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 23 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 24 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 25 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 26 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 27 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 28 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 29 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 30 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 31 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 32 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 33 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 34 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 35 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 36 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 37 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 38 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 39 "${inputFile}" &
+srun -N1 -c2 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 2 -e 3 -r 40 "${inputFile}" &
+wait
+srun -N1 -c8 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 8 -e 3 -r 41 "${inputFile}" &
+srun -N1 -c8 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 8 -e 3 -r 42 "${inputFile}" &
+srun -N1 -c8 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 8 -e 3 -r 43 "${inputFile}" &
+srun -N1 -c8 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 8 -e 3 -r 44 "${inputFile}" &
+srun -N1 -c8 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 8 -e 3 -r 45 "${inputFile}" &
+srun -N1 -c8 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 8 -e 3 -r 46 "${inputFile}" &
+srun -N1 -c8 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 8 -e 3 -r 47 "${inputFile}" &
+srun -N1 -c8 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 8 -e 3 -r 48 "${inputFile}" &
+
+wait
+
+# Stage 4
+srun -N1 -c1 -n1 runPipe --noconfirm --use-reference --jsonfile "${jsonFile}" --execute 4 "${inputFile}"
+
+wait
+
+# Stage 5
+srun -N1 -c1 -n1 --exclusive runPipe --noconfirm --use-reference --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &
+srun -N1 -c1 -n1 --exclusive runPipe --noconfirm --use-reference --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &
+
+scontrol show job $SLURM_JOB_ID
+wait
