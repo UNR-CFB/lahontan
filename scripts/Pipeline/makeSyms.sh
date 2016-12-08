@@ -51,7 +51,7 @@ function makeDataSyms {
     	name=$(echo "${file}" | awk -F '/' '{print $NF}')
         samplename=$(printf "sample_%02d" "${samplecounter}")
     
-    	ln -s "${file}" "${Data}"/"${samplename}"/"${name}"
+    	ln -sr "${file}" "${Data}"/"${samplename}"/"${name}"
     
     	let directorycounter++
     	if [ $(($directorycounter%2)) -eq 0 ]; then
