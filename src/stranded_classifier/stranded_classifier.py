@@ -11,7 +11,7 @@ def main():
 	parser.add_option('-d', '--percdelta', dest='perc_delta', type='float', action='store', help='maximum difference in read1 and read2 plus percentages to be considered stranded', default=0.05)
 
 	options, args = parser.parse_args()
-	classify_stranded(options.perc_thresh, options.perc_delta, options.read1, options.read2)
+	print classify_stranded(options.perc_thresh, options.perc_delta, options.read1, options.read2)
 
 def classify_stranded(perc_thresh, perc_delta, read1, read2):
 	read1_plus = percent_plus(accum_directions(read1))
@@ -24,9 +24,9 @@ def classify_stranded(perc_thresh, perc_delta, read1, read2):
 	if abs(1 - read1_plus - read2_plus) < perc_delta:
 		# TODO: Check for FF and RR conditions. Where both read1 and read2 >=perc_thresh.
 		if read1_plus >= perc_thresh or read2_plus >= perc_thresh:
-			print 'True'
+			return 'True'
 
-	print 'False'
+	return 'False'
 
 def accum_directions(filename):
 	with open(filename, 'rb') as csvfile:
