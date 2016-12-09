@@ -1528,7 +1528,7 @@ wait
                                                 self.sampleName), 'a') as LOG:
                 LOG.write('\nfindStranded done\n\n')
             # Scraping stranded_classifier.py output
-            command2 = r"awk '/findStranded started/,/findStranded done/' Runtime.{}.log | grep -q False && stranded=0 || stranded=1 && echo $stranded".format(self.sampleName)
+            command2 = r"awk '/findStranded started/,/findStranded done/' Runtime.{}.log | grep -q True && stranded=1 || stranded=0 && echo $stranded".format(self.sampleName)
             # Executing
             os.chdir(self.samplePath)
             proc = subprocess.Popen(command2,
@@ -1558,7 +1558,6 @@ wait
                 FR = ' --rna-strandness FR'
             else:
                 FR = ''
-            # hisat2 manual line 553
             # Making Command
             command = r"""hisat2 -k 5 -p {numProcs}{FRoRF} --dta --phred{phred} --known-splicesite-infile {ref}/splice_sites.txt -x {ref}/{basename} -1 read1.P.trim.{fastq}.gz -2 read2.P.trim.{fastq}.gz -S aligned.{sample}.sam"""
             Phred = self.getPhred()
@@ -1577,6 +1576,7 @@ wait
             subprocess.run(goodCommand,
                                 shell=True,
                                 check=True)
+            self.writeToLog(goodCommand)
             self.writeFunctionTail('runHisat')
 
         def runCompression(self):
