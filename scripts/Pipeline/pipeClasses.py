@@ -34,6 +34,7 @@ import subprocess
 import shutil
 import glob
 import json
+import re
 
 ################################################################
 # Utilities
@@ -848,6 +849,49 @@ wait
         print('Making Metadata file; require user input...')
         pipeUtils.createMetaData(self.Postprocessing)
         print('Waiting for Pipeline to finish...')
+
+    def makeINTC(self):
+        geneID = r'gene_id [\S]*;'
+        geneName = r'gene_name [\S]*;'
+        geneType = r'gene_biotype [\S]*;'
+        GI = re.compile(geneID)
+        GN = re.compile(geneName)
+        GT = re.compile(geneType)
+        with open(os.path.join(self.Reference,self.Gtf),'r') as F:
+            All = F.readlines()[5:]
+        updatedGTF = []
+        for line in All:
+            ID = re.search(GI,line).group(0).split(' ')[1].split('"')[1]
+            Name = re.search(GN,line).group(0).split(' ')[1].split('"')[1]
+            BioType = re.search(GT,line).group(0).split(' ')[1].split('"')[1]
+            Chr = line.split('\t')[0]
+            updatedGTF.append('\t'.join([ID,Name,BioType,Chr]))
+        with open(os.path.join(self.Postprocessing,'INTC'),'w') as F:
+            F.write('\n'.join(sorted(set(updatedGTF),key=lambda x: x.split('\t')[0])))
+
+    def makeGoodCounts(self):
+        self.makeINTC()
+        INTC = os.path.join(self.Postprocessing,'INTC')
+        with open(INTC,'r') as I:
+            leftSide = I.readlines()
+        oldCounts = os.path.join(self.Postprocessing,'NiceCounts.dat')
+        with open(oldCounts,'r') as F:
+            unsortedData = F.readlines()
+        Header = unsortedData[0]
+        sortedData = sorted(unsortedData[1:],key=lambda x: x.split('\t')[0])
+        newHeader = ['\t'.join(['Geneid','gene_name','gene_biotype','Chr']+Header.split('\t'))]
+        newHeader[0] = newHeader[0].strip()
+        checkStuff = newHeader + ['\t'.join([a.strip(),b.strip()]) for a,b in zip(leftSide,sortedData)]
+        GoodStuff = []
+        for line in checkStuff:
+            splitLine = line.split('\t')
+            if splitLine[0] != splitLine[4]:
+                print('GoodCounts.dat is off at line {}'.format(checkStuff.index(line)))
+            else:
+                GoodStuff.append('\t'.join(splitLine[:4]+splitLine[5:]))
+        newCounts = os.path.join(self.Postprocessing,'GoodCounts.dat')
+        with open(newCounts,'w') as F:
+            F.write('\n'.join(GoodStuff))
 
     @funTime
     def createNiceCounts(self):
@@ -1779,6 +1823,7 @@ wait
                 self.createRCounts()
                 self.createRCols()
                 self.createRProgram()
+                self.makeGoodCounts()
                 break
             else:
                 time.sleep(30)
@@ -1805,6 +1850,7 @@ wait
     ################################################################
     # End of Experiment class
     ################################################################
+
 
 #################################################################
 if __name__ == '__main__':
