@@ -55,6 +55,8 @@ library('regionReport')
 countData <- read.csv(opts$counts,sep='\\t',header=TRUE)
 colData <- read.csv(opts$cols,sep='\\t',header=TRUE)
 
+{factor_variables}
+
 # Make DESeq Data Frame
 dds <- DESeqDataSetFromMatrix(countData=countData,
                               colData=colData,
@@ -127,7 +129,7 @@ detach("package:docopt")
 #writeLines("We are finished", fileConn)
 #close(fileConn)
 """
-    factorlist,formulalistplus,formulalistcomma,mainFeature = getContext(jsontoRead)
+    factorlist,formulalistplus,formulalistcomma,mainFeature,factorizeFeatures = getContext(jsontoRead)
     Context = {
             "1_mf": mainFeature,
             "2_mf": mainFeature,
@@ -139,6 +141,7 @@ detach("package:docopt")
             "8_pvaluecutoff": 0.05,
             "9_mf": mainFeature,
             "10_formulalistcomma": formulalistcomma,
+            "factor_variables": factorizeFeatures
             }
     with open(name,'w') as f:
         f.write(makeReportsTemplate.format(**Context))
@@ -161,8 +164,13 @@ def getContext(jsontoRead):
     '''
     Metadata = jsontoRead
     mainFeature = Metadata['MainFeature']
+    featureNames = Metadata['FeatureNames']
 
-    #TODO Generalize 'Cols.dat' in case it's not named Cols.dat
+    factorizeFeatures = ['# Factorize the features']
+    for feature in featureNames:
+        factorizeFeatures.append('colData${0} <- factor(colData${0})'.format(feature))
+    factorFeats = '\n'.join(factorizeFeatures)
+
     with open('Cols.dat','r') as f:
         colData = csv.reader(f,dialect='unix',delimiter='\t')
         x = []
@@ -183,7 +191,7 @@ def getContext(jsontoRead):
     factorlist = ','.join('"{0}"'.format(a) for a in uniquelist) 
     formulalistcomma = ','.join('"{0}"'.format(b) for b in formulalist)
     formulalistplus = ' + '.join(formulalistp)
-    return factorlist,formulalistplus,formulalistcomma,mainFeature
+    return factorlist,formulalistplus,formulalistcomma,mainFeature,factorFeats
 
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='1.0')
