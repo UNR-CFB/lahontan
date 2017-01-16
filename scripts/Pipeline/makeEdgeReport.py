@@ -58,6 +58,8 @@ library('regionReport')
 countData <- read.csv(opts$counts,sep='\\t',header=TRUE)
 colData <- read.csv(opts$cols,sep='\\t',header=TRUE)
 
+{factorizingFeatures}
+
 # Make initial data frame
 y <- DGEList(counts=countData)
 
@@ -119,12 +121,13 @@ detach("package:ggplot2")
 detach("package:regionReport")
 detach("package:docopt")
 """
-    Combination, GLM, RRN, mf = getContext(jsontoRead)
+    Combination, GLM, RRN, mf, factorizingFeats = getContext(jsontoRead)
     Context = {
             "Contrasts": Combination,
             "GeneralLinearModel": GLM,
             "object": RRN,
-            "mainfeature": mf
+            "mainfeature": mf,
+            "factorizingFeatures": factorizingFeats
             }
     with open(name,'w') as f:
         f.write(makeReportsTemplate.format(**Context))
@@ -151,9 +154,16 @@ def getContext(jsontoRead):
 
     # Pulling mainFeature key from dictionary
     mainFeature = Metadata['MainFeature']
+    featureNames = Metadata['FeatureNames']                                           
+
+    # Factorizing Features
+    factorizeFeatures = ['# Factorize the features']
+    for feature in featureNames:
+        factorizeFeatures.append('colData${0} <- factor(colData${0})'.format(feature))
+    factorFeats = '\n'.join(factorizeFeatures)
 
     # Making Contrasts
-    Contrasts = 'QLcon <- makeContrasts(\n\t' + ',\n\t'.join(["{} = {}".format('{}_vs_{}'.format(a,b),'{} - {}'.format(a,b)) for (a,b) in list(combinations(set([Metadata['Samples'][samp]['Features'][mainFeature] for samp in Metadata['Samples']]),2))]) + ', levels=design)'
+    Contrasts = 'QLcon <- makeContrasts(\n\t' + ',\n\t'.join(["{} = {}".format('{}_vs_{}'.format(a,b),'"{}" - "{}"'.format(a,b)) for (a,b) in list(combinations(set([Metadata['Samples'][samp]['Features'][mainFeature] for samp in Metadata['Samples']]),2))]) + ', levels=design)'
 
     newlist = []
     feats = list(set([Metadata['Samples'][samp]['Features'][mainFeature] for samp in Metadata['Samples']]))
@@ -164,7 +174,7 @@ def getContext(jsontoRead):
         newlist.append(g)
     versus = ['{}vs{}'.format(feats[c.index(-1)],feats[c.index(1)]) for c in newlist]
 
-    Mycontrasts = 'mycontrasts <- makeContrasts(\n\t{},\n\tlevels = design)'.format(',\n\t'.join(['{} = {}'.format(a,b) for a,b in list(zip(versus,['{} - {}'.format(feats[c.index(-1)],feats[c.index(1)]) for c in newlist]))]))
+    Mycontrasts = 'mycontrasts <- makeContrasts(\n\t{},\n\tlevels = design)'.format(',\n\t'.join(['{} = {}'.format(a,b) for a,b in list(zip(versus,['"{}" - "{}"'.format(feats[c.index(-1)],feats[c.index(1)]) for c in newlist]))]))
     Comparisons = '\n'.join(['lrt_{} <- glmLRT(GLfit, contrast=mycontrasts[,"{}"])'.format(a,a) for a in versus])
     Toptags = '\n'.join(['topTags(lrt_{})'.format(v) for v in versus])
 
@@ -172,7 +182,7 @@ def getContext(jsontoRead):
     GLM = Mycontrasts + '\n\n' + Comparisons + '\n\n' + Toptags
     regionReportName = 'lrt_' + versus[0]
 
-    return Contrasts, GLM, regionReportName, str(mainFeature)
+    return Contrasts, GLM, regionReportName, str(mainFeature), factorFeats
 
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='1.0')

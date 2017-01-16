@@ -561,13 +561,13 @@ scontrol show job $SLURM_JOB_ID
 wait
 """
         numSamps = self.getNumberofSamples()
-        cluster=[48,32]
+        cluster=[48,48,32]
         if not exists:
             ref = ''
         else:
             ref = ' --use-reference'
         command12 = 'srun -N1 -c1 -n1 runPipe --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
-        bestPath = self.getOptimal([48,32],jsonPath=jsonFile)
+        bestPath = self.getOptimal([48,48,32],jsonPath=jsonFile)
         command3,counter,sampleNum = '',1,1
         for path in bestPath:
             Pstep = bestPath[path]['Procs']
