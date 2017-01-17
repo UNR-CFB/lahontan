@@ -1,10 +1,29 @@
 #!/usr/bin/python3
 
+'''
+Used to create optimal path of CPU usage for pipeline
+
+Takes three arguments in order:
+    numSamples = int; number of samples in experiment
+    procs = int; number of processors to use to calculate
+                optimal path
+    cluster = comma-separated list of ints; list of CPUs per
+                machine in cluster
+
+Writes optimal path to ./OptimalPath.dat as JSON format
+'''
+
+################################################################
+# Importations
+################################################################
+
 from math import ceil as ceiling
 import multiprocessing
 import sys
 import json
 from pprint import pprint
+
+################################################################
 
 numSamples = int(sys.argv[1])
 procs = int(sys.argv[2])

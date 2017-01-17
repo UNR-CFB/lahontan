@@ -1,8 +1,20 @@
 #!/usr/bin/python3
 
+'''
+Used to create Trimmomatic blacklist
+Writes new blacklist to :
+    ./TruSeq3-PE.fa
+'''
+
 def blacklist():
     ''' Arguments:
+            None
         Returns:
+            None
+
+        Writes new blacklist to ./TruSeq3-PE.fa
+        To edit blacklist, simply edit Page variable
+        making sure to keep consistent syntax
     '''
     Page = '''>PrefixPE/1
 TACACTCTTTCCCTACACGACGCTCTTCCGATCT

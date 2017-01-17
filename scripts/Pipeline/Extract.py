@@ -1,10 +1,20 @@
 #!/usr/bin/python3
 
+'''
+Used to gather up files when in non-conventional filenaming and grouping schemes
+'''
+
+################################################################
+# Importations
+################################################################
+
 import glob
 import os
 import shutil
 from pprint import pprint
 import subprocess
+
+################################################################
 
 def getDir(read):
     GroupNum = os.path.basename(read).split('_')[0][4]
@@ -93,10 +103,10 @@ def gatherStuff3(data,AoB):
 A = sorted(glob.glob('/data/ceph/alberton/HBurkin-A/*'))
 B = sorted(glob.glob('/data/ceph/alberton/HBurkin-B/*'))
 
-try:
-    os.mkdir('/data/ceph/alberton/HExp')
-except OSError:
-    pass
+#try:
+#    os.mkdir('/data/ceph/alberton/HExp')
+#except OSError:
+#    pass
 
 #gatherStuff1(A,'A')
 #gatherStuff1(B,'B')
@@ -196,34 +206,9 @@ def combine(a,b,path):
         command1 = r'cat {} {} > {}'.format(os.path.realpath(A[A.index(read)]),os.path.realpath(B[A.index(read)]),name1)
         subprocess.run(command1,shell=True,check=True)
 
-
-
-
 #extract2('/data/ceph/alberton/HExpAB','/data/ceph/alberton/HBurkin-AB')
 #extract('/data/ceph/alberton/HBurkin-AB','/data/ceph/alberton/Data_HB_AB')
 #extract3('/data/ceph/alberton/HExp2','/data/ceph/alberton/Data_HB_A-lanes')
 #extract3('/data/ceph/alberton/HExp2','/data/ceph/alberton/Data_HB_B-lanes')
 #extract('/data/ceph/alberton/HExpB-lanes','/data/ceph/alberton/Data_HB_B-lanes')
-combine('/data/ceph/alberton/Data_HB_A-lanes','/data/ceph/alberton/Data_HB_B-lanes','/data/ceph/alberton/Data_HB_AB-lanes')
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+#combine('/data/ceph/alberton/Data_HB_A-lanes','/data/ceph/alberton/Data_HB_B-lanes','/data/ceph/alberton/Data_HB_AB-lanes')

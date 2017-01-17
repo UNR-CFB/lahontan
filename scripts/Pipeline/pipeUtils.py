@@ -248,6 +248,7 @@ def createSymLinks(projectPath,originalPath,referencePath,exists=False):
             projectPath = string of the path to the Project Directory
             originalPath = string of the path to the Original Directory
             referencePath = string of the path to the Reference Directory
+            *exists = boolean; whether or not pipeline has been ran before
         Returns:
             None
         
@@ -394,6 +395,9 @@ def findFinish(projectPath, originalPath, behavior='default'):
     ''' Arguments:
             projectPath = string; path to Project Directory
             originalPath = string; path to Original Directory
+            *behavior = 'default' or other str; non-default 
+                        behavior is to check the existence of
+                        runPipeNotify only ONCE
         Returns:
             None
 
@@ -439,6 +443,8 @@ def findFinish(projectPath, originalPath, behavior='default'):
 def createMetaData(postProcessingPath,jsonName='Metadata.json'):
     ''' Arguments:
             postProcessingPath = string; path to the Postprocessing Directory
+            *jsonName = str; Name of JSON file to be created for 
+                        Experimental Metadata
         Returns:
             None
         
@@ -509,8 +515,8 @@ def makeTotalTime(postProcessingPath,dataPath):
 def createColumnFile(postProcessingPath,jsonName='Metadata.json',columnName='Cols.dat'):
     ''' Arguments:
             postProcessingPath = string; path to the Postprocessing Directory
-            jsonName = string; name of JSON file
-            columnName = string; name of Column file
+            *jsonName = string; name of JSON file
+            *columnName = string; name of Column file
         Returns:
             None
         
@@ -527,7 +533,7 @@ def createColumnFile(postProcessingPath,jsonName='Metadata.json',columnName='Col
 def createCountFile(postProcessingPath,countName='Counts.dat'):
     ''' Arguments:
             postProcessingPath = string; path to the Postprocessing Directory
-            countName = string; name of Counts file
+            *countName = string; name of Counts file
         Returns:
             None
 
@@ -544,7 +550,8 @@ def createCountFile(postProcessingPath,countName='Counts.dat'):
 def createRScript(postProcessingPath,jsonName='Metadata.json',rName='makeReport.r'):
     ''' Arguments:
             postProcessingPath = string; path to the Postprocessing Directory
-            dataPath = string; path to Data Directory
+            *jsonName = str; name of JSON Metadata file
+            *rName = str; name of DESeq2 script
         Returns:
             None
         
@@ -560,6 +567,8 @@ def createRScript(postProcessingPath,jsonName='Metadata.json',rName='makeReport.
 def createEdgeRScript(postProcessingPath,jsonName='Metadata.json',rName='makeEdge.r'):
     ''' Arguments:
             postProcessingPath = string; path to the Postprocessing Directory
+            *jsonName = str; name of JSON Metadata file
+            *rName = str; name of edgeR script
         Returns:
             None
         
@@ -606,6 +615,9 @@ def makeRreports(postProcessingPath):
 def notifyEnding(postProcessingPath,behavior='default'):
     ''' Arguments:
             postProcessingPath = string; path to Postprocessing Directory
+            *behavior = 'default' or 'deseq' or 'edger'; default behavior
+                        is to run both deseq2 and edger scripts but can be
+                        modified to run one or the other
         Returns:
             None
 
@@ -693,14 +705,14 @@ def Main(pathtoInput):
     notifyEnding(Project + '/Postprocessing')
 
 if __name__ == '__main__':
-    arguments = docopt(__doc__,version='Version 1.1\nAuthor: Alberto')
+    arguments = docopt(__doc__,version='Version 1.0\nAuthor: Alberto')
     print('Please use runPipe.py\nSee runPipe.py --help')
     raise SystemExit
-    print(arguments)
+    #print(arguments)
 
-    global noconfirm
-    noconfirm = arguments['--noconfirm']
-    global JSFI
-    JSFI = arguments['--jsonfile']
+    #global noconfirm
+    #noconfirm = arguments['--noconfirm']
+    #global JSFI
+    #JSFI = arguments['--jsonfile']
 
-    Main(arguments['<pathtoInput>'])
+    #Main(arguments['<pathtoInput>'])

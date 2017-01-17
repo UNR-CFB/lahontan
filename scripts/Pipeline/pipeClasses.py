@@ -43,8 +43,10 @@ import re
 def exportVariablesforClass(pathtoInput,maxCPU=None,exists=False):
     ''' Arguments:
             pathtoInput = string; path to INPUT file
+            *maxCPU = int; maximum CPUs to be used
+            *exists = boolean; whether or not Experiment has been ran before
         Returns:
-            Variables
+            Variables = dict; Experiment parameters
 
         Gathers instance variables for Experiment Class
     '''
@@ -77,6 +79,9 @@ def exportVariablesforClass(pathtoInput,maxCPU=None,exists=False):
 def checkJSON(jsonFile, behavior='default'):
     ''' Arguments:
             jsonFile = string; path to JSON file
+            *behavior = 'default' or other str; non default also
+                        checks whether or not jsonFile argument
+                        was given
         Returns:
             None
 
@@ -100,7 +105,7 @@ def checkJSON(jsonFile, behavior='default'):
 
 def funTime(function):
     ''' Arguments:
-            None
+            function = str; name of function
         Returns:
             None
 
@@ -143,6 +148,8 @@ class Experiment:
     def __init__(self, inputPath, maxCPU=None, exists=False):
         ''' Arguments:
                 inputPath = string; path to INPUT file
+                *maxCPU = int; maximum number of CPUs to be used
+                *exists = boolean; whether or not experiment has been ran before
             Returns:
                 None
 
@@ -267,7 +274,7 @@ class Experiment:
     @funTime
     def makeSyms(self,exists=False):
         ''' Arguments:
-                None
+                *exists = boolean; if pipeline has been run before
             Returns:
                 None
 
@@ -382,7 +389,10 @@ class Experiment:
         ''' Arguments:
                 cluster = list; a list of integers that describes number of
                             CPUs on each machine in a cluster
-                numSamples = int; the number of samples that you need to run
+                *behavior = 'default' or other str; non-default scrapes
+                            an existing path
+                *jsonPath = boolean; if there already exists a json with
+                            desired path
             Returns:
                 dict; what you need to run
 
@@ -444,40 +454,6 @@ class Experiment:
                 if len(Paths) == 0:
                     break
             return Best,Finished
-        #def smartMultiprocessing(M,numSamp=numSamples,limits=cluster):
-        #    Paths,Finished,Best,counter = [],[1],9E9,0
-        #    available = chokePoints(limits)
-        #    while True:
-        #        if counter == 0:
-        #            ITER = oneIteration(M,numSamp,limits)
-        #            if ITER[0] <= 0:
-        #                test = [sum(i) for i in zip(*ITER[1:])][1]
-        #                if test < Best:
-        #                    Best = test
-        #                    del Finished[0]
-        #                    Finished.append(ITER[1:])
-        #            else:
-        #                Paths.append(ITER)
-        #            counter += 1
-        #        else:
-        #            for path in Paths:
-        #                for n in available:
-        #                    ITER = path[:]
-        #                    ITER[0] = ITER[0] - atatime(n)
-        #                    ITER.append(oneIteration(n,numSamp,limits)[1])
-        #                    if ITER[0] <= 0:
-        #                        test = [sum(i) for i in zip(*ITER[1:])][1]
-        #                        if test < Best:
-        #                            Best = test
-        #                            del Finished[0]
-        #                            Finished.append(ITER[1:])
-        #                    else:
-        #                        Paths.append(ITER)
-        #                Paths.remove(path)
-        #            #counter += 1
-        #        if len(Paths) == 0:
-        #            break
-        #    return Best,Finished
         def scrapeResults(Best,numSamps=numSamples,limits=cluster):
             resultDict,counter,totalSamps = {},0,numSamps
             while True:
@@ -506,11 +482,6 @@ class Experiment:
                 resultDict['Step {}'.format(counter+1)]['Samps'] = iteration
                 counter += 1
             return resultDict
-        #with multiprocessing.Pool(self.Procs) as p:
-        #    available = chokePoints(cluster)
-        #    Results = p.map(smartMultiprocessing, available)
-        #    bestResult = list(sorted(Results)[0])
-        #    return scrapeResults(bestResult)
         if jsonPath != str(False):
             with open(jsonPath) as JF:
                 jsonData = json.load(JF,object_pairs_hook=pipeUtils.makeCols.OrderedDict)
@@ -523,7 +494,9 @@ class Experiment:
 
     def makeBatchBiox(self,exists=False,jsonFile=False):
         ''' Arguments:
-                None
+                *exists = boolean; if Pipeline has been ran previously
+                *jsonFile = boolean; if optimal path already exists
+                            in a file
             Returns:
                 None
 
@@ -602,6 +575,9 @@ wait
         ''' Arguments:
                 cluster = list; list of integers that describe number
                             of CPUs in each node of your cluster
+                *exists = boolean; if Pipeline has been ran previously
+                *jsonFile = boolean; if optimal path already exists
+                            in a file
             Returns:
                 None
 
@@ -675,145 +651,6 @@ wait
         with open('pipeBatch','w') as f:
             f.write(batchScript)
 
-#    def makeBatchScript(self,cpuLimit=None,behavior='default'):
-#        ''' Arguments:
-#                None
-#            Returns:
-#                None
-#
-#            Creates Pipeline batch script to be used with slurm
-#        '''
-#        batch = """#!/bin/bash
-##SBATCH --nodes=2
-##SBATCH --time=120
-##SBATCH --cpus-per-task={CPT}
-##SBATCH --ntasks={NT}
-##SBATCH --job-name="Pipeline"
-##SBATCH --export=PATH,RNASEQDIR
-#
-#inputFile='{INPUT}'
-#{COMMANDS}
-#
-#wait"""
-#        numSamps = self.getNumberofSamples()
-#        if behavior == 'default':
-#            if cpuLimit == None:
-#                com = 'srun -N1 -c48 -n1 --exclusive runPipe --noconfirm -e 3 -r {} "${{inputFile}}" &'
-#                commands = '\n'.join([com.format(num) for num in range(1,numSamps+1)])
-#                cpt = 48
-#                nt = 2
-#            else:
-#                com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &'
-#                commands = '\n'.join([com.format(self.Procs,num) for num in range(1,numSamps+1)])
-#                cpt = self.Procs
-#                nt = 80//cpt
-#        elif behavior == 'biox':
-#            cpt = 16
-#            nt = 5
-#            com = 'srun -N1 -c16 -n1 --exclusive runPipe --noconfirm --maxcpu 16 -e 3 -r {0} "${{inputFile}}" &'
-#            commands = '\n'.join([com.format(num) for num in range(1,numSamps+1)])
-#        Context = {
-#                "NUMSAMPLES": numSamps,
-#                "INPUT": self.inputPath,
-#                "COMMANDS": commands,
-#                "CPT": cpt,
-#                "NT": nt
-#                }
-#        batchScript = batch.format(**Context)
-#        with open('pipeBatch','w') as f:
-#            f.write(batchScript)
-#
-#    def makeRScript(self,cpuLimit=None):
-#        ''' Arguments:
-#                None
-#            Returns:
-#                None
-#
-#            Creates R batch script to be used with slurm
-#        '''
-#        batch = """#!/bin/bash
-##SBATCH --nodes=1
-##SBATCH --time=130
-##SBATCH --cpus-per-task=1
-##SBATCH --ntasks=2
-##SBATCH --job-name="R-Analysis"
-##SBATCH --export=PATH,RNASEQDIR
-#
-#inputFile='{INPUT}'
-#jsonFile='{JSON}'
-#{COMMAND1}
-#{COMMAND2}
-#{COMMAND3}
-#
-#wait"""
-#        if cpuLimit == None:
-#            command1 = 'srun -N1 -c1 -n1 runPipe --noconfirm --jsonfile "${jsonFile}" --execute 4 "${inputFile}"'
-#            command2 = 'srun -N1 -c1 -n1 runPipe --noconfirm --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &'
-#            command3 = 'srun -N1 -c1 -n1 runPipe --noconfirm --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &'
-#        else:
-#            command1 = 'srun -N1 -c1 -n1 runPipe --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(self.Procs)
-#            command2 = 'srun -N1 -c1 -n1 runPipe --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 5 --edger "${{inputFile}}" &'.format(self.Procs)
-#            command3 = 'srun -N1 -c1 -n1 runPipe --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 5 --deseq "${{inputFile}}" &'.format(self.Procs)
-#
-#        Context = {
-#                "INPUT": self.inputPath,
-#                "JSON": JSFI,
-#                "COMMAND1": command1,
-#                "COMMAND2": command2,
-#                "COMMAND3": command3,
-#                }
-#        batchScript = batch.format(**Context)
-#        with open('rBatch','w') as f:
-#            f.write(batchScript)
-#
-#    def makeMasterScript(self,cpuLimit=None):
-#        ''' Arguments:
-#                None
-#            Returns:
-#                None
-#
-#            Creates R batch script to be used with slurm
-#        '''
-#        batch = """#!/bin/bash
-##SBATCH --nodes=1
-##SBATCH --time=10
-##SBATCH --cpus-per-task=1
-##SBATCH --ntasks=1
-##SBATCH --job-name="RNA-Seq"
-##SBATCH --export=PATH,RNASEQDIR
-#
-#inputFile='{INPUT}'
-#jsonFile='{JSON}'
-#{COMMAND1}
-#
-#step1ID=$SLURM_JOB_ID
-#sbatch -d afterok:$step1ID "{PWD}/pipeBatch"
-#
-#step2ID=$(( step1ID++ ))
-#sbatch -d afterok:$step2ID "{PWD}/rBatch"
-#
-#wait"""
-#        if cpuLimit == None:
-#            command1 = 'srun -N1 -c1 -n1 runPipe --noconfirm --jsonfile "${jsonFile}" --execute 1,2 "${inputFile}"'
-#        else:
-#            command1 = 'srun -N1 -c1 -n1 runPipe --noconfirm --maxcpu {} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(self.Procs)
-#        cd = os.getcwd()
-#        Context = {
-#                "INPUT": self.inputPath,
-#                "JSON": JSFI,
-#                "COMMAND1": command1,
-#                "PWD": cd
-#                }
-#        batchScript = batch.format(**Context)
-#        with open('MasterBatch','w') as f:
-#            f.write(batchScript)
-#
-#    def makeSlurm(self,cpuLimit,batch='default'):
-#        checkJSON(JSFI,behavior='makeSlurm')
-#        self.makeRScript(cpuLimit=None)
-#        self.makeBatchScript(cpuLimit,batch)
-#        self.makeMasterScript(cpuLimit=None)
-
     def findPipeFinish(self):
         ''' Arguments:
                 None
@@ -851,6 +688,14 @@ wait
         print('Waiting for Pipeline to finish...')
 
     def makeINTC(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Scrapes GTF and writes ID,Name,BioType,and Chr
+            for each gene into an INTC file
+        '''
         geneID = r'gene_id [\S]*;'
         geneName = r'gene_name [\S]*;'
         geneType = r'gene_biotype [\S]*;'
@@ -870,6 +715,14 @@ wait
             F.write('\n'.join(sorted(set(updatedGTF),key=lambda x: x.split('\t')[0])))
 
     def makeGoodCounts(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Scrapes GTF and writes ID,Name,BioType,and Chr
+            for each gene into an INTC file
+        '''
         self.makeINTC()
         INTC = os.path.join(self.Postprocessing,'INTC')
         with open(INTC,'r') as I:
@@ -970,10 +823,24 @@ wait
 
     @funTime
     def runDESeq(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Runs DESeq2
+        '''
         pipeUtils.makeRreports(self.Postprocessing)
         pipeUtils.notifyEnding(self.Postprocessing,behavior='deseq')
     @funTime
     def runEdgeR(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Runs edgeR
+        '''
         pipeUtils.makeEdgeRreport(self.Postprocessing)
         pipeUtils.notifyEnding(self.Postprocessing,behavior='edger')
 
@@ -1066,6 +933,15 @@ wait
                     R.write(contents + '\n')
 
     def checkEach(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Checks if there exists a .done file in each sample folder.
+            .done file is created at the completion of each respective
+            sample
+        '''
         Check = [os.path.exists(sample+'/.done') for sample in glob.glob(os.path.join(self.Data,'/sample*'))]
         if False in Check:
             return False
@@ -1081,7 +957,7 @@ wait
                 thingToClean = string:
                                 Reference or Data or Postprocessing or All or Sample
                 Note: If thingToClean=Sample, require second argument:
-                sampleName = string; name of Sample to be cleaned
+                *sampleName = string; name of Sample to be cleaned
             Returns:
                 None; cleans directories
 
@@ -1148,6 +1024,8 @@ wait
             ''' Arguments:
                     sampleNumber = int; sample number used for naming
                     inputFile = str; path to inputFile
+                    *maxCPU = int; maximum number of CPUs to be used
+                    *exists = boolean; whether or not pipeline has been ran before
                 Returns:
                     None
 
@@ -1444,33 +1322,6 @@ wait
                                 shell=True,
                                 check=True)
 
-        #def smartQC(self):
-        #    os.chdir(self.samplePath)
-        #    run = 1
-        #    while True:
-        #        STOP = False
-        #        self.runFastqc(run)
-        #        self.findOverrepSeq(run)
-        #        while True:
-        #            print('Pipeline paused. You should review sample {}'.format(self.sampleName))
-        #            answer1 = input("Are you ready to run Trimmomatic on {}?(y,n) ".format(self.sampleName))
-        #            if answer1 == 'y':
-        #                self.runTrimmomatic()
-        #                run += 1
-        #                break
-        #            elif answer1 == 'n':
-        #                answer2 = input("Would you like to proceed to Stage 2?(y,n) ")
-        #                if answer2 == 'y':
-        #                    break
-        #                elif answer2 == 'n':
-        #                    answer3 = input("Would you like to run QC again?(y,n) ")
-        #                else:
-        #                    print('Please answer y or n')
-        #            else:
-        #                print('Please answer y or n')
-        #        if STOP == True:
-        #            break
-
         def runPart1(self):
             ''' Arguments:
                     None
@@ -1479,7 +1330,6 @@ wait
 
                 Runs Fastqc once, then Trimmomatic, and then fastqc again
             '''
-            #TODO Fix this to desired behavior
             os.chdir(self.samplePath)
             with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'w') as LOG:
                 LOG.write('\t\tRuntime Log Part 1 for {}\n'.format(self.sampleName))

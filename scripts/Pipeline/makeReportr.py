@@ -8,12 +8,18 @@ Options:
     -t <tofile>         Optional name of R report script [default: makeReport.r]
 '''                                                                                   
 
+################################################################
+# Importations
+################################################################
+
 from docopt import docopt
 import csv
 import subprocess
 import json
 import makeCols
 import os
+
+################################################################
 
 def createRscript(jsontoRead,name):
     ''' Arguments:
@@ -193,6 +199,7 @@ def getContext(jsontoRead):
     formulalistplus = ' + '.join(formulalistp)
     return factorlist,formulalistplus,formulalistcomma,mainFeature,factorFeats
 
+################################################################
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='1.0')
     createRscript(makeCols.readJSON(arguments['-j']),arguments['-t'])

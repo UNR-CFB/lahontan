@@ -8,11 +8,17 @@ Options:
     -t <tofile>         Optional name of Column file to write to [default: Cols.dat]
 '''
 
+################################################################
+# Importations
+################################################################
+
 from docopt import docopt
 from pprint import pprint
 from collections import OrderedDict
 import json
 import os
+
+################################################################
 
 def readJSON(name):
     ''' Arguments:
@@ -84,6 +90,7 @@ def makeCols(jsontoRead,filetoWrite):
     with open(filetoWrite,'w') as colFile:
         colFile.writelines('\t'.join(row) + '\n' for row in deseqCols)
 
+################################################################
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='1.0')
     makeCols(readJSON(arguments['-j']),arguments['-t'])

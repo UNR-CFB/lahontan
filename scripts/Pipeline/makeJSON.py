@@ -7,9 +7,15 @@ Options:
     -j <jsonfile>           Optional name of JSON file to be saved to [default: Metadata.json] 
 '''
 
+################################################################
+# Importations
+################################################################
+
 from docopt import docopt
 import json
 import os
+
+################################################################
 
 def getProjectInfo():
     ''' Arguments:
@@ -99,6 +105,7 @@ def writeJSON(name):
         json.dump(MetaDict, File, sort_keys=True,indent=4)
     print('Done making {}'.format(name))
 
+################################################################
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='1.0')
     writeJSON(arguments['-j'])

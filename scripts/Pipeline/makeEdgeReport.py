@@ -7,6 +7,10 @@ Options:
     -t <tofile>         Optional name of R report script [default: makeEdge.r]
 '''                                                                                   
 
+################################################################
+# Importations
+################################################################
+
 from docopt import docopt
 from itertools import combinations,permutations
 import csv
@@ -14,6 +18,8 @@ import subprocess
 import json
 import makeCols
 import os
+
+################################################################
 
 def createEdgeR(jsontoRead,name):
     ''' Arguments:
@@ -184,6 +190,7 @@ def getContext(jsontoRead):
 
     return Contrasts, GLM, regionReportName, str(mainFeature), factorFeats
 
+################################################################
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='1.0')
     createEdgeR(makeCols.readJSON(arguments['-j']),arguments['-t'])
