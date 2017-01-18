@@ -194,21 +194,21 @@ ProjectName/
 ## Creating a Project and running Pipeline
   
 ### Requirements  
-* Paired-end Illumina fastq files. This means 2 files per sample. One for Read1, the other for Read2. The examples will use files named read1.fq.gz and read2.fq.gz  
+* Paired-end Illumina fastq files. This means 2 files per sample. One for Read1, the other for Read2  
 * A reference genome for the organism in study. All chromosomes in a single FASTA format file  
 * A GTF-format file for containing the gene and exon coordinates for your reference genome  
 * A reference transcriptome (or some set of known transcripts) for your organism  
 * The Pipeline directory should be in your `$PATH` environmental variable. This can be accomplished by being in the main rna-seq directory and running:  
 ```
-cd scripts/Pipeline
-echo 'export PATH=$PATH:'`pwd` >> $HOME/.bashrc
-source $HOME/.bashrc
+$ cd scripts/Pipeline
+$ echo 'export PATH=$PATH:'`pwd` >> $HOME/.bashrc
+$ source $HOME/.bashrc
 ```
 ### Setup  
   
-Often times your data will be organized in a way that isn't accepted by runPipe. In order to continue, your raw data must be arranged such that each sample read is chronologically sorted in a single directory (Note: Sorted by sample and by read)  
+Often times your data will be organized in a way that isn't accepted by runPipe. In order to continue, your `Original` directory must be arranged such that each sample read is chronologically sorted in a single directory (Note: Sorted by sample and by read)  
 
-Example Raw Data Directory:  
+Example Original Directory:  
 ```
 Blah_Plantia-RawData/
     Blah_Plantia.treament1_group1.read1.fq.gz
@@ -308,19 +308,19 @@ I also recommend you prepare your reference data before running the pipeline sim
 In order to prepare your reference data, you will most likely need to have some knowledge of fasta format.  
 To begin, in the best case that your reference data is perfect, just run:
 ```
-runPipe --reference-qc /path/to/ReferenceDirectory /path/to/INPUT
-runPipe --reference-pp /path/to/ReferenceDirectory /path/to/INPUT
+$ runPipe --reference-qc /path/to/ReferenceDirectory /path/to/INPUT
+$ runPipe --reference-pp /path/to/ReferenceDirectory /path/to/INPUT
 ```
 Note: the INPUT file is a required argument but since it isn't being read, you can use any ordinary file  
 
 In some cases your reference genome will contain revised chromosomes, but since we want only the true chromosomes, you can use:  
 ```
-seqtk subseq Blah_Plantia.release-10.dna.toplevel.fa.gz Chromosomes_We_Want.txt > Blah_Plantia.TrueChromosomes.dna.fa.gz
+$ seqtk subseq Blah_Plantia.release-10.dna.toplevel.fa.gz Chromosomes_We_Want.txt > Blah_Plantia.TrueChromosomes.dna.fa.gz
 ```
 
 In other cases the reference transcriptome doesn't agree with the GTF-format file. In that case, you can generate a new cDNA file by using:  
 ```
-gffread Blah_Plantia.release-10.gtf -g Blah_Plantia.TrueChromosomes.dna.fa.gz -w Blah_Plantia.ours.cdna.fa
+$ gffread Blah_Plantia.release-10.gtf -g Blah_Plantia.TrueChromosomes.dna.fa.gz -w Blah_Plantia.ours.cdna.fa
 ```
 
 Lastly, if you will be using slurm for your computation I recommend you create an optimal path file using `optPath.py`. The optimal path file is used to determine the best way to allocate resources for each of the jobs within the pipeline. The algorithm that I use is very robust but under certain paramaters has poor performance. For this reason, I recommend you create an optimal path file before starting the pipeline.  
@@ -331,7 +331,7 @@ Lastly, if you will be using slurm for your computation I recommend you create a
 3. A comma-separated list of CPUs on each node in your cluster  
 For example:  
 ```
-optPath.py 4 48 48,48,32
+$ optPath.py 4 48 48,48,32
 ```
 This is telling `optPath.py` to calculate using 48CPUs the best way to run 4 samples on a cluster containing two 48CPU computers as well as a 32CPU computer. `optPath.py` will create a file called `OptimalPath.dat`:  
 ```
@@ -353,5 +353,118 @@ Note:  `optPath.py` might require some tinkering if convergence times are slow.
 
 ## Running the Pipeline with slurm
 
+If you will be using slurm to run your pipeline the next step is to create your batch file. If you have followed the recommended setup then the command used to create your batch file should be:  
+
+```
+$ runPipe --jsonfile /path/to/Metadata.json --use-reference --makebatch 48,48 --batchjson /path/to/OptimalPath.dat /path/to/INPUT
+```
+
+Note that the argument to `--makebatch` was "48,48" instead of "48,48,32". Because we found out from our `OptimalPath.dat` that only the two biggest nodes would be used we can leave the third smaller node unallocated. We also used the Metadata file that we created by passing `--jsonfile` option. We passed the `--batchjson` option to use the `OptimalPath.dat` file that tells us the best way to allocate the jobs. Make sure to pass the `--use-reference` argument if you prepared your reference data beforehand. 
+
+Upon successful creation of your batch file, you should recieve a message that looks like:
+```
+$ runPipe --jsonfile /path/to/Metadata.json --use-reference --makebatch 48,48 --batchjson /path/to/OptimalPath.dat /path/to/INPUT
+Batch file successfully created:
+        /path/to/pipeBatch
+```
+
+This will give you a batch file that should look something like this:
+```
+/path/to/pipeBatch
+---------------------------------------------------------------------------------------------------
+#!/bin/bash
+#SBATCH --nodes=2
+#SBATCH --time=400
+#SBATCH --cpus-per-task=48
+#SBATCH --ntasks=2
+#SBATCH --job-name="Pipeline"
+#SBATCH --export=PATH,RNASEQDIR,HOME
+
+inputFile='/path/to/INPUT'
+jsonFile='/path/to/Metadata.json'
+
+# Stage 1 and 2
+srun -N1 -c1 -n1 runPipe --noconfirm --use-reference --jsonfile "${jsonFile}" --execute 1,2 "${inputFile}"
+
+wait
+
+# Stage 3
+srun -N1 -c48 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 48 -e 3 -r 1 "${inputFile}" &
+srun -N1 -c48 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 48 -e 3 -r 2 "${inputFile}" &
+wait
+srun -N1 -c48 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 48 -e 3 -r 3 "${inputFile}" &
+srun -N1 -c48 -n1 --exclusive runPipe --noconfirm --use-reference --maxcpu 48 -e 3 -r 4 "${inputFile}" &
+
+wait
+
+# Stage 4
+srun -N1 -c1 -n1 runPipe --noconfirm --use-reference --jsonfile "${jsonFile}" --execute 4 "${inputFile}"
+
+wait
+
+# Stage 5
+srun -N1 -c1 -n1 --exclusive runPipe --noconfirm --use-reference --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &
+srun -N1 -c1 -n1 --exclusive runPipe --noconfirm --use-reference --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &
+
+scontrol show job $SLURM_JOB_ID
+wait
+```
+You should probably look through it to look for any errors and edit any parameters. For example, you might wish to edit the `--job-name` that slurm will give your job. Also, if you do not wish to run the R analyses that I have provided, then you can comment out both the Stage 5 commands leaving only the last 2 lines at the bottom of the file. Once you are satisfied with your batch, you can run it with:
+```
+$ sbatch /path/to/pipeBatch
+```
+
 ## Running the Pipeline without slurm
 
+If you don't have access to a cluster fitted with slurm or you just wish to test the pipeline on a more interactive scale then `runPipe` can be ran just as well.  
+
+To begin, if you have followed the proper setup, then you should have:  
+* An `Original` directory containing your raw data files sorted in the proper order  
+* A `Reference` directory containing your genome, reference transcriptome, and GTF file along with the other files that were prepared using `runPipe --reference-pp`  
+* An INPUT file that defines paths to those `Original` and `Reference` directories as well as a `Project` path  
+* A correct and valid Metadata file in JSON format created by `makeJSON.py`  
+
+Once you have those four things you can create your Project structure by running:
+```
+$ runPipe --use-reference --jsonfile /path/to/Metadata.json --execute 1,2 /path/to/INPUT
+```
+Note that the default behavior of `runPipe` is to complete its tasks as quickly as possible. If you wish to leave some CPU resources unallocated, which I would recommend you do, you can pass `--maxcpu` to `runPipe`  
+
+You can find out how many CPU your computer has by running:  
+```
+$ nproc
+```
+So if `nproc` returns 4 and we want to leave 1 CPU open, the previous command becomes:
+```
+$ runPipe --use-reference --jsonfile /path/to/Metadata.json --execute 1,2 --maxcpu 3 /path/to/INPUT
+```
+Once you have created your Project structure you can run the most CPU-intensive Stage 3:
+```
+$ runPipe --use-reference --jsonfile /path/to/Metadata.json --execute 3 --maxcpu 3 /path/to/INPUT
+```
+The default behavior is to run every sample but if you wish to run any give sample, just pass `--runsample`. For example, if you only wish to run the first sample, the previous command becomes:
+```
+$ runPipe --use-reference --jsonfile /path/to/Metadata.json --execute 3 --maxcpu 3 --runsample 1 /path/to/INPUT
+```
+Once every sample has completed, you can run Stage 4 which prepares R scripts as well as creating a "Nice" feature counts file:
+```
+$ runPipe --use-reference --jsonfile /path/to/Metadata.json --execute 4 --maxcpu 3 /path/to/INPUT
+```
+There will be a `Counts.dat`,`NiceCounts.dat`, and a `GoodCounts.dat` located in the `Postprocessing` directory of your Project.
+* `Counts.dat` will give you the least information. It has only the ID of the gene and its respective counts  
+* `NiceCounts.dat` has the ID of the gene, the length of the gene, as well as its respective counts  
+* `GoodCounts.dat` will give you the most information. It has the gene ID, gene Name, gene biotype, chromosome location, length, and its respective counts.  
+
+If you do not wish to run R analyses, the hopefully the Pipeline went smoothly and were happy with the results. If you do wish to run R analyses you can run:
+```
+$ runPipe --use-reference --jsonfile /path/to/Metadata.json --execute 5 --maxcpu 3 /path/to/INPUT
+```
+or
+```
+$ runPipe --use-reference --jsonfile /path/to/Metadata.json --execute 5 --maxcpu 3 --deseq /path/to/INPUT
+```
+or
+```
+$ runPipe --use-reference --jsonfile /path/to/Metadata.json --execute 5 --maxcpu 3 --edger /path/to/INPUT
+```
+The first command will run both DESeq2 and edgeR analyses. The second command will run only DESeq2 and the third will run only edgeR. The DESeq2 analysis will create simple and more detailed PCA plots as well as creating reports using `regionReport` and `ReportingTools`. You can view what the DESeq2 analysis is doing by looking at `makeReport.r`. The edgeR analysis will create a report using `regionReport`. You can view what the edgeR analysis is doing by looking at `makeEdge.r`.
