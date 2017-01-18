@@ -9,7 +9,7 @@
     url = https://github.com/gpertea/gffread.git
 [submodule "src/kallisto"]
 	path = src/kallisto
-    url = https://github.com/pachterlab/kallisto.git
+	url = https://github.com/pachterlab/kallisto.git
 [submodule "src/sleuth"]
 	path = src/sleuth
-    url = https://github.com/pachterlab/sleuth.git
+	url = https://github.com/pachterlab/sleuth.git
