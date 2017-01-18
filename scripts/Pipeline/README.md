@@ -411,7 +411,7 @@ wait
 ```
 You should probably look through it to look for any errors and edit any parameters. For example, you might wish to edit the `--job-name` that slurm will give your job. Also, if you do not wish to run the R analyses that I have provided, then you can comment out both the Stage 5 commands leaving only the last 2 lines at the bottom of the file. Once you are satisfied with your batch, you can run it with:
 ```
-$ sbatch /path/to/pipeBatch
+$ sbatch /path/to/pipeBatch &
 ```
 
 ## Running the Pipeline without slurm
