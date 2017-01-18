@@ -3,7 +3,13 @@
 	url = https://github.com/lh3/seqtk.git
 [submodule "src/gclib"]
 	path = src/GFF/gclib
-    url = https://github.com/gpertea/gclib
+    url = https://github.com/gpertea/gclib.git
 [submodule "src/gffread"]
 	path = src/GFF/gffread
-    url = https://github.com/gpertea/gffread
+    url = https://github.com/gpertea/gffread.git
+[submodule "src/kallisto"]
+	path = src/kallisto
+    url = https://github.com/pachterlab/kallisto.git
+[submodule "src/sleuth"]
+	path = src/sleuth
+    url = https://github.com/pachterlab/sleuth.git
