@@ -13,3 +13,6 @@
 [submodule "src/sleuth"]
 	path = src/sleuth
 	url = https://github.com/pachterlab/sleuth.git
+[submodule "src/stringtie"]
+	path = src/stringtie
+	url = https://github.com/gpertea/stringtie.git
