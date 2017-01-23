@@ -16,3 +16,6 @@
 [submodule "src/stringtie"]
 	path = src/stringtie
 	url = https://github.com/gpertea/stringtie.git
+[submodule "src/GFF/gffcompare"]
+	path = src/GFF/gffcompare
+	url = https://github.com/gpertea/gffcompare.git
