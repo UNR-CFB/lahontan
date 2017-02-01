@@ -236,7 +236,10 @@ def main(arguments):
                     raise SystemExit('Not a valid argument to --makebatch: {}'.format(
                                             arguments['--makebatch']))
                 Nodes.append(int(node))
-            ExperimentClass.makeBatch(cluster=Nodes,exists=Ref(),jsonFile=arguments['--batchjson'])
+            if arguments['--stringtie'] != None:
+                ExperimentClass.makeStringtieBatch(cluster=Nodes,exists=Ref(),jsonFile=arguments['--batchjson'])
+            else:
+                ExperimentClass.makeBatch(cluster=Nodes,exists=Ref(),jsonFile=arguments['--batchjson'])
             raise SystemExit('Batch file successfully created:\n\t{0}/pipeBatch'.format(os.getcwd()))
 
     # Returning a maximum CPU value if given

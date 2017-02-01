@@ -426,7 +426,7 @@ class Experiment:
  
     ############################################################
 
-    def getOptimal(self, cluster, behavior='default',jsonPath=False):
+    def getOptimal(self, cluster, behavior='default', jsonPath=False, getBiggestCPU=False):
         ''' Arguments:
                 cluster = list; a list of integers that describes number of
                             CPUs on each machine in a cluster
@@ -439,6 +439,8 @@ class Experiment:
 
             Figures out best way to run your samples
         '''
+        if getBiggestCPU:
+            return max(cluster)
         numSamples = self.getNumberofSamples()
         def atatime(cpuPerSample,limits=cluster):
             return sum([x//cpuPerSample for x in limits])
@@ -687,6 +689,90 @@ wait
                 "STAGE3": command3,
                 "STAGE4": command4,
                 "STAGE5": command5,
+                }
+        batchScript = batch.format(**Context)
+        with open('pipeBatch','w') as f:
+            f.write(batchScript)
+
+    def makeStringtieBatch(self, cluster, exists=False, jsonFile=False):
+        ''' Arguments:
+                cluster = list; list of integers that describe number
+                            of CPUs in each node of your cluster
+                *exists = boolean; if Pipeline has been ran previously
+                *jsonFile = boolean; if optimal path already exists
+                            in a file
+            Returns:
+                None
+
+            Creates Pipeline batch script to be used with slurm
+        '''
+        batch =  """#!/bin/bash
+#SBATCH --nodes={NODES}
+#SBATCH --time=400
+#SBATCH --cpus-per-task={CPT}
+#SBATCH --ntasks={NTASKS}
+#SBATCH --job-name="Pipeline"
+#SBATCH --export=PATH,RNASEQDIR,HOME
+
+inputFile='{INPUT}'
+jsonFile='{JSON}'
+
+# Stage 1 and 2
+{STAGE12}
+
+wait
+
+# Stage 3
+{STAGE3a}
+wait
+
+{STAGE3b}
+wait
+
+{STAGE3c}
+wait
+
+scontrol show job $SLURM_JOB_ID
+wait
+"""
+        numSamps = self.getNumberofSamples()
+        if not exists:
+            ref = ''
+        else:
+            ref = ' --use-reference'
+        command12 = 'srun -N1 -c1 -n1 runPipe --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
+        bestPath = self.getOptimal(cluster,behavior='non',jsonPath=jsonFile)
+        def getStage3(phase):
+            # For Phase a and c
+            command3,counter,sampleNum = '',1,1
+            for path in sorted(bestPath):
+                Pstep = bestPath[path]['Procs']
+                Sstep = bestPath[path]['Samps']
+                for S in range(sampleNum,sampleNum + Sstep):
+                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm{2} --maxcpu {0} -e 3 -r {1} --stringtie {3} "${{inputFile}}" &\n'.format(Pstep,S,ref,phase)
+                    command3 += com
+                if counter != len(bestPath):
+                    command3 += 'wait\n'
+                counter += 1
+                sampleNum += Sstep
+            return command3
+        command3b = 'srun -N1 -c{1} -n1 --exclusive runPipe --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 3 --stringtie b "${{inputFile}}"'.format(ref, max(cluster))
+        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
+        command5a = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --edger "${{inputFile}}" &'.format(ref)
+        command5b = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --deseq "${{inputFile}}" &'.format(ref)
+        command5 = command5a + '\n' + command5b
+        Context = {
+                "NODES": len(cluster),
+                "CPT": bestPath['Step 1']['Procs'],
+                "NTASKS": bestPath['Step 1']['Samps'],
+                "INPUT": self.inputPath,
+                "JSON": JSFI,
+                "STAGE12": command12,
+                "STAGE3a": getStage3('a'),
+                "STAGE3b": command3b,
+                "STAGE3c": getStage3('c'),
+                "STAGE4": command4,
+                "STAGE5": command5
                 }
         batchScript = batch.format(**Context)
         with open('pipeBatch','w') as f:
