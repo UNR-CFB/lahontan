@@ -26,6 +26,7 @@ Options:
 from docopt import docopt
 from timeit import default_timer as timer
 from math import ceil as ceiling
+from functools import partial
 import multiprocessing
 import time
 import pipeUtils
@@ -350,7 +351,19 @@ class Experiment:
                 Sample = Experiment.Sample(subject, self.inputPath, exists=self.Exists)
                 return Sample
 
-    def runSample(self, sample):
+    ############################################################
+    #def runSample(self, sample):
+    #    ''' Arguments:
+    #            sample = class; runs pipeline on sample
+    #        Returns:
+    #            None
+
+    #        Function calls Sample class function runParts()
+    #        Function used in multiprocessing as map function on
+    #            self.createSampleClasses() list
+    #    '''
+    #    sample.runParts()
+    def runSample(self, sample, stPhase=None):
         ''' Arguments:
                 sample = class; runs pipeline on sample
             Returns:
@@ -360,7 +373,7 @@ class Experiment:
             Function used in multiprocessing as map function on
                 self.createSampleClasses() list
         '''
-        sample.runParts()
+        sample.runParts(stPhase)
 
     @funTime
     def GO(self,subject='all'):
@@ -372,18 +385,46 @@ class Experiment:
             Uses python multiprocessing to distribute sample analysis to
             CPUs
         '''
-        if subject == 'all':
-            self.makeNotifyFolder()
-            Samples = self.createSampleClasses()
-            with multiprocessing.Pool(self.Procs) as p:
-                p.map(unwrap_self_runSample, zip([self]*len(Samples), Samples))
-        elif type(subject) == int:
-            name = 'sample_{:02g}'.format(subject)
-            if os.path.exists(self.Data + '/' + name):
-                Sample = self.createSampleClasses(subject)
-                self.runSample(Sample)
+        if stringtie == None:
+            if subject == 'all':
+                self.makeNotifyFolder()
+                Samples = self.createSampleClasses()
+                with multiprocessing.Pool(self.Procs) as p:
+                    p.map(unwrap_self_runSample, zip([self]*len(Samples), Samples))
+            elif type(subject) == int:
+                name = 'sample_{:02g}'.format(subject)
+                if os.path.exists(self.Data + '/' + name):
+                    Sample = self.createSampleClasses(subject)
+                    self.runSample(Sample)
+            else:
+                raise SystemExit('There is a problem with executing sample')
         else:
-            raise SystemExit('There is a problem with executing sample')
+            for phase in stringtie:
+                nextPhase = self.runStringtiePhase()
+                if nextPhase == 'DONE':
+                    break
+                else:
+                    if subject == 'all':
+                        self.makeNotifyFolder()
+                        if nextPhase == 'b':
+                            self.stringtiePart2b()
+                        else:
+                            Samples = self.createSampleClasses()
+                            with multiprocessing.Pool(self.Procs) as p:
+                                p.map(partial(unwrap_self_runSample, stPhase=nextPhase), zip([self]*len(Samples), Samples))
+                    elif type(subject) == int:
+                        if nextPhase == 'b':
+                            raise SystemExit('Cannot specify a single sample with --stringtie b')
+                        else:
+                            name = 'sample_{:02g}'.format(subject)
+                            if os.path.exists(self.Data + '/' + name):
+                                Sample = self.createSampleClasses(subject)
+                                self.runSample(Sample,stPhase=nextPhase)
+                    else:
+                        raise SystemExit('There is a problem with executing sample')
+            
+ 
+    ############################################################
 
     def getOptimal(self, cluster, behavior='default',jsonPath=False):
         ''' Arguments:
@@ -948,6 +989,176 @@ wait
         else:
             return True
 
+    ############################################################
+    # Stringtie Utilities
+    ############################################################
+
+    def redirectSTDERR(self,command,logfile):
+        ''' Arguments:
+                command = string; a command that you wish to control stderr
+                logfile = string; file for stderr and stdout to be saved to
+            Returns:
+                correctCommand = string; the command to be subprocessed
+        '''
+        correctCommand = r'{{ time {0}; }} >> {1} 2>&1'.format(command, logfile)
+        return correctCommand
+
+    def makeStringtieMergelist(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Creates StringtieMerge directory and mergelist.txt
+        '''
+        stMergeDir = self.Postprocessing + '/StringtieMerge'
+        if not os.path.isdir(stMergeDir):
+            try:
+                os.mkdir(stMergeDir)
+            except:
+                pass
+        sampleNames = glob.glob(os.path.join(self.Data,'/sample*'))
+        mergeList = '\n'.join([os.path.join(sample,os.path.basename(sample)+'.st.gtf') for sample in sampleNames])
+        with open(os.path.join(stMergeDir,'mergelist.txt'),'w') as MergeList:
+            MergeList.write(mergeList)
+
+    @funTime
+    def stringtieMerge(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+        '''
+        self.makeStringtieMergelist()
+        stMergeDir = self.Postprocessing + '/StringtieMerge'
+        mergeList = os.path.join(stMergeDir,'mergelist.txt')
+        logFile = os.path.join(stMergeDir,'StringtieRuntime.log')
+        # Making Command
+        command = r"stringtie --merge -p {procs} -G {ref}/{gtf} -o {mergedir}/{projectname}.stmerged.gtf {mergelist}"
+        context = {
+                "procs": self.Procs,
+                "ref": self.Reference,
+                "gtf": self.Gtf,
+                "mergedir": stMergeDir,
+                "projectname": os.path.basename(self.Project),
+                "mergelist": mergeList
+                }
+        goodCommand = self.redirectSTDERR(command.format(**context), logFile)
+        # Executing
+        os.chdir(stMergeDir)
+        subprocess.run(goodCommand,
+                            shell=True,
+                            check=True)
+
+    @funTime
+    def compareTranscripts(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+        '''
+        projectName = os.path.basename(self.Project)
+        stMergeDir = self.Postprocessing + '/StringtieMerge'
+        stMergedFile = os.path.join(stMergeDir,"{}.stmerged.gtf".format(projectName))
+        logFile = os.path.join(stMergeDir,'GFFCompareRuntime.log')
+        # Making Command
+        command = r"gffcompare -r {ref}/{gtf} -G -o {projectname}.merged {stmerged}"
+        context = {
+                "ref": self.Reference,
+                "gtf": self.Gtf,
+                "projectname": projectName,
+                "stmerged": stMergedFile
+                }
+        goodCommand = self.redirectSTDERR(command.format(**context), logFile)
+        # Executing
+        os.chdir(stMergeDir)
+        subprocess.run(goodCommand,
+                            shell=True,
+                            check=True)
+
+    def allSampleLookup(self, fileTemplate):
+        ''' Arguments:
+                fileTemplate = str; with {} inside which represents
+                                sampleName
+            Returns:
+                None
+        '''
+        boolTable = []
+        for sample in glob.glob(os.path.join(self.Data,'/*')):
+            if os.path.exists(os.path.join(sample,fileTemplate.format(os.path.basename(sample)))):
+                boolTable.append(True)
+            else:
+                boolTable.append(False)
+        return all(boolTable)
+
+    def checkStringtiePhases(self):
+        ''' Arguments:
+                None
+            Returns:
+                Status = str; string of phases completed(a,b,c)
+        '''
+        projectName = os.path.basename(self.Project)
+        stMergeDir = self.Postprocessing + '/StringtieMerge'
+        stMergedFile = os.path.join(stMergeDir,"{}.stmerged.gtf".format(projectName))
+
+        Status = ' '
+        if self.allSampleLookup("{}.st.gtf"):
+            Status += 'a'
+        if os.path.exists(stMergedFile):
+            Status += 'b'
+        if self.allSampleLookup("{}.good.st.gtf"):
+            Status += 'c'
+        return Status
+
+    def nextStringtiePhase(self):
+        ''' Arguments:
+                None
+            Returns:
+                nextPhase = str; string of next phase that hasn't
+                been completed yet i.e. "a", "b", or "c"
+        '''
+        Status = self.checkStringtiePhases()
+        nextPhase = ''
+        if Status[-1] == ' ':
+            nextPhase = 'a'
+        elif Status[-1] == 'a':
+            nextPhase = 'b'
+        elif Status[-1] == 'b':
+            nextPhase = 'c'
+        elif Status[-1] == 'c':
+            nextPhase = 'DONE'
+        return nextPhase
+
+    def runStringtiePhase(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+        '''
+        runPhase = ''
+        nextPhase = self.nextStringtiePhase()
+        if nextPhase == 'DONE':
+            runPhase = nextPhase
+        elif len(stringtie) == 1:
+            if stringtie == nextPhase:
+                runPhase = nextPhase
+            else:
+                raise SystemExit('Cannot run --stringtie {}\nPlease run --stringtie {} first for all samples'.format(
+                                                    stringtie,nextPhase))
+        elif nextPhase in stringtie:
+            runPhase = nextPhase
+        else:
+            runPhase = 'DONE'
+        return runPhase
+
+    def stringtiePart2b(self):
+        '''
+            To be run in between sample stringtie part 2a and 2c
+        '''
+        self.makeStringtieMergelist()
+        self.stringtieMerge()
+        self.compareTranscripts()
+
     ################################################################
     # Cleaning Functions
     ################################################################
@@ -1135,6 +1346,17 @@ wait
             '''
             self.writeToLog('\n{} done\n\n'.format(function))
 
+        def writeFunctionCommand(self, command):
+            ''' Arguments:
+                    command= str; command used for execution
+                Returns:
+                    None
+
+                Calls self.writeToLog with name of function
+                Used to identify specific function output and times
+            '''
+            self.writeToLog('\nCommand Used:\n{}\n'.format(command))
+
         def initializeLog(self):
             ''' Arguments:
                     None
@@ -1177,10 +1399,12 @@ wait
 
             # Executing Commands
             os.chdir(self.samplePath)
+            self.writeFunctionCommand(goodCommand1)
             subprocess.run(goodCommand1,
                                 shell=True,
                                 check=True)
             os.chdir(fastqcFolder)
+            self.writeFunctionCommand(goodCommand2)
             subprocess.run(goodCommand2,
                                 shell=True,
                                 check=True)
@@ -1318,6 +1542,7 @@ wait
             goodCommand = self.formatCommand(commandWithContext)
             # Executing
             os.chdir(self.samplePath)
+            self.writeFunctionCommand(goodCommand)
             subprocess.run(goodCommand,
                                 shell=True,
                                 check=True)
@@ -1336,12 +1561,12 @@ wait
                 LOG.write('----------------------------------------\n\n')
             self.runQCheck(1, self.Read1, self.Read2)
             self.runTrimmomatic(self.Read1, self.Read2)
-            self.runQCheck(2, 'read1.P.trim.{}.gz'.format(self.Fastq),
-                                'read2.P.trim.{}.gz'.format(self.Fastq))
+            #self.runQCheck(2, 'read1.P.trim.{}.gz'.format(self.Fastq),
+            #                    'read2.P.trim.{}.gz'.format(self.Fastq))
             self.writeFunctionTail('runPart1')
 
         ########################################################
-        # Pipeline
+        # Determine strandicity
         ########################################################
 
         def runSeqtk(self):
@@ -1362,9 +1587,11 @@ wait
             goodCommand2 = self.formatCommand(command2)
             # Executing
             os.chdir(self.samplePath)
+            self.writeFunctionCommand(goodCommand1)
             subprocess.run(goodCommand1,
                                 shell=True,
                                 check=True)
+            self.writeFunctionCommand(goodCommand2)
             subprocess.run(goodCommand2,
                                 shell=True,
                                 check=True)
@@ -1380,16 +1607,18 @@ wait
             '''
             self.writeFunctionHeader('runBlastn')
             # Making Command
-            db = self.Reference + '/' + self.Basename + '.cdna.all'
+            db = os.path.join(self.Reference,'{}.cdna.all'.format(self.Basename))
             command1 = r'blastn -query sampled.read1.fa -db {0} -out sampled.read1_vscdna.out -task blastn-short -outfmt "6 std sstrand" -max_target_seqs 1 -num_threads {1}'.format(db, self.Procs)
             command2 = r'blastn -query sampled.read2.fa -db {0} -out sampled.read2_vscdna.out -task blastn-short -outfmt "6 std sstrand" -max_target_seqs 1 -num_threads {1}'.format(db, self.Procs)
             goodCommand1 = self.formatCommand(command1)
             goodCommand2 = self.formatCommand(command2)
             # Executing
             os.chdir(self.samplePath)
+            self.writeFunctionCommand(goodCommand1)
             subprocess.run(goodCommand1,
                                 shell=True,
                                 check=True)
+            self.writeFunctionCommand(goodCommand2)
             subprocess.run(goodCommand2,
                                 shell=True,
                                 check=True)
@@ -1408,11 +1637,12 @@ wait
             '''
             # Running stranded_classifier.py
             # Making Command
+            command1 = r'stranded_classifier.py -1 sampled.read1_vscdna.out -2 sampled.read2_vscdna.out'
+            goodCommand1 = self.formatCommand(command1)
+            self.writeFunctionCommand(goodCommand1)
             with open('{}/Runtime.{}.log'.format(self.samplePath,
                                                 self.sampleName), 'a') as LOG:
                 LOG.write('findStranded started\n\n')
-            command1 = r'stranded_classifier.py -1 sampled.read1_vscdna.out -2 sampled.read2_vscdna.out'
-            goodCommand1 = self.formatCommand(command1)
             # Executing
             os.chdir(self.samplePath)
             subprocess.run(goodCommand1,
@@ -1425,6 +1655,7 @@ wait
             command2 = r"awk '/findStranded started/,/findStranded done/' Runtime.{}.log | grep -q True && stranded=1 || stranded=0 && echo $stranded".format(self.sampleName)
             # Executing
             os.chdir(self.samplePath)
+            self.writeFunctionCommand(command2)
             proc = subprocess.Popen(command2,
                                         shell=True,
                                         universal_newlines=True,
@@ -1437,6 +1668,10 @@ wait
                 return False
             else:
                 print('There was an error with findStranded')
+
+        ########################################################
+        # Pipeline
+        ########################################################
 
         def runHisat(self):
             ''' Arguments:
@@ -1466,11 +1701,11 @@ wait
                     }
             goodCommand = self.formatCommand(command.format(**context))
             # Executing
+            self.writeFunctionCommand(goodCommand)
             os.chdir(self.samplePath)
             subprocess.run(goodCommand,
                                 shell=True,
                                 check=True)
-            self.writeToLog(goodCommand)
             self.writeFunctionTail('runHisat')
 
         def runCompression(self):
@@ -1493,12 +1728,17 @@ wait
             goodCommand = self.formatCommand(command.format(**context))
             # Executing
             os.chdir(self.samplePath)
+            self.writeFunctionCommand(goodCommand)
             subprocess.run(goodCommand,
                                 shell=True,
                                 check=True)
             os.chdir(self.samplePath)
             os.remove('aligned.{}.sam'.format(self.sampleName))
             self.writeFunctionTail('runCompression')
+
+        ########################################################
+        # Feature Counts
+        ########################################################
 
         def runFeatureCounts(self):
             ''' Arguments:
@@ -1520,10 +1760,146 @@ wait
             goodCommand = self.formatCommand(command.format(**context))
             # Executing
             os.chdir(self.samplePath)
+            self.writeFunctionCommand(goodCommand)
             subprocess.run(goodCommand,
                                 shell=True,
                                 check=True)
             self.writeFunctionTail('runFeatureCounts')
+
+        ########################################################
+        # Stringtie
+        ########################################################
+
+        def assembleTranscripts(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    None
+
+                Assemble gene transcripts using Reference GTF
+            '''
+            self.writeFunctionHeader('assembleTranscripts')
+            # Making Command
+            #command = r"stringtie -p {procs} -G {ref}/{gtf} -o {sample}.st.gtf -l {sample} aligned.{sample}.bam"
+            command = r"stringtie -p {procs} -o {sample}.st.gtf -l {sample} aligned.{sample}.bam"
+            context = {
+                    "procs": self.Procs,
+                    "ref": self.Reference,
+                    "gtf": self.Gtf,
+                    "sample": self.sampleName,
+                    }
+            goodCommand = self.formatCommand(command.format(**context))
+            # Executing
+            os.chdir(self.samplePath)
+            self.writeFunctionCommand(goodCommand)
+            subprocess.run(goodCommand,
+                                shell=True,
+                                check=True)
+            self.writeFunctionTail('assembleTranscripts')
+
+        def estimateTranscriptAbundances(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    None
+
+                Using the stringtie merged GTF file, estimate the
+                transcript abundances and create a table counts
+            '''
+            self.writeFunctionHeader('estimateTranscriptAbundances')
+            projectName = os.path.basename(self.Project)
+            stMergeDir = self.Postprocessing + '/StringtieMerge'
+            stMergedFile = os.path.join(stMergeDir,"{}.stmerged.gtf".format(projectName))
+            # Making Command
+            command = r"stringtie -e -B -p {procs} -G {stmerged} -o {sample}.good.st.gtf aligned.{sample}.bam"
+            context = {
+                    "procs": self.Procs,
+                    "stmerged": stMergedFile,
+                    "sample": self.sampleName
+                    }
+            goodCommand = self.formatCommand(command.format(**context))
+            # Executing
+            os.chdir(self.samplePath)
+            self.writeFunctionCommand(goodCommand)
+            subprocess.run(goodCommand,
+                                shell=True,
+                                check=True)
+            self.writeFunctionTail('estimateTranscriptAbundances')
+
+        def runAltCompression(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    None
+
+                Compresses output of hisat2 with samtools
+            '''
+            self.writeFunctionHeader('runCompression')
+            # Making Command
+            command = r"samtools sort -@ {procs} -o aligned.{sample}.bam aligned.{sample}.sam"
+            context = {
+                    "procs": self.Procs,
+                    "sample": self.sampleName,
+                    }
+            goodCommand = self.formatCommand(command.format(**context))
+            # Executing
+            os.chdir(self.samplePath)
+            self.writeFunctionCommand(goodCommand)
+            subprocess.run(goodCommand,
+                                shell=True,
+                                check=True)
+            os.chdir(self.samplePath)
+            os.remove('aligned.{}.sam'.format(self.sampleName))
+            self.writeFunctionTail('runCompression')
+
+
+        def stringtiePart2a(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    None
+
+                Runs Pipeline sequentially
+                Note: Does not include Quality control steps: Fastqc and trimmomatic
+            '''
+            self.writeFunctionHeader('stringtiePart2a')
+            os.chdir(self.samplePath)
+            with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'a') as LOG:
+                LOG.write('\t\tRuntime Log Part 2 for {}\n'.format(self.sampleName))
+                LOG.write('----------------------------------------\n')
+                LOG.write('Part 2a\n')
+                LOG.write('----------------------------------------\n\n')
+            self.runSeqtk()
+            self.runBlastn()
+            self.runHisat()
+            self.runAltCompression()
+            self.assembleTranscripts()
+            self.writeFunctionTail('stringtiePart2a')
+
+        def stringtiePart2c(self):
+            ''' Arguments:
+                    None
+                Returns:
+                    None
+
+                Runs Pipeline sequentially
+                Note: Does not include Quality control steps: Fastqc and trimmomatic
+            '''
+            self.writeFunctionHeader('stringtiePart2c')
+            os.chdir(self.samplePath)
+            with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'a') as LOG:
+                LOG.write('Part 2c\n')
+                LOG.write('----------------------------------------\n\n')
+            self.estimateTranscriptAbundances()
+            self.writeFunctionTail('stringtiePart2c')
+            with open(self.Project + '/runPipeNotify/{}'.format('done'+self.sampleName), 'w') as N:
+                N.write('{} is done'.format(self.samplePath))
+            with open(self.samplePath + '/.done', 'w') as N:
+                N.write('{} is done'.format(self.samplePath))
+ 
+        ########################################################
+        # Gathering Data (for non-stringtie)
+        ########################################################
 
         def getNiceColumns(self):
             ''' Arguments:
@@ -1540,6 +1916,7 @@ wait
             goodCommand = self.formatCommand(command.format(**context))
             # Executing
             os.chdir(self.samplePath)
+            self.writeFunctionCommand(goodCommand)
             subprocess.run(goodCommand,
                                 shell=True,
                                 check=True)
@@ -1560,10 +1937,15 @@ wait
             goodCommand = self.formatCommand(command.format(**context))
             # Executing
             os.chdir(self.samplePath)
+            self.writeFunctionCommand(goodCommand)
             subprocess.run(goodCommand,
                                 shell=True,
                                 check=True)
             self.writeFunctionTail('getAlignedColumn')
+
+        ########################################################
+        # Pipeline Functions
+        ########################################################
 
         def runPart2(self):
             ''' Arguments:
@@ -1590,8 +1972,8 @@ wait
                 N.write('{} is done'.format(self.samplePath))
             with open(self.samplePath + '/.done', 'w') as N:
                 N.write('{} is done'.format(self.samplePath))
-
-        def runParts(self):
+        
+        def runParts(self,stringtiePhase=None):
             ''' Arguments:
                     None
                 Returns:
@@ -1599,8 +1981,40 @@ wait
 
                 Run QC and Pipeline part sequentially
             '''
-            self.runPart1()
-            self.runPart2()
+            if noconfirm:
+                if stringtiePhase == 'a':
+                    self.runPart1()
+                    self.stringtiePart2a()
+                if stringtiePhase == 'c':
+                    self.stringtiePart2c()
+                if stringtiePhase == None:
+                    self.runPart1()
+                    self.runPart2()
+            else:
+                projectName = os.path.basename(self.Project)
+                stMergeDir = self.Postprocessing + '/StringtieMerge'
+
+                sampleGTF = os.path.join(self.samplePath, "{}.st.gtf".format(self.sampleName))
+                stMergedFile = os.path.join(stMergeDir,"{}.stmerged.gtf".format(projectName))
+                sampleAbundance = os.path.join(self.samplePath, "{}.good.st.gtf".format(self.sampleName))
+
+                if stringtiePhase == 'a':
+                    if not os.path.exists(sampleGTF):
+                        #self.runPart1()
+                        self.stringtiePart2a()
+                    else:
+                        raise SystemExit('{} exists\nCannot overwrite without --noconfirm'.format(sampleGTF))
+                elif stringtiePhase == 'c' and os.path.exists(stMergedFile):
+                    if not os.path.exists(sampleAbundance):
+                        self.stringtiePart2c()
+                    else:
+                        raise SystemExit('Phase a and/or b have not been executed\nCannot run without --noconfirm')
+                elif stringtiePhase == None:
+                    if not os.path.exists(sampleGTF):
+                        self.runPart1()
+                        self.runPart2()
+                    else:
+                        raise SystemExit('Stringtie Pipeline has already been started\nCannot run without --noconfirm')
 
         ########################################################
         # End of Sample class
