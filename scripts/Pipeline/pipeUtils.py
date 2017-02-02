@@ -13,7 +13,6 @@ Options:
 ################################################################
 
 from docopt import docopt
-#from twilio.rest import TwilioRestClient
 import subprocess
 import os
 import shutil
@@ -408,33 +407,26 @@ def findFinish(projectPath, originalPath, behavior='default'):
         print('There are not an even number of files in {}!'.format(originalPath))
     else:
         numSamp = int(getNumberofFiles(originalPath)/2)
+    runPipeNotifyDir = os.path.join(projectPath,'runPipeNotify')
     if behavior == 'default':
-        if os.path.isdir(projectPath + '/runPipeNotify') == False:
-            print("Path is not a directory:\n{}".format(projectPath + '/runPipeNotify'))
-            raise SystemExit
+        if os.path.isdir(runPipeNotifyDir):
+            while True:
+                if len([name for name in os.listdir(runPipeNotifyDir) if os.path.isfile(name)]) == numSamp:
+                    os.chdir(projectPath)
+                    shutil.rmtree(projectPath + '/runPipeNotify')
+                    break
+                else:
+                    time.sleep(15)
         else:
-            os.chdir(projectPath + '/runPipeNotify')
-        while True:
-            if len([name for name in os.listdir('.') if os.path.isfile(name)]) == numSamp:
-                #textMe('+17756227884','This is sent from your python script; The first part of the \
-                #        Pipeline has finished. Please return to computer')
-                #print('At this point textMe would send you a text')
-                os.chdir(projectPath)
-                shutil.rmtree(projectPath + '/runPipeNotify')
-                break
-            else:
-                time.sleep(15)
+            raise SystemExit("Path is not a directory:\n{}".format(projectPath + '/runPipeNotify'))
     else:
-        if os.path.isdir(projectPath + '/runPipeNotify') == False:
-            return False
+        if os.path.isdir(runPipeNotifyDir):
+            if len([name for name in os.listdir(runPipeNotifyDir) if os.path.isfile(name)]) == numSamp:
+                return True
+            else:
+                return False
         else:
-            os.chdir(projectPath + '/runPipeNotify')
-        if len([name for name in os.listdir('.') if os.path.isfile(name)]) == numSamp:
-            return True
-        else:
             return False
-
-
 
 ################################################################
 # Making JSON file

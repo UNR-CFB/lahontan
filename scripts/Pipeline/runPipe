@@ -361,9 +361,9 @@ def main(arguments):
                     if str(stageNumber) == '5':
                         runR(ExperimentClass)
                     elif str(stageNumber) == '1' or str(stageNumber) == '2':
-                        exec('{}.runStage{}({})'.format('ExperimentClass',stageNumber,Ref()))
+                        exec('ExperimentClass.runStage{}({})'.format(stageNumber,Ref()))
                     else:
-                        exec('{}.runStage{}()'.format('ExperimentClass',stageNumber))
+                        exec('ExperimentClass.runStage{}()'.format(stageNumber))
         else:
             if not os.path.exists(ExperimentClass.Data):
                 ExperimentClass.runStage1(Ref())

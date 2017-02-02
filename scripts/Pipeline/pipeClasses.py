@@ -352,17 +352,6 @@ class Experiment:
                 return Sample
 
     ############################################################
-    #def runSample(self, sample):
-    #    ''' Arguments:
-    #            sample = class; runs pipeline on sample
-    #        Returns:
-    #            None
-
-    #        Function calls Sample class function runParts()
-    #        Function used in multiprocessing as map function on
-    #            self.createSampleClasses() list
-    #    '''
-    #    sample.runParts()
     def runSample(self, sample, stPhase=None):
         ''' Arguments:
                 sample = class; runs pipeline on sample
@@ -1069,7 +1058,7 @@ wait
             .done file is created at the completion of each respective
             sample
         '''
-        Check = [os.path.exists(sample+'/.done') for sample in glob.glob(os.path.join(self.Data,'/sample*'))]
+        Check = [os.path.exists(sample+'/.done') for sample in glob.glob(os.path.join(self.Data,'sample*'))]
         if False in Check:
             return False
         else:
@@ -1103,12 +1092,11 @@ wait
                 os.mkdir(stMergeDir)
             except:
                 pass
-        sampleNames = glob.glob(os.path.join(self.Data,'/sample*'))
+        sampleNames = glob.glob(os.path.join(self.Data,'sample*'))
         mergeList = '\n'.join([os.path.join(sample,os.path.basename(sample)+'.st.gtf') for sample in sampleNames])
         with open(os.path.join(stMergeDir,'mergelist.txt'),'w') as MergeList:
             MergeList.write(mergeList)
 
-    @funTime
     def stringtieMerge(self):
         ''' Arguments:
                 None
@@ -1120,7 +1108,8 @@ wait
         mergeList = os.path.join(stMergeDir,'mergelist.txt')
         logFile = os.path.join(stMergeDir,'StringtieRuntime.log')
         # Making Command
-        command = r"stringtie --merge -p {procs} -G {ref}/{gtf} -o {mergedir}/{projectname}.stmerged.gtf {mergelist}"
+        #command = r"stringtie --merge -p {procs} -G {ref}/{gtf} -o {mergedir}/{projectname}.stmerged.gtf {mergelist}"
+        command = r"stringtie --merge -p {procs} -o {mergedir}/{projectname}.stmerged.gtf {mergelist}"
         context = {
                 "procs": self.Procs,
                 "ref": self.Reference,
@@ -1136,7 +1125,6 @@ wait
                             shell=True,
                             check=True)
 
-    @funTime
     def compareTranscripts(self):
         ''' Arguments:
                 None
@@ -1170,7 +1158,7 @@ wait
                 None
         '''
         boolTable = []
-        for sample in glob.glob(os.path.join(self.Data,'/*')):
+        for sample in glob.glob(os.path.join(self.Data,'*')):
             if os.path.exists(os.path.join(sample,fileTemplate.format(os.path.basename(sample)))):
                 boolTable.append(True)
             else:
@@ -1237,6 +1225,7 @@ wait
             runPhase = 'DONE'
         return runPhase
 
+    @funTime
     def stringtiePart2b(self):
         '''
             To be run in between sample stringtie part 2a and 2c
@@ -2138,7 +2127,12 @@ wait
         print("Pipeline is running...")
         self.makeNotifyFolder()
         self.GO()
-        self.findPipeFinish()
+        if stringtie == None:
+            self.findPipeFinish()
+        else:
+            stringtieStatus = self.runStringtiePhase()
+            if stringtieStatus == 'DONE' or stringtieStatus == 'c':
+                self.findPipeFinish()
 
     def executeSample(self, number):
         ''' Arguments:
@@ -2164,7 +2158,7 @@ wait
                 time.sleep(10)
                 print('Preparing for DESeq2...')
                 if os.path.isdir(os.path.join(self.Project,'runPipeNotify')):
-                    shutil.rmtree(os.path.join(self.Project + '/runPipeNotify'))
+                    shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
                 self.gatherAllSampleOverrep(1)
                 self.gatherAllSampleOverrep(2)
                 self.createJsonMetadata()
