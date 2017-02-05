@@ -374,7 +374,7 @@ class Experiment:
             Uses python multiprocessing to distribute sample analysis to
             CPUs
         '''
-        if stringtie == None:
+        if "stringtie" not in globals():
             if subject == 'all':
                 self.makeNotifyFolder()
                 Samples = self.createSampleClasses()
@@ -1234,6 +1234,45 @@ wait
         self.stringtieMerge()
         self.compareTranscripts()
 
+    ########################################################
+    # Gathering Data (for stringtie)
+    ########################################################
+
+    def organizeInPostprocessing(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+        '''
+        resultsDirectory = os.path.join(self.Postprocessing, 'StringtieResults')
+        if not os.path.isdir(resultsDirectory):
+            try:
+                os.mkdir(resultsDirectory)
+            except:
+                pass
+        for sample in glob.glob(os.path.join(self.Data,'sample*')):
+            sampleResults = os.path.join(resultsDirectory, os.path.basename(sample))
+            if not os.path.isdir(sampleResults):
+                try:
+                    os.mkdir(sampleResults)
+                except:
+                    pass
+            for ctab in glob.glob(os.path.join(sample, '*ctab')):
+                os.symlink(ctab, os.path.join(sampleResults, os.path.basename(ctab)))
+            goodSampleGtf = os.path.join(sample, '{}.good.st.gtf'.format(os.path.basename(sample)))
+            if os.path.exists(goodSampleGtf):
+                os.symlink(goodSampleGtf, os.path.join(sampleResults, os.path.basename(goodSampleGtf)))
+
+    def createBallgownCols(self, jsonName='Metadata.json', columnName='Cols.dat'):
+        ''' Arguments:
+                None
+            Returns:
+                None
+        '''
+        jsonFile = os.path.join(self.Postprocessing, jsonName)
+        colFile = os.path.join(self.Postprocessing, columnName)
+        pipeUtils.makeCols.makeStringtieCols(pipeUtils.makeCols.readJSON(jsonFile), colFile)
+ 
     ################################################################
     # Cleaning Functions
     ################################################################
@@ -1935,7 +1974,6 @@ wait
                     None
 
                 Runs Pipeline sequentially
-                Note: Does not include Quality control steps: Fastqc and trimmomatic
             '''
             self.writeFunctionHeader('stringtiePart2a')
             os.chdir(self.samplePath)
@@ -1958,7 +1996,6 @@ wait
                     None
 
                 Runs Pipeline sequentially
-                Note: Does not include Quality control steps: Fastqc and trimmomatic
             '''
             self.writeFunctionHeader('stringtiePart2c')
             os.chdir(self.samplePath)
@@ -1971,7 +2008,7 @@ wait
                 N.write('{} is done'.format(self.samplePath))
             with open(self.samplePath + '/.done', 'w') as N:
                 N.write('{} is done'.format(self.samplePath))
- 
+
         ########################################################
         # Gathering Data (for non-stringtie)
         ########################################################
@@ -2127,12 +2164,12 @@ wait
         print("Pipeline is running...")
         self.makeNotifyFolder()
         self.GO()
-        if stringtie == None:
-            self.findPipeFinish()
-        else:
+        if "stringtie" in globals():
             stringtieStatus = self.runStringtiePhase()
             if stringtieStatus == 'DONE' or stringtieStatus == 'c':
                 self.findPipeFinish()
+        else:
+            self.findPipeFinish()
 
     def executeSample(self, number):
         ''' Arguments:
@@ -2156,18 +2193,21 @@ wait
         while True:
             if self.is3Finished() or self.checkEach():
                 time.sleep(10)
-                print('Preparing for DESeq2...')
+                print('Preparing for R analysis...')
                 if os.path.isdir(os.path.join(self.Project,'runPipeNotify')):
                     shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
                 self.gatherAllSampleOverrep(1)
                 self.gatherAllSampleOverrep(2)
                 self.createJsonMetadata()
-                self.createNiceCounts()
-                self.getPipeTime()
-                self.createRCounts()
-                self.createRCols()
-                self.createRProgram()
-                self.makeGoodCounts()
+                if "stringtie" in globals():
+                    self.organizeInPostprocessing()
+                    self.createBallgownCols()
+                else:
+                    self.createNiceCounts()
+                    self.createRCounts()
+                    self.createRCols()
+                    self.createRProgram()
+                    self.makeGoodCounts()
                 break
             else:
                 time.sleep(30)

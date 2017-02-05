@@ -6,15 +6,6 @@
 Options:
     -h, --help
         Show this screen and exit
-    -j <jsonFile>, --jsonfile <jsonFile>
-        Ignores JSON Metadata file creation and uses specified
-        path to JSON Metadata
-    -c <placeToClean>, --clean <placeToClean>
-        Cleans <placeToClean>; Possible places include:
-            Reference, Data, Postprocessing, All
-    -s <sampleName>, --sampleclean <sampleName>
-        Similar to --clean; but instead just cleans a
-        single sample directory, <sampleName>
     -e <stage>, --execute <stage>
         Comma-separated list of stages to be executed.
         Possible stages include:
@@ -28,11 +19,25 @@ Options:
     -r <integer>, --runsample <integer>
         Runs Stage 3 of the pipeline on the sample specified
         by the integer
-    --stringtie <phase>
+    -j <jsonFile>, --jsonfile <jsonFile>
+        Ignores JSON Metadata file creation and uses specified
+        path to JSON Metadata
+    -s <phase>, --stringtie <phase>
         Use stringtie tools to replace featureCounts. phase can
         be any of: "a","b","c","ab","bc","abc"
+        Option also used to specify stringtie postprocessing
+        options in which case use: "--execute 4 --stringtie abc"
         Note: If you will be running phase b, you cannot specify
         a sample to run with --runsample
+    -c <placeToClean>, --clean <placeToClean>
+        Cleans <placeToClean>; Possible places include:
+            Reference
+            Data
+            Postprocessing
+            All
+    --sampleclean <sampleName>
+        Similar to --clean; but instead just cleans a
+        single sample directory, <sampleName>
     --maxcpu <CPUs>
         Limits number of CPUs used by Pipeline. Without
         argument, default is to use all available CPUs
@@ -381,11 +386,6 @@ def main(arguments):
                         ExperimentClass.runStage4()
                     if '5' in executionStages:
                         runR(ExperimentClass)
-            #print('Finished Running specified samples\n' + 
-            #'If you wish to run R analysis, you will need to run all samples\n' +
-            #'If you have run all samples, you can run R analysis by running:\n' +
-            #'runPipe.py --execute 4,5 /path/to/INPUT/file\n' +
-            #'along with any other arguments you wish')
 
     ############################################################
     # Call for actually doing stuff

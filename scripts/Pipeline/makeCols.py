@@ -1,11 +1,12 @@
 #!/usr/bin/python3
 
-'''Usage: makeCols.py [-h | --help] [-j <jsonfile>] [-t <tofile>]
+'''Usage: makeCols.py [-h | --help] [-j <jsonfile>] [-t <tofile>] [--stringtie]
 
 Options:
     -h --help           Show this screen
-    -j <jsonfile>           Optional name of JSON file to be read [default: Metadata.json] 
+    -j <jsonfile>       Optional name of JSON file to be read [default: Metadata.json] 
     -t <tofile>         Optional name of Column file to write to [default: Cols.dat]
+    --stringtie         If using stringtie pipeline, use to format for ballgown instead
 '''
 
 ################################################################
@@ -52,7 +53,7 @@ def parseJSON(jsontoRead):
     featureNames = sorted(jsontoRead['FeatureNames'])
     return featureNames,projectName,numberofFeatures,numberofSamples
 
-def parseSamples(jsontoRead):
+def parseSamples(jsontoRead, stringtie=False):
     ''' Arguments:
             jsontoRead = dict; dictionary of Metadata to be parsed
         Returns:
@@ -65,7 +66,10 @@ def parseSamples(jsontoRead):
     SampleList = []
     counter = 0
     for sample in jsontoRead['Samples']:
-        SampleList.append(["aligned.{}.bam".format(sample)])
+        if stringtie:
+            SampleList.append(["{}".format(sample)])
+        else:
+            SampleList.append(["aligned.{}.bam".format(sample)])
         for feature in jsontoRead['Samples'][sample]['Features']:
             SampleList[counter].append(jsontoRead['Samples'][sample]['Features'][feature])
         counter += 1
@@ -90,7 +94,30 @@ def makeCols(jsontoRead,filetoWrite):
     with open(filetoWrite,'w') as colFile:
         colFile.writelines('\t'.join(row) + '\n' for row in deseqCols)
 
+def makeStringtieCols(jsontoRead,filetoWrite):
+    ''' Arguments:
+            jsontoRead = dict; dictionary of Metadata to be parsed
+            filetoWrite = str; name of Col file to be written to
+                            [default = Cols.dat]
+        Returns:
+            None
+
+        Creates Cols.dat file necessary for R analysis
+    '''
+    featureNames,_,__,___ = parseJSON(jsontoRead)
+    sampleList = parseSamples(jsontoRead, stringtie=True)
+    deseqCols = []
+    featureNames.insert(0,'ids')
+    deseqCols.append(featureNames)
+    for sample in sampleList:
+        deseqCols.append(sample)
+    with open(filetoWrite,'w') as colFile:
+        colFile.writelines('"' + '","'.join(row) + '"\n' for row in deseqCols)
+
 ################################################################
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='1.0')
-    makeCols(readJSON(arguments['-j']),arguments['-t'])
+    if arguments['--stringtie']:
+        makeStringtieCols(readJSON(arguments['-j']),arguments['-t'])
+    else:
+        makeCols(readJSON(arguments['-j']),arguments['-t'])

@@ -444,8 +444,7 @@ def createMetaData(postProcessingPath,jsonName='Metadata.json'):
     '''
     if JSFI == None:
         if os.path.isdir(postProcessingPath) == False:
-            print("Path is not a directory:\n{}".format(postProcessingPath))
-            raise SystemExit
+            raise SystemExit("Path is not a directory:\n{}".format(postProcessingPath))
         os.chdir(postProcessingPath)
         makeJSON.writeJSON(jsonName)
         while True:
@@ -473,12 +472,10 @@ def makeNiceCounts(postProcessingPath,dataPath):
         NiceCounts.dat is counts file created by gathering output
         of featureCounts for all samples
     '''
-    if os.path.isdir(postProcessingPath) == False:
-        print("Path is not a directory:\n{}".format(postProcessingPath))
-        raise SystemExit
-    if os.path.isdir(dataPath) == False:
-        print("Path is not a directory:\n{}".format(dataPath))
-        raise SystemExit
+    if not os.path.isdir(postProcessingPath):
+        raise SystemExit("Path is not a directory:\n{}".format(postProcessingPath))
+    if not os.path.isdir(dataPath):
+        raise SystemExit("Path is not a directory:\n{}".format(dataPath))
     # Executing shell script
     subprocess.run(["formatFeatures.sh",postProcessingPath,dataPath],check=True)
     
@@ -491,12 +488,10 @@ def makeTotalTime(postProcessingPath,dataPath):
         
         Creates totalTime.dat by running getTotalTime.sh
     '''
-    if os.path.isdir(postProcessingPath) == False:
-        print("Path is not a directory:\n{}".format(postProcessingPath))
-        raise SystemExit
-    if os.path.isdir(dataPath) == False:
-        print("Path is not a directory:\n{}".format(dataPath))
-        raise SystemExit
+    if not os.path.isdir(postProcessingPath):
+        raise SystemExit("Path is not a directory:\n{}".format(postProcessingPath))
+    if not os.path.isdir(dataPath):
+        raise SystemExit("Path is not a directory:\n{}".format(dataPath))
     # Executing shell script
     subprocess.run(["getTotalTime.sh",postProcessingPath,dataPath],check=True)
 
@@ -516,8 +511,7 @@ def createColumnFile(postProcessingPath,jsonName='Metadata.json',columnName='Col
         Cols.dat is description file needed for R analysis
     '''
     if os.path.isdir(postProcessingPath) == False:
-        print("Path is not a directory:\n{}".format(postProcessingPath))
-        raise SystemExit
+        raise SystemExit("Path is not a directory:\n{}".format(postProcessingPath))
 
     os.chdir(postProcessingPath)
     makeCols.makeCols(makeCols.readJSON(jsonName),columnName)
