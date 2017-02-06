@@ -129,15 +129,19 @@ def main(arguments):
     t1 = timer()
 
     # Global Variables to be used in scripts
-    global noconfirm
-    noconfirm = arguments['--noconfirm']
-    global JSFI
+    global NOCONFIRM
+    NOCONFIRM = arguments['--noconfirm']
+    global JSFI # Metadata JSON file
     JSFI = arguments['--jsonfile']
+    global IS_REFERENCE_PREPARED
+    IS_REFERENCE_PREPARED = arguments['--use-reference']
 
     pipeClasses.JSFI = JSFI
-    pipeClasses.noconfirm = noconfirm
+    pipeClasses.NOCONFIRM = NOCONFIRM
+    pipeClasses.IS_REFERENCE_PREPARED = IS_REFERENCE_PREPARED
     pipeClasses.pipeUtils.JSFI = JSFI
-    pipeClasses.pipeUtils.noconfirm = noconfirm
+    pipeClasses.pipeUtils.NOCONFIRM = NOCONFIRM
+    pipeClasses.pipeUtils.IS_REFERENCE_PREPARED = IS_REFERENCE_PREPARED
 
     # Handling --stringtie
     def makeSTGlobal():
@@ -149,29 +153,23 @@ def main(arguments):
         if tmpStringtie != None:
             possiblePhases = ['a','b','c','ab','bc','abc']
             if tmpStringtie in possiblePhases:
-                global stringtie
-                stringtie = arguments['--stringtie']
-                pipeClasses.stringtie = stringtie
+                global STRINGTIE
+                STRINGTIE = arguments['--stringtie']
+                pipeClasses.STRINGTIE = STRINGTIE
             else:
                 raise SystemExit('Invalid argument to --stringtie: {}'.format(
                                                     tmpStringtie))
     makeSTGlobal()
 
-    # Checking --use-reference argument
-    def Ref():
-        if arguments['--use-reference']:
-            return True
-        return False
-
     # Handling --NUKE argument
     def deleteAll():
-        if arguments['--NUKE'] == True:
-            if noconfirm == True:
-                PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'],exists=Ref())
+        if arguments['--NUKE']:
+            if NOCONFIRM:
+                PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'])
                 PROJ.nukeProject()
                 raise SystemExit
             else:
-                PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'],exists=Ref())
+                PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'])
                 while True:
                     answer = input('Are you sure you wish to remove {}?(y/n) '.format(PROJ.Project))
                     if answer == 'y':
@@ -188,27 +186,24 @@ def main(arguments):
         possibleCleanArguments = ['All','Reference','Data','Postprocessing']
         if arguments['--clean'] != None:
             assert arguments['--clean'] in possibleCleanArguments, 'Invalid Cleaning Argument: Run runPipe.py -h for available arguments'
-            PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'],exists=Ref())
+            PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'])
             if arguments['--clean'] != 'All':
                 if arguments['--clean'] == 'Data':
-                    if os.path.isdir(PROJ.Data) == False:
-                        print('{} does not exist'.format(PROJ.Data))
-                        raise SystemExit
+                    if not os.path.isdir(PROJ.Data):
+                        raise SystemExit('{} does not exist'.format(PROJ.Data))
                 if arguments['--clean'] == 'Reference':
-                    if os.path.isdir(PROJ.Reference) == False:
-                        print('{} does not exist'.format(PROJ.Reference))
-                        raise SystemExit
+                    if not os.path.isdir(PROJ.Reference):
+                        raise SystemExit('{} does not exist'.format(PROJ.Reference))
                 if arguments['--clean'] == 'Postprocessing':
-                    if os.path.isdir(PROJ.Postprocessing) == False:
-                        print('{} does not exist'.format(PROJ.Postprocessing))
-                        raise SystemExit
+                    if not os.path.isdir(PROJ.Postprocessing):
+                        raise SystemExit('{} does not exist'.format(PROJ.Postprocessing))
             PROJ.clean(arguments['--clean'])
             raise SystemExit
         elif arguments['--sampleclean'] != None:
-            PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'],exists=Ref())
-            if os.path.isdir(str(PROJ.Data + '/' + arguments['--sampleclean'])) == False:
-                print('{} does not exist'.format(str(PROJ.Data + '/' + arguments['--sampleclean'])))
-                raise SystemExit
+            PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'])
+            if not os.path.isdir(str(PROJ.Data + '/' + arguments['--sampleclean'])):
+                raise SystemExit('{} does not exist'.format(str(PROJ.Data + '/' +
+                                                            arguments['--sampleclean'])))
             PROJ.clean('Sample',arguments['--sampleclean'])
             raise SystemExit
     Clean()
@@ -232,8 +227,8 @@ def main(arguments):
         if arguments['--batchjson'] != str(False):
             pipeClasses.checkJSON(arguments['--batchjson'])
         if arguments['--makebatchbiox']:
-            ExperimentClass.makeBatchBiox(exists=Ref(),jsonFile=arguments['--batchjson'])
-            raise SystemExit('Batch file successfully created:\n\t{0}/pipeBatch'.format(os.getcwd()))
+            ExperimentClass.makeBatchBiox(jsonFile=arguments['--batchjson'])
+            raise SystemExit('Batch file successfully created:\n\t{}/pipeBatch'.format(os.getcwd()))
         elif arguments['--makebatch'] != None:
             preNodes,Nodes = arguments['--makebatch'].split(','),[]
             for node in preNodes:
@@ -242,10 +237,10 @@ def main(arguments):
                                             arguments['--makebatch']))
                 Nodes.append(int(node))
             if arguments['--stringtie'] != None:
-                ExperimentClass.makeStringtieBatch(cluster=Nodes,exists=Ref(),jsonFile=arguments['--batchjson'])
+                ExperimentClass.makeStringtieBatch(cluster=Nodes,jsonFile=arguments['--batchjson'])
             else:
-                ExperimentClass.makeBatch(cluster=Nodes,exists=Ref(),jsonFile=arguments['--batchjson'])
-            raise SystemExit('Batch file successfully created:\n\t{0}/pipeBatch'.format(os.getcwd()))
+                ExperimentClass.makeBatch(cluster=Nodes,jsonFile=arguments['--batchjson'])
+            raise SystemExit('Batch file successfully created:\n\t{}/pipeBatch'.format(os.getcwd()))
 
     # Returning a maximum CPU value if given
     def checkMaxCPU():
@@ -263,7 +258,7 @@ def main(arguments):
                             arguments['--maxcpu']))
 
     # Inititiating a class instance
-    PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'], maxCPU=checkMaxCPU(), exists=Ref())
+    PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'], maxCPU=checkMaxCPU())
 
     # Inititiating a Runtime Log global location
     global RUNTIMELOG
@@ -326,9 +321,8 @@ def main(arguments):
         if len(executionStages) == 0:
             print('Argument not valid: {}'.format(
                     arguments['--execute']))
-            print('Possible arguments for --execute: {}'.format(
-                    ','.join(possibleStages)))
-            raise SystemExit
+            raise SystemExit('Possible arguments for --execute: {}'.format(
+                            ','.join(possibleStages)))
         if len(set(executionStages)) != len(executionStages):
             print('Argument not valid: {}'.format(
                     arguments['--execute']))
@@ -339,9 +333,8 @@ def main(arguments):
             if stage not in possibleStages:
                 print('Argument not valid: {}'.format(
                         arguments['--execute']))
-                print('Possible arguments for --execute: {}'.format(
-                        ','.join(possibleStages)))
-                raise SystemExit
+                raise SystemExit('Possible arguments for --execute: {}'.format(
+                                ','.join(possibleStages)))
         return executionStages
 
     # Final Execution
@@ -365,16 +358,14 @@ def main(arguments):
                 for stageNumber in executionStages:
                     if str(stageNumber) == '5':
                         runR(ExperimentClass)
-                    elif str(stageNumber) == '1' or str(stageNumber) == '2':
-                        exec('ExperimentClass.runStage{}({})'.format(stageNumber,Ref()))
                     else:
                         exec('ExperimentClass.runStage{}()'.format(stageNumber))
         else:
             if not os.path.exists(ExperimentClass.Data):
-                ExperimentClass.runStage1(Ref())
+                ExperimentClass.runStage1()
             if not os.path.exists(ExperimentClass.Reference + '/{}'.format(
                                                         'Reference_Report.txt')):
-                ExperimentClass.runStage2(Ref())
+                ExperimentClass.runStage2()
             for sample in executionSamples:
                 ExperimentClass.executeSample(int(sample))
             if ExperimentClass.is3Finished():
@@ -409,11 +400,12 @@ def side(arguments):
         Runs Alternate Analysis
     '''                              
     if arguments['--reference-qc'] != None:
-        noconfirm = arguments['--noconfirm']
-        pipeClasses.pipeUtils.noconfirm = noconfirm
+        NOCONFIRM = arguments['--noconfirm']
+        pipeClasses.pipeUtils.NOCONFIRM = NOCONFIRM
         Init = arguments['--reference-qc']+'/.init'
         if not os.path.exists(Init):
-            Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(arguments['--reference-qc'])
+            Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(
+                                                    arguments['--reference-qc'])
             with open(Init,'w') as f:
                 f.write('\n'.join([Gtf,Cdna,Genome]))
         else:
@@ -425,11 +417,12 @@ def side(arguments):
         pipeClasses.pipeUtils.qcReference(arguments['--reference-qc'],Genome)
         raise SystemExit
     if arguments['--reference-pp'] != None:
-        noconfirm = arguments['--noconfirm']
-        pipeClasses.pipeUtils.noconfirm = noconfirm
+        NOCONFIRM = arguments['--noconfirm']
+        pipeClasses.pipeUtils.NOCONFIRM = NOCONFIRM
         Init = arguments['--reference-pp']+'/.init'
         if not os.path.exists(Init):
-            Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(arguments['--reference-pp'])
+            Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(
+                                                    arguments['--reference-pp'])
             with open(Init,'w') as f:
                 f.write('\n'.join([Gtf,Cdna,Genome]))
         else:
@@ -439,7 +432,8 @@ def side(arguments):
             Cdna = Stuff[1].rstrip('\n')
             Genome = Stuff[2].rstrip('\n')
         Basename = pipeClasses.pipeUtils.getBasename(Genome)
-        pipeClasses.pipeUtils.preProcessingReference(arguments['--reference-pp'],Cdna,Gtf,Genome,Basename)
+        pipeClasses.pipeUtils.preProcessingReference(arguments['--reference-pp'],
+                                                    Cdna,Gtf,Genome,Basename)
         raise SystemExit
 
 # Evaluating which analysis to run
