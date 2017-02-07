@@ -324,12 +324,12 @@ class Experiment:
         '''
         assert type(subject) == int, 'Need an int argument as a subject to create'
         if subject == 0:
-            Samples = [Experiment.Sample(n, self.inputPath, maxCPU=self.Procs) for n
-                    in range(1,self.getNumberofSamples() + 1)]
-            return Samples
+            experimentSamples = [Sample(n, self.inputPath, maxCPU=self.Procs)
+                        for n in range(1,self.getNumberofSamples() + 1)]
+            return experimentSamples
         else:
-            Sample = Experiment.Sample(subject, self.inputPath, maxCPU=self.Procs)
-            return Sample
+            experimentSample = Experiment.Sample(subject, self.inputPath, maxCPU=self.Procs)
+            return experimentSample
 
     ############################################################
     def runSample(self, sample, stPhase=None):
@@ -364,8 +364,8 @@ class Experiment:
             else:
                 name = 'sample_{:02g}'.format(subject)
                 if os.path.exists(self.Data + '/' + name):
-                    Sample = self.createSampleClasses(subject)
-                    self.runSample(Sample)
+                    experimentSample = self.createSampleClasses(subject)
+                    self.runSample(experimentSample)
         else:
             for phase in STRINGTIE:
                 nextPhase = self.runStringtiePhase()
@@ -387,8 +387,8 @@ class Experiment:
                         else:
                             name = 'sample_{:02g}'.format(subject)
                             if os.path.exists(self.Data + '/' + name):
-                                Sample = self.createSampleClasses(subject)
-                                self.runSample(Sample,stPhase=nextPhase)
+                                experimentSample = self.createSampleClasses(subject)
+                                self.runSample(experimentSample,stPhase=nextPhase)
             
  
     ############################################################
@@ -539,6 +539,7 @@ wait
 # Stage 5
 {STAGE5}
 
+wait
 scontrol show job $SLURM_JOB_ID
 wait
 """
@@ -619,6 +620,7 @@ wait
 # Stage 5
 {STAGE5}
 
+wait
 scontrol show job $SLURM_JOB_ID
 wait
 """
@@ -696,6 +698,14 @@ wait
 {STAGE3c}
 wait
 
+# Stage 4
+{STAGE4}
+wait
+
+# Stage 5
+{STAGE5}
+wait
+
 scontrol show job $SLURM_JOB_ID
 wait
 """
@@ -721,10 +731,8 @@ wait
                 sampleNum += Sstep
             return command3
         command3b = 'srun -N1 -c{1} -n1 --exclusive runPipe --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 3 --stringtie b "${{inputFile}}"'.format(ref, max(cluster))
-        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
-        command5a = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --edger "${{inputFile}}" &'.format(ref)
-        command5b = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --deseq "${{inputFile}}" &'.format(ref)
-        command5 = command5a + '\n' + command5b
+        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 --stringtie abc "${{inputFile}}"'.format(ref)
+        command5 = 'srun -N1 -c{1} -n1 --exclusive runPipe --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 5 --stringtie abc "${{inputFile}}"'.format(ref, max(cluster))
         Context = {
                 "NODES": len(cluster),
                 "CPT": bestPath['Step 1']['Procs'],

@@ -70,6 +70,10 @@ function makeRefSyms {
     
     	ln -s "${file}" "${Reference}"/"${name}"
     done
+
+    if [ -f "${ogReference}/.init" ]; then
+        ln -s "${ogReference}/.init" "${Reference}/.init"
+    fi
 }
 function makeJsonSym {
     local JSONfile=$1
