@@ -556,8 +556,6 @@ def makeRreports(postProcessingPath):
     if not NOCONFIRM:
         if not os.path.isdir(postProcessingPath):
             raise SystemExit("Path is not a directory:\n{}".format(postProcessingPath))
-        if 'totalTime.dat' not in os.listdir(postProcessingPath):
-            raise SystemExit("{} is not in {}".format('totalTime.dat',postProcessingPath))
         if 'Cols.dat' not in os.listdir(postProcessingPath):
             raise SystemExit("{} is not in {}".format('Cols.dat',postProcessingPath))
         if 'Counts.dat' not in os.listdir(postProcessingPath):
@@ -620,8 +618,6 @@ def makeEdgeRreport(postProcessingPath):
     if not NOCONFIRM:
         if not os.path.isdir(postProcessingPath):
             raise SystemExit("Path is not a directory:\n{}".format(postProcessingPath))
-        if 'totalTime.dat' not in os.listdir(postProcessingPath):
-            raise SystemExit("{} is not in {}".format('totalTime.dat',postProcessingPath))
         if 'Cols.dat' not in os.listdir(postProcessingPath):
             raise SystemExit("{} is not in {}".format('Cols.dat',postProcessingPath))
         if 'Counts.dat' not in os.listdir(postProcessingPath):

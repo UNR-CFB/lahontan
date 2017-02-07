@@ -5,7 +5,7 @@
 Options:
     -h --help           Show this screen
     -j <jsonfile>       Optional name of JSON file to be read [default: Metadata.json]
-    -t <tofile>         Optional name of R report script [default: makeReport.r]
+    -t <tofile>         Optional name of R report script [default: runBallgown.r]
 '''
 
 ################################################################
@@ -21,7 +21,7 @@ import os
 
 ################################################################
 
-def createRscript(jsontoRead,name):
+def createRBallgownScript(jsontoRead,name):
     ''' Arguments:
             jsontoRead = str; name of JSON Metadata file
                 [default: Metadata.json]
@@ -29,7 +29,7 @@ def createRscript(jsontoRead,name):
         Returns:
             None
 
-        Creates DESeq2 analysis script by filling in a template
+        Creates Ballgown analysis script by filling in a template
     '''
     scriptTemplate = """'Usage: makeBallgown.r [-h | --help] [-p </path/to/data>] [--counts <name>] [--cols <name>]
 
@@ -68,11 +68,11 @@ stringtieDataFiltered <- subset(stringtieData, "rowVars(texpr(stringtieData)) > 
 
 # DE by transcript
 results_transcripts <- stattest(stringtieDataFiltered, feature='transcript', covariate={mainfeature},
-         adjustvars=c('population'{secondaryfeatures}), getFC=TRUE, meas='FPKM')
+         {secondaryfeatures}getFC=TRUE, meas='FPKM')
 
 # DE by gene
 results_genes <-  stattest(stringtieDataFiltered, feature='gene', covariate={mainfeature},
-         adjustvars=c('population'{secondaryfeatures}), getFC=TRUE, meas='FPKM')
+         {secondaryfeatures}getFC=TRUE, meas='FPKM')
 
 # Add gene name
 results_transcripts <- data.frame(geneNames=ballgown::geneNames(stringtieDataFiltered),
@@ -83,8 +83,8 @@ results_transcripts <- arrange(results_transcripts, pval)
 results_genes <-  arrange(results_genes, pval)
 
 # Write results to CSV
-write.csv(results_transcripts, "chrX_transcripts_results.csv"<name>, row.names=FALSE)
-write.csv(results_genes, "chrX_genes_results.csv"<name>, row.names=FALSE)
+write.csv(results_transcripts, {transcriptresultsfile}, row.names=FALSE)
+write.csv(results_genes, {generesultsfile}, row.names=FALSE)
 
 # Filter for genes with q-val <0.05
 subset(results_transcripts, results_transcripts$qval <=0.05)
@@ -121,66 +121,44 @@ detach('package:dplyr')
 detach('package:devtools')
 
 # Make file to notify when done
-fileConn <- file("FINISHED.txt")
-writeLines("We are finished", fileConn)
-close(fileConn)
+#fileConn <- file("FINISHED.txt")
+#writeLines("We are finished", fileConn)
+#close(fileConn)
 """
-    factorlist,formulalistplus,formulalistcomma,mainFeature,factorizeFeatures = getContext(jsontoRead)
+    mainFeature, secondaryFeatures = getContext(jsontoRead)
     Context = {
-            "mainfeature": mainFeature,
-
+            "mainfeature": '"{}"'.format(mainFeature),
+            "secondaryfeatures": secondaryFeatures,
+            "transcriptresultsfile": '"ballgownTranscriptsResults.csv"',
+            "generesultsfile":  '"ballgownGeneResults.csv"'
             }
     with open(name,'w') as f:
-        f.write(makeReportsTemplate.format(**Context))
+        f.write(scriptTemplate.format(**Context))
 
 def getContext(jsontoRead):
     ''' Arguments:
             jsontoRead = str; name of JSON Metadata file
                             [default: Metadata.json]
         Returns:
-            factorlist,formulalistplus,formulalistcomma,mainFeature
-            = tuple containing:
-                factorlist = str; the list of features to be analyzed
-                                by DESeq2
-                formulalistplus = str; formula to be analyzed
-                formulalistcomma = str; list of factors to be analyzed
+            tuple containing:
                 mainFeature = str; name of mainFeature
 
-        Scrapes Metadata for context to be filled into DESeq2
+        Scrapes Metadata for context to be filled into ballgown
         template
     '''
     Metadata = jsontoRead
     mainFeature = Metadata['MainFeature']
     featureNames = Metadata['FeatureNames']
 
-    factorizeFeatures = ['# Factorize the features']
-    for feature in featureNames:
-        factorizeFeatures.append('colData${0} <- factor(colData${0})'.format(feature))
-    factorFeats = '\n'.join(factorizeFeatures)
+    featureNames.remove(mainFeature)
+    if len(featureNames) > 0:
+        secondaryFeatures = 'adjustvars=c("' + '","'.join(featureNames) + '"), '
+    else:
+        secondaryFeatures = ''
 
-    with open('Cols.dat','r') as f:
-        colData = csv.reader(f,dialect='unix',delimiter='\t')
-        x = []
-        for row in colData:
-            x.append(row)
-
-    formulalist = x[0][:]
-    formulalistp = list(reversed(formulalist))
-    x[0].insert(0,'Samples')
-
-    z = list(zip(*x))
-    for group in z:
-        if str(group[0]) == str(mainFeature):
-            realgroup = list(group)[1:]
-            uniquesetj = set(realgroup)
-            uniquelist = list(uniquesetj)
-
-    factorlist = ','.join('"{0}"'.format(a) for a in uniquelist)
-    formulalistcomma = ','.join('"{0}"'.format(b) for b in formulalist)
-    formulalistplus = ' + '.join(formulalistp)
-    return factorlist,formulalistplus,formulalistcomma,mainFeature,factorFeats
+    return mainFeature, secondaryFeatures
 
 ################################################################
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='1.0')
-    createRscript(makeCols.readJSON(arguments['-j']),arguments['-t'])
+    createRBallgownScript(makeCols.readJSON(arguments['-j']),arguments['-t'])

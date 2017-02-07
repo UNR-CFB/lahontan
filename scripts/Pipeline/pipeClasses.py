@@ -36,6 +36,7 @@ import shutil
 import glob
 import json
 import re
+import makeBallgownScript
 
 ################################################################
 # Utilities
@@ -1052,7 +1053,7 @@ wait
             Returns:
                 correctCommand = string; the command to be subprocessed
         '''
-        correctCommand = r'{{ time {0}; }} >> {1} 2>&1'.format(command, logfile)
+        correctCommand = r'{{ time -p {0}; }} >> {1} 2>&1'.format(command, logfile)
         return correctCommand
 
     def makeStringtieMergelist(self):
@@ -1235,11 +1236,19 @@ wait
                 except:
                     pass
             for ctab in glob.glob(os.path.join(sample, '*ctab')):
-                os.symlink(ctab, os.path.join(sampleResults, os.path.basename(ctab)))
+                try:
+                    os.symlink(ctab, os.path.join(sampleResults, os.path.basename(ctab)))
+                except FileExistsError:
+                    print('Symbolic link failed since' + 
+                            ' {} already exists in StringtieResults'.format(ctab))
             goodSampleGtf = os.path.join(sample, '{}.good.st.gtf'.format(os.path.basename(sample)))
             if os.path.exists(goodSampleGtf):
-                os.symlink(goodSampleGtf,
-                            os.path.join(sampleResults, os.path.basename(goodSampleGtf)))
+                try:
+                    os.symlink(goodSampleGtf,
+                                os.path.join(sampleResults, os.path.basename(goodSampleGtf)))
+                except FileExistsError:
+                    print('Symbolic link failed since' + 
+                            ' {} already exists in StringtieResults'.format(ctab))
 
     def createBallgownCols(self, jsonName='Metadata.json', columnName='Cols.dat'):
         ''' Arguments:
@@ -1250,7 +1259,30 @@ wait
         jsonFile = os.path.join(self.Postprocessing, jsonName)
         colFile = os.path.join(self.Postprocessing, columnName)
         pipeUtils.makeCols.makeStringtieCols(pipeUtils.makeCols.readJSON(jsonFile), colFile)
- 
+
+    def createBallgownScript(self, jsonName='Metadata.json', programName='runBallgown.r'):
+        ''' Arguments:
+                None
+            Returns:
+                None
+        '''
+        jsonFile = os.path.join(self.Postprocessing, jsonName)
+        programFile = os.path.join(self.Postprocessing, programName)
+        makeBallgownScript.createRBallgownScript(pipeUtils.makeCols.readJSON(jsonFile), programFile) 
+
+    @funTime
+    def runBallgownAnalysis(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+        '''
+        os.chdir(self.Postprocessing)
+        ballgownCommand = r'''{ time -p Rscript "runBallgown.r"; } > runBallgownTime.log 2>&1'''
+        subprocess.run(ballgownCommand,
+                            shell=True,
+                            check=True)
+
     ################################################################
     # Cleaning Functions
     ################################################################
@@ -1384,6 +1416,7 @@ wait
                 if "STRINGTIE" in globals():
                     self.organizeInPostprocessing()
                     self.createBallgownCols()
+                    self.createBallgownScript()
                 else:
                     self.createNiceCounts()
                     self.createRCounts()
@@ -1399,8 +1432,11 @@ wait
         '''
         Run R Analysis
         '''
-        self.runRProgram()
-        self.findRFinish()
+        if "STRINGTIE" in globals():
+            self.runBallgownAnalysis()
+        else:
+            self.runRProgram()
+            self.findRFinish()
 
     @funTime
     def runAll(self):
@@ -1472,7 +1508,7 @@ class Sample:
                 returns:
                     '{ time fastqc -t 48 -o /home/alberton/Version1.1_test2/Data/sample_01/fastqc.sample_01 *.fastq.gz; } >> /home/alberton/Version1.1_test2/Data/sample_01/Runtime.sample_01.log 2>&1'
         '''
-        correctCommand = r'{{ time {0}; }} >> {1} 2>&1'.format(Command, self.logPath)
+        correctCommand = r'{{ time -p {0}; }} >> {1} 2>&1'.format(Command, self.logPath)
         return correctCommand
 
     def getHostname(self):
