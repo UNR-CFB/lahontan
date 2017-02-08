@@ -328,7 +328,7 @@ class Experiment:
                         for n in range(1,self.getNumberofSamples() + 1)]
             return experimentSamples
         else:
-            experimentSample = Experiment.Sample(subject, self.inputPath, maxCPU=self.Procs)
+            experimentSample = Sample(subject, self.inputPath, maxCPU=self.Procs)
             return experimentSample
 
     ############################################################
