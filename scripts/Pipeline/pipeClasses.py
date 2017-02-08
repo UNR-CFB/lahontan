@@ -630,7 +630,7 @@ wait
         else:
             ref = ' --use-reference'
         command12 = 'srun -N1 -c1 -n1 runPipe --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
-        bestPath = self.getOptimal(cluster,behavior='non',jsonPath=jsonFile)
+        bestPath = self.getOptimal(cluster,behavior='non-default',jsonPath=jsonFile)
         command3,counter,sampleNum = '',1,1
         for path in sorted(bestPath):
             Pstep = bestPath[path]['Procs']
@@ -715,7 +715,7 @@ wait
         else:
             ref = ' --use-reference'
         command12 = 'srun -N1 -c1 -n1 runPipe --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
-        bestPath = self.getOptimal(cluster,behavior='non',jsonPath=jsonFile)
+        bestPath = self.getOptimal(cluster,behavior='non-default',jsonPath=jsonFile)
         def getStage3(phase):
             # For Phase a and c
             command3,counter,sampleNum = '',1,1
@@ -1190,7 +1190,7 @@ wait
             nextPhase = 'DONE'
         return nextPhase
 
-    def runStringtiePhase(self):
+    def runStringtiePhase(self, behavior='default'):
         ''' Arguments:
                 None
             Returns:
@@ -1204,7 +1204,8 @@ wait
             if STRINGTIE == nextPhase:
                 runPhase = nextPhase
             else:
-                raise SystemExit('Cannot run --stringtie {}\nPlease run --stringtie {} first for all samples'.format(STRINGTIE,nextPhase))
+                if behavior == 'default':
+                    raise SystemExit('Cannot run --stringtie {}\nPlease run --stringtie {} first for all samples'.format(STRINGTIE,nextPhase))
         elif nextPhase in STRINGTIE:
             runPhase = nextPhase
         else:
@@ -1387,7 +1388,7 @@ wait
         self.makeNotifyFolder()
         self.GO()
         if "STRINGTIE" in globals():
-            stringtieStatus = self.runStringtiePhase()
+            stringtieStatus = self.runStringtiePhase(behavior='non-default')
             if stringtieStatus == 'DONE' or stringtieStatus == 'c':
                 self.findPipeFinish()
         else:
@@ -2234,7 +2235,7 @@ class Sample:
 
             if stringtiePhase == 'a':
                 if not os.path.exists(sampleGTF):
-                    #self.runPart1()
+                    self.runPart1()
                     self.stringtiePart2a()
                 else:
                     raise SystemExit('{} exists\nCannot overwrite without --noconfirm'.format(

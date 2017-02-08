@@ -31,10 +31,10 @@ def createRBallgownScript(jsontoRead,name):
 
         Creates Ballgown analysis script by filling in a template
     '''
-    scriptTemplate = """'Usage: makeBallgown.r [-h | --help] [-p </path/to/data>] [--counts <name>] [--cols <name>]
+    scriptTemplate = """'Usage: runBallgown.r [-h | --help] [-p </path/to/data>] [--counts <name>] [--cols <name>]
 
 Example:
-Rscript makeBallgown.r -p /path/to/project --cols ColumnsName
+Rscript runBallgown.r -p /path/to/project --cols ColumnsName
 
 Options:
     -h --help           Show this
