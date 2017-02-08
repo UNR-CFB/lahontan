@@ -29,6 +29,8 @@ Options:
         options in which case use: "--execute 4 --stringtie abc"
         Note: If you will be running phase b, you cannot specify
         a sample to run with --runsample
+    -k, --kallisto
+        Use kallisto tools to replace featureCounts and hisat2.
     -c <placeToClean>, --clean <placeToClean>
         Cleans <placeToClean>; Possible places include:
             Reference
@@ -160,6 +162,19 @@ def main(arguments):
                 raise SystemExit('Invalid argument to --stringtie: {}'.format(
                                                     tmpStringtie))
     makeSTGlobal()
+
+    # Handling --kallisto
+    def makeKallistoGlobal():
+        '''
+            If --kallisto option given, same behavior as
+            without except Stage 3 is different.
+        '''
+        tmpKallisto = arguments['--kallisto']
+        if tmpKallisto:
+            global KALLISTO
+            KALLISTO = arguments['--kallisto']
+            pipeClasses.KALLISTO = KALLISTO
+    makeKallistoGlobal()
 
     # Handling --NUKE argument
     def deleteAll():
@@ -363,8 +378,9 @@ def main(arguments):
         else:
             if not os.path.exists(ExperimentClass.Data):
                 ExperimentClass.runStage1()
-            if not os.path.exists(ExperimentClass.Reference + '/{}'.format(
-                                                        'Reference_Report.txt')):
+            if "KALLISTO" in globals():
+                ExperimentClass.runStage2()
+            elif not os.path.exists(os.path.join(ExperimentClass.Reference,'Reference_Report.txt')):
                 ExperimentClass.runStage2()
             for sample in executionSamples:
                 ExperimentClass.executeSample(int(sample))
@@ -434,6 +450,8 @@ def side(arguments):
         Basename = pipeClasses.pipeUtils.getBasename(Genome)
         pipeClasses.pipeUtils.preProcessingReference(arguments['--reference-pp'],
                                                     Cdna,Gtf,Genome,Basename)
+        if arguments['--kallisto']:
+            pipeClasses.buildKallistoIndex()
         raise SystemExit
 
 # Evaluating which analysis to run

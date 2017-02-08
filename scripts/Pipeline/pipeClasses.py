@@ -332,7 +332,8 @@ class Experiment:
             return experimentSample
 
     ############################################################
-    def runSample(self, sample, stPhase=None):
+    # @@
+    def runSample(self, sample, stPhase=None, kalli=False):
         ''' Arguments:
                 sample = class; runs pipeline on sample
             Returns:
@@ -342,7 +343,7 @@ class Experiment:
             Function used in multiprocessing as map function on
                 self.createSampleClasses() list
         '''
-        sample.runParts(stPhase)
+        sample.runParts(stPhase, kalli)
 
     @funTime
     def GO(self,subject=0):
@@ -355,18 +356,7 @@ class Experiment:
             CPUs
         '''
         assert type(subject) == int, 'Need an int argument as a subject to create'
-        if "STRINGTIE" not in globals():
-            if subject == 0:
-                self.makeNotifyFolder()
-                Samples = self.createSampleClasses()
-                with multiprocessing.Pool(self.Procs) as p:
-                    p.map(unwrap_self_runSample, zip([self]*len(Samples), Samples))
-            else:
-                name = 'sample_{:02g}'.format(subject)
-                if os.path.exists(self.Data + '/' + name):
-                    experimentSample = self.createSampleClasses(subject)
-                    self.runSample(experimentSample)
-        else:
+        if "STRINGTIE" in globals():
             for phase in STRINGTIE:
                 nextPhase = self.runStringtiePhase()
                 if nextPhase == 'DONE':
@@ -379,6 +369,8 @@ class Experiment:
                         else:
                             Samples = self.createSampleClasses()
                             with multiprocessing.Pool(self.Procs) as p:
+                                # Have to use partial in order to get optional argument into
+                                # multiprocessing
                                 p.map(partial(unwrap_self_runSample, stPhase=nextPhase),
                                         zip([self]*len(Samples), Samples))
                     else:
@@ -386,10 +378,32 @@ class Experiment:
                             raise SystemExit('Cannot specify a single sample with --stringtie b')
                         else:
                             name = 'sample_{:02g}'.format(subject)
-                            if os.path.exists(self.Data + '/' + name):
+                            if os.path.exists(os.path.join(self.Data,name)):
                                 experimentSample = self.createSampleClasses(subject)
                                 self.runSample(experimentSample,stPhase=nextPhase)
-            
+        elif "KALLISTO" in globals():
+            if subject == 0:
+                self.makeNotifyFolder()
+                Samples = self.createSampleClasses()
+                with multiprocessing.Pool(self.Procs) as p:
+                    p.map(partial(unwrap_self_runSample, kalli=KALLISTO),
+                            zip([self]*len(Samples), Samples))
+            else:
+                name = 'sample_{:02g}'.format(subject)
+                if os.path.exists(self.Data + '/' + name):
+                    experimentSample = self.createSampleClasses(subject)
+                    self.runSample(experimentSample, kalli=KALLISTO)
+        else:
+            if subject == 0:
+                self.makeNotifyFolder()
+                Samples = self.createSampleClasses()
+                with multiprocessing.Pool(self.Procs) as p:
+                    p.map(unwrap_self_runSample, zip([self]*len(Samples), Samples))
+            else:
+                name = 'sample_{:02g}'.format(subject)
+                if os.path.exists(self.Data + '/' + name):
+                    experimentSample = self.createSampleClasses(subject)
+                    self.runSample(experimentSample)
  
     ############################################################
 
@@ -1140,8 +1154,7 @@ wait
     def allSampleLookup(self, fileTemplate):
         ''' Arguments:
                 fileTemplate = str; with {} inside which represents
-                                sampleName
-            Returns:
+                                sampleName Returns:
                 None
         '''
         boolTable = []
@@ -1293,6 +1306,31 @@ wait
                             check=True)
 
     ################################################################
+    # Kallisto Utilities
+    ################################################################
+
+    @funTime
+    def buildKallistoIndex(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+        '''
+        logFile = os.path.join(self.Reference, 'KallistoRuntime.log')
+        # Making Command
+        command = r"kallisto index -i {basename}.kali.dna.fa.idx {cdna}"
+        context = {
+                "cdna": self.Cdna,
+                "basename": self.Basename
+                }
+        goodCommand = self.redirectSTDERR(command.format(**context), logFile)
+        # Executing
+        os.chdir(self.Reference)
+        subprocess.run(goodCommand,
+                            shell=True,
+                            check=True)
+
+    ################################################################
     # Cleaning Functions
     ################################################################
 
@@ -1378,6 +1416,8 @@ wait
         if not IS_REFERENCE_PREPARED:
             self.qcRef()
             self.ppRef()
+        if "KALLISTO" in globals():
+            self.buildKallistoIndex()
 
     @funTime
     def runStage3(self):
@@ -2133,6 +2173,63 @@ class Sample:
             N.write('{} is done'.format(self.samplePath))
 
     ########################################################
+    # Kallisto
+    ########################################################
+
+    def runKallisto(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+        '''
+        self.writeFunctionHeader('runKallisto')
+        kallistoOutputDir = os.path.join(self.samplePath, '{}KallistoOutput')
+        # Making Command
+        command = r"kallisto quant -i {transcriptindex} -o {ouputdir} -b 100 <(zcat read1.P.trim.{fastq}.gz) <(zcat read2.P.trim.{fastq}.gz)" 
+        context = {
+                "transcriptindex": os.path.join(self.Reference, '{}.kali.dna.fa.idx'.format(
+                                                                            self.Basename)),
+                "outputdir": kallistoOuputDir,
+                "fastq": self.Fastq
+                }
+        goodCommand = self.formatCommand(command.format(**context))
+        # Executing
+        if not os.path.isdir(kallistoOutputDir):
+            try:
+                os.mkdir(kallistoOutputDir)
+            except:
+                pass
+        os.chdir(self.samplePath)
+        self.writeFunctionCommand(goodCommand)
+        subprocess.run(goodCommand,
+                            shell=True,
+                            check=True)
+        self.writeFunctionTail('runKallisto')
+
+    def runPart2Kallisto(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Runs Pipeline sequentially
+            Note: Does not include Quality control steps: Fastqc and trimmomatic
+        '''
+        os.chdir(self.samplePath)
+        with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'a') as LOG:
+            LOG.write('\t\tRuntime Log Part 2 for {}\n'.format(self.sampleName))
+            LOG.write('----------------------------------------\n\n')
+        self.runSeqtk()
+        self.runBlastn()
+        self.runKallisto()
+        self.writeFunctionTail('runPart2')
+        with open(self.Project + '/runPipeNotify/{}'.format('done'+self.sampleName), 'w') as N:
+            N.write('{} is done'.format(self.samplePath))
+        with open(self.samplePath + '/.done', 'w') as N:
+            N.write('{} is done'.format(self.samplePath))
+ 
+    ########################################################
     # Gathering Data (for non-stringtie)
     ########################################################
 
@@ -2208,7 +2305,7 @@ class Sample:
         with open(self.samplePath + '/.done', 'w') as N:
             N.write('{} is done'.format(self.samplePath))
     
-    def runParts(self,stringtiePhase=None):
+    def runParts(self,stringtiePhase=None,kallisto=False):
         ''' Arguments:
                 None
             Returns:
@@ -2224,7 +2321,10 @@ class Sample:
                 self.stringtiePart2c()
             if stringtiePhase == None:
                 self.runPart1()
-                self.runPart2()
+                if kallisto:
+                    self.runPart2Kallisto()
+                else:
+                    self.runPart2()
         else:
             projectName = os.path.basename(self.Project)
             stMergeDir = self.Postprocessing + '/StringtieMerge'
@@ -2249,7 +2349,10 @@ class Sample:
             elif stringtiePhase == None:
                 if not os.path.exists(sampleGTF):
                     self.runPart1()
-                    self.runPart2()
+                    if kallisto:
+                        self.runPart2Kallisto()
+                    else:
+                        self.runPart2()
                 else:
                     raise SystemExit('Stringtie Pipeline has already been started\n' + 
                                     'Cannot run without --noconfirm')
