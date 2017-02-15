@@ -52,15 +52,20 @@ def exportVariablesforClass(pathtoInput,maxCPU=None):
         Gathers instance variables for Experiment Class
     '''
     Project, Reference, Original = pipeUtils.sourceInput(pathtoInput)
-    if not IS_REFERENCE_PREPARED:
-        Gtf, Cdna, Genome = pipeUtils.getReferenceVariables(Reference)
-    else:
+    def readInit():
         Init = Reference + '/.init'
         with open(Init,'r') as f:
             Stuff = f.readlines()
         Gtf = Stuff[0].rstrip('\n')
         Cdna = Stuff[1].rstrip('\n')
         Genome = Stuff[2].rstrip('\n')
+        return Gtf, Cdna, Genome
+    if IS_REFERENCE_PREPARED:
+        Gtf, Cdna, Genome = readInit()
+    elif os.path.exists(os.path.join(Reference, '.init')):
+        Gtf, Cdna, Genome = readInit()
+    else:
+        Gtf, Cdna, Genome = pipeUtils.getReferenceVariables(Reference)
     Basename = pipeUtils.getBasename(Genome)
     Fastq = pipeUtils.getFastq(Original)
     Procs = pipeUtils.countCPU(maxCPU)
@@ -1238,7 +1243,7 @@ wait
     # Gathering Data (for stringtie)
     ########################################################
 
-    def organizeInPostprocessing(self):
+    def organizeStringtieOutput(self):
         ''' Arguments:
                 None
             Returns:
@@ -1330,6 +1335,31 @@ wait
                             shell=True,
                             check=True)
 
+    
+    def organizeKallistoOutput(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+        '''
+        resultsDirectory = os.path.join(self.Postprocessing, 'KallistoResults')
+        if not os.path.isdir(resultsDirectory):
+            try:
+                os.mkdir(resultsDirectory)
+            except:
+                pass
+        for sample in glob.glob(os.path.join(self.Data,'sample*')):
+            sampleResults = os.path.join(resultsDirectory, os.path.basename(sample))
+            kallistoOutput = os.path.join(sample, "KallistoOutput.{}".format(os.path.basename(sample)))
+            linkCommand = r"ln -sr {} {}".format(kallistoOutput, sampleResults)
+            if not os.path.isdir(sampleResults):
+                try:
+                    subprocess.run(linkCommand,
+                                        shell=True,
+                                        check=True)
+                except:
+                    pass
+
     ################################################################
     # Cleaning Functions
     ################################################################
@@ -1416,8 +1446,8 @@ wait
         if not IS_REFERENCE_PREPARED:
             self.qcRef()
             self.ppRef()
-        if "KALLISTO" in globals():
-            self.buildKallistoIndex()
+            if "KALLISTO" in globals():
+                self.buildKallistoIndex()
 
     @funTime
     def runStage3(self):
@@ -1455,7 +1485,7 @@ wait
         '''
         while True:
             if self.is3Finished() or self.checkEach():
-                time.sleep(10)
+                #time.sleep(10)
                 print('Preparing for R analysis...')
                 if os.path.isdir(os.path.join(self.Project,'runPipeNotify')):
                     shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
@@ -1463,9 +1493,11 @@ wait
                 self.gatherAllSampleOverrep(2)
                 self.createJsonMetadata()
                 if "STRINGTIE" in globals():
-                    self.organizeInPostprocessing()
+                    self.organizeStringtieOutput()
                     self.createBallgownCols()
                     self.createBallgownScript()
+                elif "KALLISTO" in globals():
+                    self.organizeKallistoOutput()
                 else:
                     self.createNiceCounts()
                     self.createRCounts()
@@ -2184,13 +2216,14 @@ class Sample:
 
         '''
         self.writeFunctionHeader('runKallisto')
-        kallistoOutputDir = os.path.join(self.samplePath, '{}KallistoOutput')
+        kallistoOutputDir = os.path.join(self.samplePath, 'KallistoOutput.{}'.format(
+                                                            self.sampleName))
         # Making Command
-        command = r"kallisto quant -i {transcriptindex} -o {ouputdir} -b 100 <(zcat read1.P.trim.{fastq}.gz) <(zcat read2.P.trim.{fastq}.gz)" 
+        command = r"kallisto quant -i {transcriptindex} -o {outputdir} -b 100 <( zcat read1.P.trim.{fastq}.gz ) <( zcat read2.P.trim.{fastq}.gz )" 
         context = {
                 "transcriptindex": os.path.join(self.Reference, '{}.kali.dna.fa.idx'.format(
                                                                             self.Basename)),
-                "outputdir": kallistoOuputDir,
+                "outputdir": kallistoOutputDir,
                 "fastq": self.Fastq
                 }
         goodCommand = self.formatCommand(command.format(**context))
@@ -2204,7 +2237,8 @@ class Sample:
         self.writeFunctionCommand(goodCommand)
         subprocess.run(goodCommand,
                             shell=True,
-                            check=True)
+                            check=True,
+                            executable="/bin/bash")
         self.writeFunctionTail('runKallisto')
 
     def runPart2Kallisto(self):

@@ -419,7 +419,9 @@ def createMetaData(postProcessingPath,jsonName='Metadata.json'):
         
         Creates Metadata.json by running makeJSON.writeJSON()
     '''
-    if JSFI == None:
+    if os.path.exists(os.path.join(postProcessingPath, jsonName)):
+        pass # do nothing
+    elif JSFI == None:
         if not os.path.isdir(postProcessingPath):
             raise SystemExit("Path is not a directory:\n{}".format(postProcessingPath))
         os.chdir(postProcessingPath)
