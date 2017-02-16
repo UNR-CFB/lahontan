@@ -114,6 +114,27 @@ def makeStringtieCols(jsontoRead,filetoWrite):
     with open(filetoWrite,'w') as colFile:
         colFile.writelines('"' + '","'.join(row) + '"\n' for row in deseqCols)
 
+def makeKallistoCols(jsontoRead,filetoWrite):
+    ''' Arguments:
+            jsontoRead = dict; dictionary of Metadata to be parsed
+            filetoWrite = str; name of Col file to be written to
+                            [default = Cols.dat]
+        Returns:
+            None
+
+        Creates Cols.dat file necessary for R analysis
+    '''
+    featureNames,_,__,___ = parseJSON(jsontoRead)
+    sampleList = parseSamples(jsontoRead, stringtie=True)
+    deseqCols = []
+    featureNames.insert(0,'sample')
+    deseqCols.append(featureNames)
+    for sample in sampleList:
+        deseqCols.append(sample)
+    with open(filetoWrite,'w') as colFile:
+        colFile.writelines('"' + '","'.join(row) + '"\n' for row in deseqCols)
+
+
 ################################################################
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='1.0')

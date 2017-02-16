@@ -37,6 +37,7 @@ import glob
 import json
 import re
 import makeBallgownScript
+import makeSleuthScript
 
 ################################################################
 # Utilities
@@ -1360,6 +1361,39 @@ wait
                 except:
                     pass
 
+    def createSleuthCols(self, jsonName='Metadata.json', columnName='Cols.dat'):
+        ''' Arguments:
+                None
+            Returns:
+                None
+        '''
+        jsonFile = os.path.join(self.Postprocessing, jsonName)
+        colFile = os.path.join(self.Postprocessing, columnName)
+        pipeUtils.makeCols.makeKallistoCols(pipeUtils.makeCols.readJSON(jsonFile), colFile)
+
+    def createSleuthScript(self, jsonName='Metadata.json', programName='runSleuth.r'):
+        ''' Arguments:
+                None
+            Returns:
+                None
+        '''
+        jsonFile = os.path.join(self.Postprocessing, jsonName)
+        programFile = os.path.join(self.Postprocessing, programName)
+        makeSleuthScript.createRSleuthScript(pipeUtils.makeCols.readJSON(jsonFile), programFile) 
+
+    @funTime
+    def runSleuthAnalysis(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+        '''
+        os.chdir(self.Postprocessing)
+        sleuthCommand = r'''{ time -p Rscript "runSleuth.r"; } > runSleuthTime.log 2>&1'''
+        subprocess.run(sleuthCommand,
+                            shell=True,
+                            check=True)
+
     ################################################################
     # Cleaning Functions
     ################################################################
@@ -1485,7 +1519,7 @@ wait
         '''
         while True:
             if self.is3Finished() or self.checkEach():
-                #time.sleep(10)
+                time.sleep(6)
                 print('Preparing for R analysis...')
                 if os.path.isdir(os.path.join(self.Project,'runPipeNotify')):
                     shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
@@ -1498,6 +1532,8 @@ wait
                     self.createBallgownScript()
                 elif "KALLISTO" in globals():
                     self.organizeKallistoOutput()
+                    self.createSleuthCols()
+                    self.createSleuthScript()
                 else:
                     self.createNiceCounts()
                     self.createRCounts()
@@ -1515,6 +1551,8 @@ wait
         '''
         if "STRINGTIE" in globals():
             self.runBallgownAnalysis()
+        elif "KALLISTO" in globals():
+            self.runSleuthAnalysis()
         else:
             self.runRProgram()
             self.findRFinish()
