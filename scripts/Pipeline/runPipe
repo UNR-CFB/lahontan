@@ -253,6 +253,8 @@ def main(arguments):
                 Nodes.append(int(node))
             if arguments['--stringtie'] != None:
                 ExperimentClass.makeStringtieBatch(cluster=Nodes,jsonFile=arguments['--batchjson'])
+            elif arguments['--kallisto']:
+                ExperimentClass.makeKallistoBatch(cluster=Nodes,jsonFile=arguments['--batchjson'])
             else:
                 ExperimentClass.makeBatch(cluster=Nodes,jsonFile=arguments['--batchjson'])
             raise SystemExit('Batch file successfully created:\n\t{}/pipeBatch'.format(os.getcwd()))

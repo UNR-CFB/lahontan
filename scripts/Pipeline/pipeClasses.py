@@ -770,6 +770,85 @@ wait
         with open('pipeBatch','w') as f:
             f.write(batchScript)
 
+    def makeKallistoBatch(self, cluster, jsonFile=False):
+        ''' Arguments:
+                cluster = list; list of integers that describe number
+                            of CPUs in each node of your cluster
+                *jsonFile = boolean; if optimal path already exists
+                            in a file
+            Returns:
+                None
+
+            Creates Pipeline batch script to be used with slurm
+        '''
+        batch =  """#!/bin/bash
+#SBATCH --nodes={NODES}
+#SBATCH --time=400
+#SBATCH --cpus-per-task={CPT}
+#SBATCH --ntasks={NTASKS}
+#SBATCH --job-name="Pipeline"
+#SBATCH --export=PATH,RNASEQDIR,HOME
+
+inputFile='{INPUT}'
+jsonFile='{JSON}'
+
+# Stage 1 and 2
+{STAGE12}
+
+wait
+
+# Stage 3
+{STAGE3}
+wait
+
+# Stage 4
+{STAGE4}
+wait
+
+# Stage 5
+{STAGE5}
+wait
+
+scontrol show job $SLURM_JOB_ID
+wait
+"""
+        numSamps = self.getNumberofSamples()
+        if not IS_REFERENCE_PREPARED:
+            ref = ''
+        else:
+            ref = ' --use-reference'
+        command12 = 'srun -N1 -c1 -n1 runPipe --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 --kallisto "${{inputFile}}"'.format(ref)
+        bestPath = self.getOptimal(cluster,behavior='non-default',jsonPath=jsonFile)
+        def getStage3():
+            command3,counter,sampleNum = '',1,1
+            for path in sorted(bestPath):
+                Pstep = bestPath[path]['Procs']
+                Sstep = bestPath[path]['Samps']
+                for S in range(sampleNum,sampleNum + Sstep):
+                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm{2} --maxcpu {0} -e 3 -r {1} --kallisto "${{inputFile}}" &\n'.format(Pstep,S,ref)
+                    command3 += com
+                if counter != len(bestPath):
+                    command3 += 'wait\n'
+                counter += 1
+                sampleNum += Sstep
+            return command3
+        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 --kallisto "${{inputFile}}"'.format(ref)
+        command5 = 'srun -N1 -c{1} -n1 --exclusive runPipe --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 5 --kallisto "${{inputFile}}"'.format(ref, max(cluster))
+        Context = {
+                "NODES": len(cluster),
+                "CPT": bestPath['Step 1']['Procs'],
+                "NTASKS": bestPath['Step 1']['Samps'],
+                "INPUT": self.inputPath,
+                "JSON": JSFI,
+                "STAGE12": command12,
+                "STAGE3": getStage3(),
+                "STAGE4": command4,
+                "STAGE5": command5
+                }
+        batchScript = batch.format(**Context)
+        with open('pipeBatch','w') as f:
+            f.write(batchScript)
+
     def findPipeFinish(self):
         ''' Arguments:
                 None
