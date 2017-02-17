@@ -380,7 +380,7 @@ def main(arguments):
         else:
             if not os.path.exists(ExperimentClass.Data):
                 ExperimentClass.runStage1()
-            if "KALLISTO" in globals():
+            if "KALLISTO" in globals() and ExperimentClass.needToBuildKaliIndex():
                 ExperimentClass.runStage2()
             elif not os.path.exists(os.path.join(ExperimentClass.Reference,'Reference_Report.txt')):
                 ExperimentClass.runStage2()
@@ -452,7 +452,7 @@ def side(arguments):
         Basename = pipeClasses.pipeUtils.getBasename(Genome)
         pipeClasses.pipeUtils.preProcessingReference(arguments['--reference-pp'],
                                                     Cdna,Gtf,Genome,Basename)
-        if arguments['--kallisto']:
+        if arguments['--kallisto'] and pipeClasses.needToBuildKaliIndex():
             pipeClasses.buildKallistoIndex()
         raise SystemExit
 

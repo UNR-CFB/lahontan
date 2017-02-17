@@ -1394,6 +1394,20 @@ wait
     # Kallisto Utilities
     ################################################################
 
+    def needToBuildKaliIndex(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+        '''
+        if "KALLISTO" in globals():
+            if os.path.exists(os.path.join(self.Reference, 'KaliIndexBuilt')):
+                return False
+            else:
+                return True
+        else:
+            return False
+
     @funTime
     def buildKallistoIndex(self):
         ''' Arguments:
@@ -1401,20 +1415,24 @@ wait
             Returns:
                 None
         '''
-        logFile = os.path.join(self.Reference, 'KallistoRuntime.log')
-        # Making Command
-        command = r"kallisto index -i {basename}.kali.dna.fa.idx {cdna}"
-        context = {
-                "cdna": self.Cdna,
-                "basename": self.Basename
-                }
-        goodCommand = self.redirectSTDERR(command.format(**context), logFile)
-        # Executing
-        os.chdir(self.Reference)
-        subprocess.run(goodCommand,
-                            shell=True,
-                            check=True)
-
+        # ? What is behavior of kallisto index, will it build failed index? Assume no
+        if self.needToBuildKaliIndex():
+            logFile = os.path.join(self.Reference, 'KallistoRuntime.log')
+            # Making Command
+            command = r"kallisto index -i {basename}.kali.dna.fa.idx {cdna}"
+            context = {
+                    "cdna": self.Cdna,
+                    "basename": self.Basename
+                    }
+            goodCommand = self.redirectSTDERR(command.format(**context), logFile)
+            # Executing
+            print('Building kallisto index...')
+            os.chdir(self.Reference)
+            subprocess.run(goodCommand,
+                                shell=True,
+                                check=True)
+            with open(os.path.join(self.Reference, 'KaliIndexBuilt'),'w') as F:
+                F.write('True')
     
     def organizeKallistoOutput(self):
         ''' Arguments:
@@ -1471,7 +1489,8 @@ wait
         sleuthCommand = r'''{ time -p Rscript "runSleuth.r"; } > runSleuthTime.log 2>&1'''
         subprocess.run(sleuthCommand,
                             shell=True,
-                            check=True)
+                            check=True,
+                            executable="/bin/bash")
 
     ################################################################
     # Cleaning Functions
@@ -1556,11 +1575,11 @@ wait
         '''
         Prepare Reference Data
         '''
+        if self.needToBuildKaliIndex():
+            self.buildKallistoIndex()
         if not IS_REFERENCE_PREPARED:
             self.qcRef()
             self.ppRef()
-            if "KALLISTO" in globals():
-                self.buildKallistoIndex()
 
     @funTime
     def runStage3(self):
