@@ -903,14 +903,18 @@ wait
         with open(os.path.join(self.Reference,self.Gtf),'r') as F:
             All = F.readlines()[5:]
         updatedGTF = []
-        for line in All:
-            ID = re.search(GI,line).group(0).split(' ')[1].split('"')[1]
-            Name = re.search(GN,line).group(0).split(' ')[1].split('"')[1]
-            BioType = re.search(GT,line).group(0).split(' ')[1].split('"')[1]
-            Chr = line.split('\t')[0]
-            updatedGTF.append('\t'.join([ID,Name,BioType,Chr]))
-        with open(os.path.join(self.Postprocessing,'INTC'),'w') as F:
-            F.write('\n'.join(sorted(set(updatedGTF),key=lambda x: x.split('\t')[0])))
+        try:
+            for line in All:
+                ID = re.search(GI,line).group(0).split(' ')[1].split('"')[1]
+                Name = re.search(GN,line).group(0).split(' ')[1].split('"')[1]
+                BioType = re.search(GT,line).group(0).split(' ')[1].split('"')[1]
+                Chr = line.split('\t')[0]
+                updatedGTF.append('\t'.join([ID,Name,BioType,Chr]))
+            with open(os.path.join(self.Postprocessing,'INTC'),'w') as F:
+                F.write('\n'.join(sorted(set(updatedGTF),key=lambda x: x.split('\t')[0])))
+        except AttributeError as A:
+            print('Unable to create pretty counts file due to: {}\nInside of {}'.format(
+                                            A, os.path.join(self.Reference, self.Gtf)))
 
     def makeGoodCounts(self):
         ''' Arguments:
@@ -923,27 +927,30 @@ wait
         '''
         self.makeINTC()
         INTC = os.path.join(self.Postprocessing,'INTC')
-        with open(INTC,'r') as I:
-            leftSide = I.readlines()
-        oldCounts = os.path.join(self.Postprocessing,'NiceCounts.dat')
-        with open(oldCounts,'r') as F:
-            unsortedData = F.readlines()
-        Header = unsortedData[0]
-        sortedData = sorted(unsortedData[1:],key=lambda x: x.split('\t')[0])
-        newHeader = ['\t'.join(['Geneid','gene_name','gene_biotype','Chr']+Header.split('\t'))]
-        newHeader[0] = newHeader[0].strip()
-        checkStuff = newHeader + ['\t'.join([a.strip(),b.strip()])
-                                    for a,b in zip(leftSide,sortedData)]
-        GoodStuff = []
-        for line in checkStuff:
-            splitLine = line.split('\t')
-            if splitLine[0] != splitLine[4]:
-                print('GoodCounts.dat is off at line {}'.format(checkStuff.index(line)))
-            else:
-                GoodStuff.append('\t'.join(splitLine[:4]+splitLine[5:]))
-        newCounts = os.path.join(self.Postprocessing,'GoodCounts.dat')
-        with open(newCounts,'w') as F:
-            F.write('\n'.join(GoodStuff))
+        if os.path.exists(INTC):
+            with open(INTC,'r') as I:
+                leftSide = I.readlines()
+            oldCounts = os.path.join(self.Postprocessing,'NiceCounts.dat')
+            with open(oldCounts,'r') as F:
+                unsortedData = F.readlines()
+            Header = unsortedData[0]
+            sortedData = sorted(unsortedData[1:],key=lambda x: x.split('\t')[0])
+            newHeader = ['\t'.join(['Geneid','gene_name','gene_biotype','Chr']+Header.split('\t'))]
+            newHeader[0] = newHeader[0].strip()
+            checkStuff = newHeader + ['\t'.join([a.strip(),b.strip()])
+                                        for a,b in zip(leftSide,sortedData)]
+            GoodStuff = []
+            for line in checkStuff:
+                splitLine = line.split('\t')
+                if splitLine[0] != splitLine[4]:
+                    print('GoodCounts.dat is off at line {}'.format(checkStuff.index(line)))
+                else:
+                    GoodStuff.append('\t'.join(splitLine[:4]+splitLine[5:]))
+            newCounts = os.path.join(self.Postprocessing,'GoodCounts.dat')
+            with open(newCounts,'w') as F:
+                F.write('\n'.join(GoodStuff))
+        else:
+            print('{} does not exist'.format(INTC))
 
     @funTime
     def createNiceCounts(self):
@@ -2006,8 +2013,8 @@ class Sample:
             LOG.write('----------------------------------------\n\n')
         self.runQCheck(1, self.Read1, self.Read2)
         self.runTrimmomatic(self.Read1, self.Read2)
-        #self.runQCheck(2, 'read1.P.trim.{}.gz'.format(self.Fastq),
-        #                    'read2.P.trim.{}.gz'.format(self.Fastq))
+        self.runQCheck(2, 'read1.P.trim.{}.gz'.format(self.Fastq),
+                            'read2.P.trim.{}.gz'.format(self.Fastq))
         self.writeFunctionTail('runPart1')
 
     ########################################################
