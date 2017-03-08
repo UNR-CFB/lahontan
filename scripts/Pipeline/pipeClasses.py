@@ -2115,9 +2115,30 @@ class Sample:
                                     stderr=subprocess.STDOUT)
         strandedBool = int(proc.communicate()[0])
         if strandedBool == 1:
-            return True
+            Data = []
+            with open('Runtime.{}.log'.format(self.sampleName),'r') as F:
+                copy = False
+                for line in F:
+                    if line.strip() == 'findStranded started':
+                        copy = True
+                    elif line.strip() == 'findStranded done':
+                        copy = False
+                    elif copy:
+                        Data.append(line)
+            for line in Data:
+                if 'read1 plus percent' in line:
+                    R1 = float(re.findall(r'\d+\.\d+', line)[0])
+                if 'read2 plus percent' in line:
+                    R2 = float(re.findall(r'\d+\.\d+', line)[0])
+            if R1 > R2:
+                print('Going to use "--rna-strandness FR" for hisat and "-s 1" for FC')
+                return 1
+            else:
+                print('Going to use "--rna-strandness RF" for hisat and "-s 2" for FC')
+                return 2
         elif strandedBool == 0:
-            return False
+            print('Reads not stranded')
+            return 0
         else:
             print('There was an error with findStranded')
 
@@ -2135,10 +2156,12 @@ class Sample:
         '''
         self.writeFunctionHeader('runHisat')
         strandedVar = self.findStranded()
-        if strandedVar:
+        if strandedVar == 0:
+            FR = ''
+        elif strandedVar == 1:
             FR = ' --rna-strandness FR'
         else:
-            FR = ''
+            FR = ' --rna-strandness RF'
         # Making Command
         command = r"""hisat2 -k 5 -p {numProcs}{FRoRF} --dta --phred{phred} --known-splicesite-infile {ref}/splice_sites.txt -x {ref}/{basename} -1 read1.P.trim.{fastq}.gz -2 read2.P.trim.{fastq}.gz -S aligned.{sample}.sam"""
         Phred = self.getPhred()
@@ -2201,13 +2224,15 @@ class Sample:
             Collects counts from data with featureCounts
         '''
         self.writeFunctionHeader('runFeatureCounts')
+        strandedVar = self.findStranded()
         # Making Command
-        command = r"featureCounts -T {procs} -p -C --primary --ignoreDup -t exon -g gene_id -a {ref}/{gtf} -o aligned.{sample}.counts aligned.{sample}.bam"
+        command = r"featureCounts -T {procs} -s {stranded} -p -C --primary --ignoreDup -t exon -g gene_id -a {ref}/{gtf} -o aligned.{sample}.counts aligned.{sample}.bam"
         context = {
                 "procs": self.Procs,
                 "ref": self.Reference,
                 "gtf": self.Gtf,
                 "sample": self.sampleName,
+                "stranded": str(strandedVar)
                 }
         goodCommand = self.formatCommand(command.format(**context))
         # Executing
