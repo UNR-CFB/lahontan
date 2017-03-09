@@ -177,7 +177,7 @@ runPipe --reference-pp /path/to/ReferenceDirectory /path/to/INPUT
 > If no errors in reference files are detected by first command, then second 
 command can be ran to prepare reference data  
   
-`runPipe --makeBatch 48,48,32 --batchjson /path/to/Optimization/Slurm/JSON --use-reference --jsonfile /path/to/Metadata --stringtie abc /path/to/INPUT`
+`runPipe --makebatch 48,48,32 --batchjson /path/to/Optimization/Slurm/JSON --use-reference --jsonfile /path/to/Metadata --stringtie abc /path/to/INPUT`
 > This shows an example of creating a batch file for slurm to be used on a 
 > cluster with 3 servers with 48, 48, and 32 CPUs on each. An optimized path has been 
 > created using optPath.py and saved to /path/to/Optimization/Slurm/JSON. The reference
