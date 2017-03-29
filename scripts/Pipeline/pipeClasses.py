@@ -246,173 +246,27 @@ class Experiment:
                 return True
         return False
 
-    # @funTime is just a wrapper that times function
-    @funTime
-    def makeStructure(self):
+    def findPipeFinish(self):
         ''' Arguments:
                 None
             Returns:
                 None
 
-            Calls pipeUtils.createStructure to make Directory Structure
+            Calls pipeUtils.findFinish() to figure out when self.GO()
+            function has finished analysis on all samples
         '''
-        if NOCONFIRM:
-            print("Creating Structure...")
-            pipeUtils.createStructure(self.Project,
-                                        self.ogOriginal)
-            makeTimeFile(RUNTIMELOG)
-        else:
-            if not self.isStructurePrepared():
-                print("Creating Structure...")
-                pipeUtils.createStructure(self.Project,
-                                            self.ogOriginal)
-                makeTimeFile(RUNTIMELOG)
+        pipeUtils.findFinish(self.Project, self.ogOriginal)
 
-    @funTime
-    def makeSyms(self):
+    def is3Finished(self):
         ''' Arguments:
                 None
             Returns:
-                None
+                boolean = True if finished, False if not finished
 
-            Calls pipeUtils.createSymLinks to make Symbolic Links for
-            Original Data, Reference Data; and Metadata if available
+            Calls pipeUtils.findFinish() to figure out when self.GO()
+            function has finished analysis on all samples
         '''
-        if NOCONFIRM:
-            pipeUtils.createSymLinks(self.Project,
-                                        self.ogOriginal,
-                                        self.ogReference)
-        else:
-            if not self.isStructurePrepared():
-                pipeUtils.createSymLinks(self.Project,
-                                            self.ogOriginal,
-                                            self.ogReference)
-
-    @funTime
-    def qcRef(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Calls pipeUtils.qcReference to make Reference_Report.txt in Reference
-            Folder
-        '''
-        if not self.isReferencePrepared():
-            pipeUtils.qcReference(self.Reference,
-                                    self.Genome)
-
-    @funTime
-    def ppRef(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Calls pipeUtils.preProcessingReference to Pre-Process Reference Data
-        '''
-        if not self.isReferencePrepared():
-            print("Preprocessing Data...")
-            pipeUtils.preProcessingReference(self.Reference,
-                                                self.Cdna,
-                                                self.Gtf,
-                                                self.Genome,
-                                                self.Basename)
-
-    def createSampleClasses(self,subject=0):
-        ''' Arguments:
-                *subject = int; the sample to create, default is to create all sample classes
-            Returns:
-                Samples = list; list contains Sample Classes
-
-            Creates all Sample Classes necessary and returns them in a list
-            Number of samples is based on self.getNumberofSamples() function
-        '''
-        assert type(subject) == int, 'Need an int argument as a subject to create'
-        if subject == 0:
-            experimentSamples = [Sample(n, self.inputPath, maxCPU=self.Procs)
-                        for n in range(1,self.getNumberofSamples() + 1)]
-            return experimentSamples
-        else:
-            experimentSample = Sample(subject, self.inputPath, maxCPU=self.Procs)
-            return experimentSample
-
-    ############################################################
-    # @@
-    def runSample(self, sample, stPhase=None, kalli=False):
-        ''' Arguments:
-                sample = class; runs pipeline on sample
-            Returns:
-                None
-
-            Function calls Sample class function runParts()
-            Function used in multiprocessing as map function on
-                self.createSampleClasses() list
-        '''
-        sample.runParts(stPhase, kalli)
-
-    @funTime
-    def GO(self,subject=0):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Uses python multiprocessing to distribute sample analysis to
-            CPUs
-        '''
-        assert type(subject) == int, 'Need an int argument as a subject to create'
-        if "STRINGTIE" in globals():
-            for phase in STRINGTIE:
-                nextPhase = self.runStringtiePhase()
-                if nextPhase == 'DONE':
-                    break
-                else:
-                    if subject == 0:
-                        self.makeNotifyFolder()
-                        if nextPhase == 'b':
-                            self.stringtiePart2b()
-                        else:
-                            Samples = self.createSampleClasses()
-                            with multiprocessing.Pool(self.Procs) as p:
-                                # Have to use partial in order to get optional argument into
-                                # multiprocessing
-                                p.map(partial(unwrap_self_runSample, stPhase=nextPhase),
-                                        zip([self]*len(Samples), Samples))
-                    else:
-                        if nextPhase == 'b':
-                            raise SystemExit('Cannot specify a single sample with --stringtie b')
-                        else:
-                            name = 'sample_{:02g}'.format(subject)
-                            if os.path.exists(os.path.join(self.Data,name)):
-                                experimentSample = self.createSampleClasses(subject)
-                                self.runSample(experimentSample,stPhase=nextPhase)
-        elif "KALLISTO" in globals():
-            if subject == 0:
-                self.makeNotifyFolder()
-                Samples = self.createSampleClasses()
-                with multiprocessing.Pool(self.Procs) as p:
-                    p.map(partial(unwrap_self_runSample, kalli=KALLISTO),
-                            zip([self]*len(Samples), Samples))
-            else:
-                name = 'sample_{:02g}'.format(subject)
-                if os.path.exists(self.Data + '/' + name):
-                    experimentSample = self.createSampleClasses(subject)
-                    self.runSample(experimentSample, kalli=KALLISTO)
-        else:
-            if subject == 0:
-                self.makeNotifyFolder()
-                Samples = self.createSampleClasses()
-                with multiprocessing.Pool(self.Procs) as p:
-                    p.map(unwrap_self_runSample, zip([self]*len(Samples), Samples))
-            else:
-                name = 'sample_{:02g}'.format(subject)
-                if os.path.exists(self.Data + '/' + name):
-                    experimentSample = self.createSampleClasses(subject)
-                    self.runSample(experimentSample)
- 
-    ############################################################
-
+        return pipeUtils.findFinish(self.Project, self.ogOriginal, behavior='non-default')
     def getOptimal(self, cluster, behavior='default', jsonPath=False, getBiggestCPU=False):
         ''' Arguments:
                 cluster = list; a list of integers that describes number of
@@ -522,355 +376,6 @@ class Experiment:
             else:
                 return regularResults(numSamples,cluster)
 
-    def makeBatchBiox(self,jsonFile=False):
-        ''' Arguments:
-                *jsonFile = boolean; if optimal path already exists
-                            in a file
-            Returns:
-                None
-
-            Creates Pipeline batch script to be used with slurm
-        '''
-        batch =  """#!/bin/bash
-#SBATCH --nodes={NODES}
-#SBATCH --time=400
-#SBATCH --cpus-per-task={CPT}
-#SBATCH --ntasks={NTASKS}
-#SBATCH --job-name="Pipeline"
-#SBATCH --export=PATH,RNASEQDIR,HOME
-
-inputFile='{INPUT}'
-jsonFile='{JSON}'
-
-# Stage 1 and 2
-{STAGE12}
-
-wait
-
-# Stage 3
-{STAGE3}
-wait
-
-# Stage 4
-{STAGE4}
-
-wait
-
-# Stage 5
-{STAGE5}
-
-wait
-scontrol show job $SLURM_JOB_ID
-wait
-"""
-        numSamps = self.getNumberofSamples()
-        cluster=[48,48,32]
-        if not IS_REFERENCE_PREPARED:
-            ref = ''
-        else:
-            ref = ' --use-reference'
-        command12 = 'srun -N1 -c1 -n1 runPipe --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
-        bestPath = self.getOptimal([48,48,32],jsonPath=jsonFile)
-        command3,counter,sampleNum = '',1,1
-        for path in bestPath:
-            Pstep = bestPath[path]['Procs']
-            Sstep = bestPath[path]['Samps']
-            for S in range(sampleNum,sampleNum + Sstep):
-                com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm{2} --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref)
-                command3 += com
-            if counter != len(bestPath):
-                command3 += 'wait\n'
-            counter += 1
-            sampleNum += Sstep
-        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
-        command5a = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --edger "${{inputFile}}" &'.format(ref)
-        command5b = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --deseq "${{inputFile}}" &'.format(ref)
-        command5 = command5a + '\n' + command5b
-        Context = {
-                "NODES": len(cluster),
-                "CPT": bestPath['Step 1']['Procs'],
-                "NTASKS": bestPath['Step 1']['Samps'],
-                "INPUT": self.inputPath,
-                "JSON": JSFI,
-                "STAGE12": command12,
-                "STAGE3": command3,
-                "STAGE4": command4,
-                "STAGE5": command5,
-                }
-        batchScript = batch.format(**Context)
-        with open('pipeBatch','w') as f:
-            f.write(batchScript)
-
-    def makeBatch(self, cluster, jsonFile=False):
-        ''' Arguments:
-                cluster = list; list of integers that describe number
-                            of CPUs in each node of your cluster
-                *jsonFile = boolean; if optimal path already exists
-                            in a file
-            Returns:
-                None
-
-            Creates Pipeline batch script to be used with slurm
-        '''
-        batch =  """#!/bin/bash
-#SBATCH --nodes={NODES}
-#SBATCH --time=400
-#SBATCH --cpus-per-task={CPT}
-#SBATCH --ntasks={NTASKS}
-#SBATCH --job-name="Pipeline"
-#SBATCH --export=PATH,RNASEQDIR,HOME
-
-inputFile='{INPUT}'
-jsonFile='{JSON}'
-
-# Stage 1 and 2
-{STAGE12}
-
-wait
-
-# Stage 3
-{STAGE3}
-wait
-
-# Stage 4
-{STAGE4}
-
-wait
-
-# Stage 5
-{STAGE5}
-
-wait
-scontrol show job $SLURM_JOB_ID
-wait
-"""
-        numSamps = self.getNumberofSamples()
-        if not IS_REFERENCE_PREPARED:
-            ref = ''
-        else:
-            ref = ' --use-reference'
-        command12 = 'srun -N1 -c1 -n1 runPipe --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
-        bestPath = self.getOptimal(cluster,behavior='non-default',jsonPath=jsonFile)
-        command3,counter,sampleNum = '',1,1
-        for path in sorted(bestPath):
-            Pstep = bestPath[path]['Procs']
-            Sstep = bestPath[path]['Samps']
-            for S in range(sampleNum,sampleNum + Sstep):
-                com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm{2} --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref)
-                command3 += com
-            if counter != len(bestPath):
-                command3 += 'wait\n'
-            counter += 1
-            sampleNum += Sstep
-        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
-        command5a = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --edger "${{inputFile}}" &'.format(ref)
-        command5b = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --deseq "${{inputFile}}" &'.format(ref)
-        command5 = command5a + '\n' + command5b
-        Context = {
-                "NODES": len(cluster),
-                "CPT": bestPath['Step 1']['Procs'],
-                "NTASKS": bestPath['Step 1']['Samps'],
-                "INPUT": self.inputPath,
-                "JSON": JSFI,
-                "STAGE12": command12,
-                "STAGE3": command3,
-                "STAGE4": command4,
-                "STAGE5": command5,
-                }
-        batchScript = batch.format(**Context)
-        with open('pipeBatch','w') as f:
-            f.write(batchScript)
-
-    def makeStringtieBatch(self, cluster, jsonFile=False):
-        ''' Arguments:
-                cluster = list; list of integers that describe number
-                            of CPUs in each node of your cluster
-                *jsonFile = boolean; if optimal path already exists
-                            in a file
-            Returns:
-                None
-
-            Creates Pipeline batch script to be used with slurm
-        '''
-        batch =  """#!/bin/bash
-#SBATCH --nodes={NODES}
-#SBATCH --time=400
-#SBATCH --cpus-per-task={CPT}
-#SBATCH --ntasks={NTASKS}
-#SBATCH --job-name="Pipeline"
-#SBATCH --export=PATH,RNASEQDIR,HOME
-
-inputFile='{INPUT}'
-jsonFile='{JSON}'
-
-# Stage 1 and 2
-{STAGE12}
-
-wait
-
-# Stage 3
-{STAGE3a}
-wait
-
-{STAGE3b}
-wait
-
-{STAGE3c}
-wait
-
-# Stage 4
-{STAGE4}
-wait
-
-# Stage 5
-{STAGE5}
-wait
-
-scontrol show job $SLURM_JOB_ID
-wait
-"""
-        numSamps = self.getNumberofSamples()
-        if not IS_REFERENCE_PREPARED:
-            ref = ''
-        else:
-            ref = ' --use-reference'
-        command12 = 'srun -N1 -c1 -n1 runPipe --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
-        bestPath = self.getOptimal(cluster,behavior='non-default',jsonPath=jsonFile)
-        def getStage3(phase):
-            # For Phase a and c
-            command3,counter,sampleNum = '',1,1
-            for path in sorted(bestPath):
-                Pstep = bestPath[path]['Procs']
-                Sstep = bestPath[path]['Samps']
-                for S in range(sampleNum,sampleNum + Sstep):
-                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm{2} --maxcpu {0} -e 3 -r {1} --stringtie {3} "${{inputFile}}" &\n'.format(Pstep,S,ref,phase)
-                    command3 += com
-                if counter != len(bestPath):
-                    command3 += 'wait\n'
-                counter += 1
-                sampleNum += Sstep
-            return command3
-        command3b = 'srun -N1 -c{1} -n1 --exclusive runPipe --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 3 --stringtie b "${{inputFile}}"'.format(ref, max(cluster))
-        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 --stringtie abc "${{inputFile}}"'.format(ref)
-        command5 = 'srun -N1 -c{1} -n1 --exclusive runPipe --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 5 --stringtie abc "${{inputFile}}"'.format(ref, max(cluster))
-        Context = {
-                "NODES": len(cluster),
-                "CPT": bestPath['Step 1']['Procs'],
-                "NTASKS": bestPath['Step 1']['Samps'],
-                "INPUT": self.inputPath,
-                "JSON": JSFI,
-                "STAGE12": command12,
-                "STAGE3a": getStage3('a'),
-                "STAGE3b": command3b,
-                "STAGE3c": getStage3('c'),
-                "STAGE4": command4,
-                "STAGE5": command5
-                }
-        batchScript = batch.format(**Context)
-        with open('pipeBatch','w') as f:
-            f.write(batchScript)
-
-    def makeKallistoBatch(self, cluster, jsonFile=False):
-        ''' Arguments:
-                cluster = list; list of integers that describe number
-                            of CPUs in each node of your cluster
-                *jsonFile = boolean; if optimal path already exists
-                            in a file
-            Returns:
-                None
-
-            Creates Pipeline batch script to be used with slurm
-        '''
-        batch =  """#!/bin/bash
-#SBATCH --nodes={NODES}
-#SBATCH --time=400
-#SBATCH --cpus-per-task={CPT}
-#SBATCH --ntasks={NTASKS}
-#SBATCH --job-name="Pipeline"
-#SBATCH --export=PATH,RNASEQDIR,HOME
-
-inputFile='{INPUT}'
-jsonFile='{JSON}'
-
-# Stage 1 and 2
-{STAGE12}
-
-wait
-
-# Stage 3
-{STAGE3}
-wait
-
-# Stage 4
-{STAGE4}
-wait
-
-# Stage 5
-{STAGE5}
-wait
-
-scontrol show job $SLURM_JOB_ID
-wait
-"""
-        numSamps = self.getNumberofSamples()
-        if not IS_REFERENCE_PREPARED:
-            ref = ''
-        else:
-            ref = ' --use-reference'
-        command12 = 'srun -N1 -c1 -n1 runPipe --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 --kallisto "${{inputFile}}"'.format(ref)
-        bestPath = self.getOptimal(cluster,behavior='non-default',jsonPath=jsonFile)
-        def getStage3():
-            command3,counter,sampleNum = '',1,1
-            for path in sorted(bestPath):
-                Pstep = bestPath[path]['Procs']
-                Sstep = bestPath[path]['Samps']
-                for S in range(sampleNum,sampleNum + Sstep):
-                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm{2} --maxcpu {0} -e 3 -r {1} --kallisto "${{inputFile}}" &\n'.format(Pstep,S,ref)
-                    command3 += com
-                if counter != len(bestPath):
-                    command3 += 'wait\n'
-                counter += 1
-                sampleNum += Sstep
-            return command3
-        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 --kallisto "${{inputFile}}"'.format(ref)
-        command5 = 'srun -N1 -c{1} -n1 --exclusive runPipe --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 5 --kallisto "${{inputFile}}"'.format(ref, max(cluster))
-        Context = {
-                "NODES": len(cluster),
-                "CPT": bestPath['Step 1']['Procs'],
-                "NTASKS": bestPath['Step 1']['Samps'],
-                "INPUT": self.inputPath,
-                "JSON": JSFI,
-                "STAGE12": command12,
-                "STAGE3": getStage3(),
-                "STAGE4": command4,
-                "STAGE5": command5
-                }
-        batchScript = batch.format(**Context)
-        with open('pipeBatch','w') as f:
-            f.write(batchScript)
-
-    def findPipeFinish(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Calls pipeUtils.findFinish() to figure out when self.GO()
-            function has finished analysis on all samples
-        '''
-        pipeUtils.findFinish(self.Project, self.ogOriginal)
-
-    def is3Finished(self):
-        ''' Arguments:
-                None
-            Returns:
-                boolean = True if finished, False if not finished
-
-            Calls pipeUtils.findFinish() to figure out when self.GO()
-            function has finished analysis on all samples
-        '''
-        return pipeUtils.findFinish(self.Project, self.ogOriginal, behavior='non-default')
-
     @funTime
     def createJsonMetadata(self):
         ''' Arguments:
@@ -885,78 +390,6 @@ wait
         pipeUtils.createMetaData(self.Postprocessing)
         print('Waiting for Pipeline to finish...')
 
-    def makeINTC(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Scrapes GTF and writes ID,Name,BioType,and Chr
-            for each gene into an INTC file
-        '''
-        geneID = r'gene_id [\S]*;'
-        geneName = r'gene_name [\S]*;'
-        geneType = r'gene_biotype [\S]*;'
-        GI = re.compile(geneID)
-        GN = re.compile(geneName)
-        GT = re.compile(geneType)
-        with open(os.path.join(self.Reference,self.Gtf),'r') as F:
-            All = F.readlines()[5:]
-        updatedGTF = []
-        for line in All:
-            ID = re.search(GI,line).group(0).split(' ')[1].split('"')[1]
-            Name = re.search(GN,line).group(0).split(' ')[1].split('"')[1]
-            BioType = re.search(GT,line).group(0).split(' ')[1].split('"')[1]
-            Chr = line.split('\t')[0]
-            updatedGTF.append('\t'.join([ID,Name,BioType,Chr]))
-        with open(os.path.join(self.Postprocessing,'INTC'),'w') as F:
-            F.write('\n'.join(sorted(set(updatedGTF),key=lambda x: x.split('\t')[0])))
-
-    def makeGoodCounts(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Scrapes GTF and writes ID,Name,BioType,and Chr
-            for each gene into an INTC file
-        '''
-        self.makeINTC()
-        INTC = os.path.join(self.Postprocessing,'INTC')
-        with open(INTC,'r') as I:
-            leftSide = I.readlines()
-        oldCounts = os.path.join(self.Postprocessing,'NiceCounts.dat')
-        with open(oldCounts,'r') as F:
-            unsortedData = F.readlines()
-        Header = unsortedData[0]
-        sortedData = sorted(unsortedData[1:],key=lambda x: x.split('\t')[0])
-        newHeader = ['\t'.join(['Geneid','gene_name','gene_biotype','Chr']+Header.split('\t'))]
-        newHeader[0] = newHeader[0].strip()
-        checkStuff = newHeader + ['\t'.join([a.strip(),b.strip()])
-                                    for a,b in zip(leftSide,sortedData)]
-        GoodStuff = []
-        for line in checkStuff:
-            splitLine = line.split('\t')
-            if splitLine[0] != splitLine[4]:
-                print('GoodCounts.dat is off at line {}'.format(checkStuff.index(line)))
-            else:
-                GoodStuff.append('\t'.join(splitLine[:4]+splitLine[5:]))
-        newCounts = os.path.join(self.Postprocessing,'GoodCounts.dat')
-        with open(newCounts,'w') as F:
-            F.write('\n'.join(GoodStuff))
-
-    @funTime
-    def createNiceCounts(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Calls pipeUtils.makeNiceCounts() to make the composite counts file
-            with length column; Not used for my R analysis
-        '''
-        pipeUtils.makeNiceCounts(self.Postprocessing, self.Data)
-
     @funTime
     def getPipeTime(self):
         ''' Arguments:
@@ -968,92 +401,6 @@ wait
             respective sample Runtime.log files
         '''
         pipeUtils.makeTotalTime(self.Postprocessing, self.Data)
-
-    def createRCounts(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Calls pipeUtils.createCountFile() to make the Count file(Counts.dat)
-            that works in my R analysis
-        '''
-        os.chdir(self.Postprocessing)
-        pipeUtils.createCountFile(self.Postprocessing)
-
-    def createRCols(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Calls pipeUtils.createColumnFile() to make column file(Cols.dat)
-            that describes Experiment. Uses Metadata JSON file for this
-        '''
-        os.chdir(self.Postprocessing)
-        pipeUtils.createColumnFile(self.Postprocessing)
-
-    @funTime
-    def createRProgram(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Calls pipeUtils.createRScript() and pipeUtils.createEdgeRScript()
-            to make DESeq2 R analysis program and edgeR analysis program
-        '''
-        pipeUtils.createRScript(self.Postprocessing)
-        pipeUtils.createEdgeRScript(self.Postprocessing)
-
-    @funTime
-    def runRProgram(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Calls pipeUtils.makeEdgeRreport() and pipeUtils.makeRreports()
-            to create DESeq2 and edgeR reports
-        '''
-        print("R program is running...")
-        pipeUtils.makeEdgeRreport(self.Postprocessing)
-        pipeUtils.makeRreports(self.Postprocessing)
-
-    @funTime
-    def runDESeq(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Runs DESeq2
-        '''
-        pipeUtils.makeRreports(self.Postprocessing)
-        pipeUtils.notifyEnding(self.Postprocessing,behavior='deseq')
-    @funTime
-    def runEdgeR(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Runs edgeR
-        '''
-        pipeUtils.makeEdgeRreport(self.Postprocessing)
-        pipeUtils.notifyEnding(self.Postprocessing,behavior='edger')
-
-    @funTime
-    def findRFinish(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Calls pipeUtils.notifyEnding() to figure out when self.runRProgram()
-            has finished making reports
-        '''
-        pipeUtils.notifyEnding(self.Postprocessing)
 
     def checkX11(self):
         ''' Arguments:
@@ -1148,6 +495,661 @@ wait
             return False
         else:
             return True
+
+    ###############################################################
+    # Stage 1 and 2 Functions
+    ###############################################################
+    # @funTime is just a wrapper that records time of function
+    @funTime
+    def makeStructure(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.createStructure to make Directory Structure
+        '''
+        if NOCONFIRM:
+            print("Creating Structure...")
+            pipeUtils.createStructure(self.Project,
+                                        self.ogOriginal)
+            makeTimeFile(RUNTIMELOG)
+        else:
+            if not self.isStructurePrepared():
+                print("Creating Structure...")
+                pipeUtils.createStructure(self.Project,
+                                            self.ogOriginal)
+                makeTimeFile(RUNTIMELOG)
+
+    @funTime
+    def makeSyms(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.createSymLinks to make Symbolic Links for
+            Original Data, Reference Data; and Metadata if available
+        '''
+        if NOCONFIRM:
+            pipeUtils.createSymLinks(self.Project,
+                                        self.ogOriginal,
+                                        self.ogReference)
+        else:
+            if not self.isStructurePrepared():
+                pipeUtils.createSymLinks(self.Project,
+                                            self.ogOriginal,
+                                            self.ogReference)
+
+    @funTime
+    def qcRef(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.qcReference to make Reference_Report.txt in Reference
+            Folder
+        '''
+        if not self.isReferencePrepared():
+            pipeUtils.qcReference(self.Reference,
+                                    self.Genome)
+
+    @funTime
+    def ppRef(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.preProcessingReference to Pre-Process Reference Data
+        '''
+        if not self.isReferencePrepared():
+            print("Preprocessing Data...")
+            pipeUtils.preProcessingReference(self.Reference,
+                                                self.Cdna,
+                                                self.Gtf,
+                                                self.Genome,
+                                                self.Basename)
+
+    ################################################################
+    # Cleaning Functions
+    ################################################################
+
+    def clean(self, thingToClean, sampleName=None):
+        ''' Arguments:
+                thingToClean = string:
+                                Reference or Data or Postprocessing or All or Sample
+                Note: If thingToClean=Sample, require second argument:
+                *sampleName = string; name of Sample to be cleaned
+            Returns:
+                None; cleans directories
+
+            Cleaning function for Experiment.
+            See runPipe --help for help
+        '''
+        assert type(thingToClean) == str, '{} is not a valid argument'.format(thingToClean)
+        if thingToClean == 'Reference':
+            arg = '-r'
+        elif thingToClean == 'Data':
+            arg = '-d'
+        elif thingToClean == 'Postprocessing':
+            arg = '-p'
+        elif thingToClean == 'All':
+            arg = '-a'
+        elif thingToClean == 'Sample':
+            if sampleName == None:
+                raise SystemExit('Need a valid sample name')
+            arg = sampleName
+        else:
+            raise SystemExit('Need a valid argument: ' +
+                            'Reference, Data, Postprocessing, All, or Sample')
+        if thingToClean == 'Sample':
+            subprocess.run(['clean.sh','-s',arg, self.Genome, self.Cdna, self.Gtf, self.Reference,
+                            self.Data, self.Postprocessing],check=True)
+        else:
+            subprocess.run(['clean.sh',arg, self.Genome, self.Cdna, self.Gtf, self.Reference,
+                            self.Data, self.Postprocessing],check=True)
+
+    def nukeProject(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Removes entire Project Directory Structure
+        '''
+        if NOCONFIRM:
+            shutil.rmtree(self.Project)
+        else:
+            while True:
+                answer = input('Are you sure you want to remove entire Project?(y,n) ')
+                if answer == 'y':
+                    shutil.rmtree(self.Project)
+                    break
+                elif answer == 'n':
+                    break
+                else:
+                    print('Please answer y or n')
+
+    ################################################################
+    # Stage Run Functions
+    ################################################################
+    @funTime
+    def runStage1(self):
+        if not IS_STRUCTURE_PREPARED:
+            self.makeStructure()
+            self.makeSyms()
+    @funTime
+    def runAll(self):
+        '''
+        Runs Stage 1 through Stage 5
+        '''
+        self.runStage1()
+        self.runStage2()
+        self.runStage3()
+        self.runStage4()
+        self.runStage5()
+
+    ################################################################
+    # End of Experiment class
+    ################################################################
+
+#@
+class FCountsExperiment(Experiment):
+    def __init__(self,inputFile,maxCPU=None):
+        Experiment.__init__(self,inputFile,maxCPU)
+    def __repr__(self):
+        ''' Arguments:
+                None
+            Returns:
+                A string representation of class
+                ex: >print(Experiment)
+                        Experiment('/path/to/Project')
+
+            Creates a string representation of class
+        '''
+        return 'FCountsExperiment(%r)'%(self.Project)
+    ###############################################################
+    # Utilities
+    ###############################################################
+    def runSample(self, sample):
+        sample.runParts()
+    def GO(self, subject=0):
+        if subject == 0:
+            self.makeNotifyFolder()
+            Samples = self.createAllSampleClasses()
+            with multiprocessing.Pool(self.Procs) as p:
+                p.map(unwrap_self_runSample, zip([self]*len(Samples), Samples))
+        else:
+            name = 'sample_{:02g}'.format(subject)
+            if os.path.exists(self.Data + '/' + name):
+                experimentSample = self.createSampleClassNumber(subject)
+                self.runSample(experimentSample)
+    def makeBatch(self, cluster, jsonFile=False):
+        ''' Arguments:
+                cluster = list; list of integers that describe number
+                            of CPUs in each node of your cluster
+                *jsonFile = boolean; if optimal path already exists
+                            in a file
+            Returns:
+                None
+
+            Creates Pipeline batch script to be used with slurm
+        '''
+        batch =  """#!/bin/bash
+#SBATCH --nodes={NODES}
+#SBATCH --time=400
+#SBATCH --cpus-per-task={CPT}
+#SBATCH --ntasks={NTASKS}
+#SBATCH --job-name="Pipeline"
+#SBATCH --export=PATH,RNASEQDIR,HOME
+
+inputFile='{INPUT}'
+jsonFile='{JSON}'
+
+# Stage 1 and 2
+{STAGE12}
+
+wait
+
+# Stage 3
+{STAGE3}
+wait
+
+# Stage 4
+{STAGE4}
+
+wait
+
+# Stage 5
+{STAGE5}
+
+wait
+scontrol show job $SLURM_JOB_ID
+wait
+"""
+        numSamps = self.getNumberofSamples()
+        if not IS_REFERENCE_PREPARED:
+            ref = ''
+        else:
+            ref = ' --use-reference'
+        command12 = 'srun -N1 -c1 -n1 runPipe --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
+        bestPath = self.getOptimal(cluster,behavior='non-default',jsonPath=jsonFile)
+        command3,counter,sampleNum = '',1,1
+        for path in sorted(bestPath):
+            Pstep = bestPath[path]['Procs']
+            Sstep = bestPath[path]['Samps']
+            for S in range(sampleNum,sampleNum + Sstep):
+                com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm{2} --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref)
+                command3 += com
+            if counter != len(bestPath):
+                command3 += 'wait\n'
+            counter += 1
+            sampleNum += Sstep
+        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
+        command5a = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --edger "${{inputFile}}" &'.format(ref)
+        command5b = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --deseq "${{inputFile}}" &'.format(ref)
+        command5 = command5a + '\n' + command5b
+        Context = {
+                "NODES": len(cluster),
+                "CPT": bestPath['Step 1']['Procs'],
+                "NTASKS": bestPath['Step 1']['Samps'],
+                "INPUT": self.inputPath,
+                "JSON": JSFI,
+                "STAGE12": command12,
+                "STAGE3": command3,
+                "STAGE4": command4,
+                "STAGE5": command5,
+                }
+        batchScript = batch.format(**Context)
+        with open('pipeBatch','w') as f:
+            f.write(batchScript)
+
+    def makeINTC(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Scrapes GTF and writes ID,Name,BioType,and Chr
+            for each gene into an INTC file
+        '''
+        geneID = r'gene_id [\S]*;'
+        geneName = r'gene_name [\S]*;'
+        geneType = r'gene_biotype [\S]*;'
+        GI = re.compile(geneID)
+        GN = re.compile(geneName)
+        GT = re.compile(geneType)
+        with open(os.path.join(self.Reference,self.Gtf),'r') as F:
+            All = F.readlines()[5:]
+        updatedGTF = []
+        for line in All:
+            ID = re.search(GI,line).group(0).split(' ')[1].split('"')[1]
+            Name = re.search(GN,line).group(0).split(' ')[1].split('"')[1]
+            BioType = re.search(GT,line).group(0).split(' ')[1].split('"')[1]
+            Chr = line.split('\t')[0]
+            updatedGTF.append('\t'.join([ID,Name,BioType,Chr]))
+        with open(os.path.join(self.Postprocessing,'INTC'),'w') as F:
+            F.write('\n'.join(sorted(set(updatedGTF),key=lambda x: x.split('\t')[0])))
+
+    def makeGoodCounts(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Scrapes GTF and writes ID,Name,BioType,and Chr
+            for each gene into an INTC file
+        '''
+        self.makeINTC()
+        INTC = os.path.join(self.Postprocessing,'INTC')
+        with open(INTC,'r') as I:
+            leftSide = I.readlines()
+        oldCounts = os.path.join(self.Postprocessing,'NiceCounts.dat')
+        with open(oldCounts,'r') as F:
+            unsortedData = F.readlines()
+        Header = unsortedData[0]
+        sortedData = sorted(unsortedData[1:],key=lambda x: x.split('\t')[0])
+        newHeader = ['\t'.join(['Geneid','gene_name','gene_biotype','Chr']+Header.split('\t'))]
+        newHeader[0] = newHeader[0].strip()
+        checkStuff = newHeader + ['\t'.join([a.strip(),b.strip()])
+                                    for a,b in zip(leftSide,sortedData)]
+        GoodStuff = []
+        for line in checkStuff:
+            splitLine = line.split('\t')
+            if splitLine[0] != splitLine[4]:
+                print('GoodCounts.dat is off at line {}'.format(checkStuff.index(line)))
+            else:
+                GoodStuff.append('\t'.join(splitLine[:4]+splitLine[5:]))
+        newCounts = os.path.join(self.Postprocessing,'GoodCounts.dat')
+        with open(newCounts,'w') as F:
+            F.write('\n'.join(GoodStuff))
+
+    @funTime
+    def createNiceCounts(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.makeNiceCounts() to make the composite counts file
+            with length column; Not used for my R analysis
+        '''
+        pipeUtils.makeNiceCounts(self.Postprocessing, self.Data)
+
+    def createRCounts(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.createCountFile() to make the Count file(Counts.dat)
+            that works in my R analysis
+        '''
+        os.chdir(self.Postprocessing)
+        pipeUtils.createCountFile(self.Postprocessing)
+
+    def createRCols(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.createColumnFile() to make column file(Cols.dat)
+            that describes Experiment. Uses Metadata JSON file for this
+        '''
+        os.chdir(self.Postprocessing)
+        pipeUtils.createColumnFile(self.Postprocessing)
+
+    def createRProgram(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.createRScript() and pipeUtils.createEdgeRScript()
+            to make DESeq2 R analysis program and edgeR analysis program
+        '''
+        pipeUtils.createRScript(self.Postprocessing)
+        pipeUtils.createEdgeRScript(self.Postprocessing)
+
+    @funTime
+    def runRProgram(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.makeEdgeRreport() and pipeUtils.makeRreports()
+            to create DESeq2 and edgeR reports
+        '''
+        print("R program is running...")
+        pipeUtils.makeEdgeRreport(self.Postprocessing)
+        pipeUtils.makeRreports(self.Postprocessing)
+
+    @funTime
+    def runDESeq(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Runs DESeq2
+        '''
+        pipeUtils.makeRreports(self.Postprocessing)
+        pipeUtils.notifyEnding(self.Postprocessing,behavior='deseq')
+    @funTime
+    def runEdgeR(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Runs edgeR
+        '''
+        pipeUtils.makeEdgeRreport(self.Postprocessing)
+        pipeUtils.notifyEnding(self.Postprocessing,behavior='edger')
+
+    @funTime
+    def findRFinish(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Calls pipeUtils.notifyEnding() to figure out when self.runRProgram()
+            has finished making reports
+        '''
+        pipeUtils.notifyEnding(self.Postprocessing)
+
+    def createAllSampleClasses(self):
+        ''' Arguments:
+                None
+            Returns:
+                Samples = list; list contains Sample Classes
+
+            Creates all Sample Classes and returns them in a list
+            Number of samples is based on self.getNumberofSamples() function
+        '''
+        experimentSamples = [FCountsSample(n, self.inputPath, maxCPU=self.Procs)
+                            for n in range(1,self.getNumberofSamples() + 1)]
+        return experimentSamples
+    def createSampleClassNumber(self,subject):
+        ''' Arguments:
+                subject = int; the sample to create, default is to create all sample classes
+            Returns:
+                experimentSample = sample instance
+
+            Creates specified sample class
+            Number of samples is based on self.getNumberofSamples() function
+        '''
+        assert (type(subject) == int 
+                and subject > 0 
+                and subject <= self.getNumberofSamples()
+                ), 'Need an int argument as a subject to create'
+        experimentSample = FCountsSample(subject, self.inputPath, maxCPU=self.Procs)
+        return experimentSample
+
+    ################################################################
+    # Stage Run Functions
+    ################################################################
+    def runStage2(self):
+        if not IS_REFERENCE_PREPARED:
+            self.qcRef()
+            self.ppRef()
+    def runStage3(self):
+        print("Pipeline is running...")
+        self.makeNotifyFolder()
+        self.GO()
+        self.findPipeFinish()
+    def executeSample(self, number):
+        self.makeNotifyFolder2() #TODO Fix makeNotifyFolder1 vs 2
+        print("Pipeline is running for sample_{} on {}...".format(number,os.uname()[1]))
+        self.GO(int(number))
+    def runStage4(self):
+        while True:
+            if self.is3Finished() or self.checkEach():
+                time.sleep(6)
+                print('Preparing for R analysis...')
+                if os.path.isdir(os.path.join(self.Project,'runPipeNotify')):
+                    shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
+                self.gatherAllSampleOverrep(1)
+                self.gatherAllSampleOverrep(2)
+                self.createJsonMetadata()
+                self.createNiceCounts()
+                self.createRCounts()
+                self.createRCols()
+                self.createRProgram()
+                self.makeGoodCounts()
+            else:
+                time.sleep(30)
+    def runStage5(self):
+        self.runRProgram()
+        self.findRFinish()
+
+#@@
+class StringtieExperiment(Experiment):
+    def __init__(self,inputFile,maxCPU=None):
+        Experiment.__init__(self,inputFile,maxCPU)
+    def __repr__(self):
+        ''' Arguments:
+                None
+            Returns:
+                A string representation of class
+                ex: >print(Experiment)
+                        Experiment('/path/to/Project')
+
+            Creates a string representation of class
+        '''
+        return 'StringtieExperiment(%r)'%(self.Project)
+    ###############################################################
+    # Utilities
+    ###############################################################
+    def runSample(self, sample, stPhase):
+        sample.runParts(stPhase)
+    def GO(self, subject=0):
+        #TODO GET RID STRINGTIE GLOBAL VARIABLE
+        for phase in STRINGTIE:
+            nextPhase = self.runStringtiePhase()
+            if nextPhase == 'DONE':
+                break
+            else:
+                if subject == 0:
+                    self.makeNotifyFolder()
+                    if nextPhase == 'b':
+                        self.stringtiePart2b()
+                    else:
+                        Samples = self.createAllSampleClasses()
+                        with multiprocessing.Pool(self.Procs) as p:
+                            # Have to use partial in order to get optional argument into
+                            # multiprocessing
+                            p.map(partial(unwrap_self_runSample, stPhase=nextPhase),
+                                    zip([self]*len(Samples), Samples))
+                else:
+                    if nextPhase == 'b':
+                        raise SystemExit('Cannot specify a single sample with --stringtie b')
+                    else:
+                        name = 'sample_{:02g}'.format(subject)
+                        if os.path.exists(os.path.join(self.Data,name)):
+                            experimentSample = self.createSampleClassNumber(subject)
+                            self.runSample(experimentSample,stPhase=nextPhase)
+    def makeStringtieBatch(self, cluster, jsonFile=False):
+        ''' Arguments:
+                cluster = list; list of integers that describe number
+                            of CPUs in each node of your cluster
+                *jsonFile = boolean; if optimal path already exists
+                            in a file
+            Returns:
+                None
+
+            Creates Pipeline batch script to be used with slurm
+        '''
+        batch =  """#!/bin/bash
+#SBATCH --nodes={NODES}
+#SBATCH --time=400
+#SBATCH --cpus-per-task={CPT}
+#SBATCH --ntasks={NTASKS}
+#SBATCH --job-name="Pipeline"
+#SBATCH --export=PATH,RNASEQDIR,HOME
+
+inputFile='{INPUT}'
+jsonFile='{JSON}'
+
+# Stage 1 and 2
+{STAGE12}
+
+wait
+
+# Stage 3
+{STAGE3a}
+wait
+
+{STAGE3b}
+wait
+
+{STAGE3c}
+wait
+
+# Stage 4
+{STAGE4}
+wait
+
+# Stage 5
+{STAGE5}
+wait
+
+scontrol show job $SLURM_JOB_ID
+wait
+"""
+        numSamps = self.getNumberofSamples()
+        if not IS_REFERENCE_PREPARED:
+            ref = ''
+        else:
+            ref = ' --use-reference'
+        command12 = 'srun -N1 -c1 -n1 runPipe --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
+        bestPath = self.getOptimal(cluster,behavior='non-default',jsonPath=jsonFile)
+        def getStage3(phase):
+            # For Phase a and c
+            command3,counter,sampleNum = '',1,1
+            for path in sorted(bestPath):
+                Pstep = bestPath[path]['Procs']
+                Sstep = bestPath[path]['Samps']
+                for S in range(sampleNum,sampleNum + Sstep):
+                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm{2} --maxcpu {0} -e 3 -r {1} --stringtie {3} "${{inputFile}}" &\n'.format(Pstep,S,ref,phase)
+                    command3 += com
+                if counter != len(bestPath):
+                    command3 += 'wait\n'
+                counter += 1
+                sampleNum += Sstep
+            return command3
+        command3b = 'srun -N1 -c{1} -n1 --exclusive runPipe --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 3 --stringtie b "${{inputFile}}"'.format(ref, max(cluster))
+        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 --stringtie abc "${{inputFile}}"'.format(ref)
+        command5 = 'srun -N1 -c{1} -n1 --exclusive runPipe --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 5 --stringtie abc "${{inputFile}}"'.format(ref, max(cluster))
+        Context = {
+                "NODES": len(cluster),
+                "CPT": bestPath['Step 1']['Procs'],
+                "NTASKS": bestPath['Step 1']['Samps'],
+                "INPUT": self.inputPath,
+                "JSON": JSFI,
+                "STAGE12": command12,
+                "STAGE3a": getStage3('a'),
+                "STAGE3b": command3b,
+                "STAGE3c": getStage3('c'),
+                "STAGE4": command4,
+                "STAGE5": command5
+                }
+        batchScript = batch.format(**Context)
+        with open('pipeBatch','w') as f:
+            f.write(batchScript)
+
+    def createAllSampleClasses(self):
+        ''' Arguments:
+                None
+            Returns:
+                Samples = list; list contains Sample Classes
+
+            Creates all Sample Classes and returns them in a list
+            Number of samples is based on self.getNumberofSamples() function
+        '''
+        experimentSamples = [StringtieSample(n, self.inputPath, maxCPU=self.Procs)
+                            for n in range(1,self.getNumberofSamples() + 1)]
+        return experimentSamples
+    def createSampleClassNumber(self,subject):
+        ''' Arguments:
+                subject = int; the sample to create, default is to create all sample classes
+            Returns:
+                experimentSample = sample instance
+
+            Creates specified sample class
+            Number of samples is based on self.getNumberofSamples() function
+        '''
+        assert (type(subject) == int 
+                and subject > 0 
+                and subject <= self.getNumberofSamples()
+                ), 'Need an int argument as a subject to create'
+        experimentSample = StringtieSample(subject, self.inputPath, maxCPU=self.Procs)
+        return experimentSample
 
     ############################################################
     # Stringtie Utilities
@@ -1389,7 +1391,189 @@ wait
         subprocess.run(ballgownCommand,
                             shell=True,
                             check=True)
+    ################################################################
+    # Stage Run Functions
+    ################################################################
+    #TODO Doc strings
+    def runStage2(self):
+        if not IS_REFERENCE_PREPARED:
+            self.qcRef()
+            self.ppRef()
+    def runStage3(self):
+        print("Pipeline is running...")
+        self.makeNotifyFolder()
+        self.GO()
+        stringtieStatus = self.runStringtiePhase(behavior='non-default')
+        if stringtieStatus == 'DONE' or stringtieStatus == 'c':
+            self.findPipeFinish()
+    def executeSample(self, number):
+        ''' Arguments:
+                number = int; sample number
+            Returns:
+                None
 
+        Run Stage 3 for Sample #number
+        '''
+        self.makeNotifyFolder2()
+        print("Pipeline is running for sample_{} on {}...".format(number,os.uname()[1]))
+        self.GO(int(number))
+    def runStage4(self):
+        while True:
+            if self.is3Finished() or self.checkEach():
+                time.sleep(6)
+                print('Preparing for R analysis...')
+                if os.path.isdir(os.path.join(self.Project,'runPipeNotify')):
+                    shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
+                self.gatherAllSampleOverrep(1)
+                self.gatherAllSampleOverrep(2)
+                self.createJsonMetadata()
+                self.organizeStringtieOutput()
+                self.createBallgownCols()
+                self.createBallgownScript()
+                break
+            else:
+                time.sleep(30)
+    def runStage5(self):
+        self.runBallgownAnalysis()
+
+#@@@
+class KallistoExperiment(Experiment):
+    def __init__(self,inputFile,maxCPU=None):
+        Experiment.__init__(self,inputFile,maxCPU)
+    def __repr__(self):
+        ''' Arguments:
+                None
+            Returns:
+                A string representation of class
+                ex: >print(Experiment)
+                        Experiment('/path/to/Project')
+
+            Creates a string representation of class
+        '''
+        return 'StringtieExperiment(%r)'%(self.Project)
+    ###############################################################
+    # Utilities
+    ###############################################################
+    def runSample(self, sample):
+        sample.runParts()
+    def GO(self, subject=0):
+        if subject == 0:
+            self.makeNotifyFolder()
+            Samples = self.createAllSampleClasses()
+            with multiprocessing.Pool(self.Procs) as p:
+                p.map(unwrap_self_runSample,
+                        zip([self]*len(Samples), Samples))
+        else:
+            name = 'sample_{:02g}'.format(subject)
+            if os.path.exists(self.Data + '/' + name):
+                experimentSample = self.createSampleClasses(subject)
+                self.runSample(experimentSample)
+    def makeKallistoBatch(self, cluster, jsonFile=False):
+        ''' Arguments:
+                cluster = list; list of integers that describe number
+                            of CPUs in each node of your cluster
+                *jsonFile = boolean; if optimal path already exists
+                            in a file
+            Returns:
+                None
+
+            Creates Pipeline batch script to be used with slurm
+        '''
+        batch =  """#!/bin/bash
+#SBATCH --nodes={NODES}
+#SBATCH --time=400
+#SBATCH --cpus-per-task={CPT}
+#SBATCH --ntasks={NTASKS}
+#SBATCH --job-name="Pipeline"
+#SBATCH --export=PATH,RNASEQDIR,HOME
+
+inputFile='{INPUT}'
+jsonFile='{JSON}'
+
+# Stage 1 and 2
+{STAGE12}
+
+wait
+
+# Stage 3
+{STAGE3}
+wait
+
+# Stage 4
+{STAGE4}
+wait
+
+# Stage 5
+{STAGE5}
+wait
+
+scontrol show job $SLURM_JOB_ID
+wait
+"""
+        numSamps = self.getNumberofSamples()
+        if not IS_REFERENCE_PREPARED:
+            ref = ''
+        else:
+            ref = ' --use-reference'
+        command12 = 'srun -N1 -c1 -n1 runPipe --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 --kallisto "${{inputFile}}"'.format(ref)
+        bestPath = self.getOptimal(cluster,behavior='non-default',jsonPath=jsonFile)
+        def getStage3():
+            command3,counter,sampleNum = '',1,1
+            for path in sorted(bestPath):
+                Pstep = bestPath[path]['Procs']
+                Sstep = bestPath[path]['Samps']
+                for S in range(sampleNum,sampleNum + Sstep):
+                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm{2} --maxcpu {0} -e 3 -r {1} --kallisto "${{inputFile}}" &\n'.format(Pstep,S,ref)
+                    command3 += com
+                if counter != len(bestPath):
+                    command3 += 'wait\n'
+                counter += 1
+                sampleNum += Sstep
+            return command3
+        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 --kallisto "${{inputFile}}"'.format(ref)
+        command5 = 'srun -N1 -c{1} -n1 --exclusive runPipe --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 5 --kallisto "${{inputFile}}"'.format(ref, max(cluster))
+        Context = {
+                "NODES": len(cluster),
+                "CPT": bestPath['Step 1']['Procs'],
+                "NTASKS": bestPath['Step 1']['Samps'],
+                "INPUT": self.inputPath,
+                "JSON": JSFI,
+                "STAGE12": command12,
+                "STAGE3": getStage3(),
+                "STAGE4": command4,
+                "STAGE5": command5
+                }
+        batchScript = batch.format(**Context)
+        with open('pipeBatch','w') as f:
+            f.write(batchScript)
+
+    def createAllSampleClasses(self):
+        ''' Arguments:
+                None
+            Returns:
+                Samples = list; list contains Sample Classes
+
+            Creates all Sample Classes and returns them in a list
+            Number of samples is based on self.getNumberofSamples() function
+        '''
+        experimentSamples = [KallistoSample(n, self.inputPath, maxCPU=self.Procs)
+                            for n in range(1,self.getNumberofSamples() + 1)]
+        return experimentSamples
+    def createSampleClassNumber(self,subject):
+        ''' Arguments:
+                subject = int; the sample to create, default is to create all sample classes
+            Returns:
+                experimentSample = sample instance
+
+            Creates specified sample class
+            Number of samples is based on self.getNumberofSamples() function
+        '''
+        assert (type(subject) == int 
+                and subject > 0 
+                and subject <= self.getNumberofSamples()
+                ), 'Need an int argument as a subject to create'
+        experimentSample = KallistoSample(subject, self.inputPath, maxCPU=self.Procs)
+        return experimentSample
     ################################################################
     # Kallisto Utilities
     ################################################################
@@ -1491,111 +1675,22 @@ wait
                             shell=True,
                             check=True,
                             executable="/bin/bash")
-
-    ################################################################
-    # Cleaning Functions
-    ################################################################
-
-    def clean(self, thingToClean, sampleName=None):
-        ''' Arguments:
-                thingToClean = string:
-                                Reference or Data or Postprocessing or All or Sample
-                Note: If thingToClean=Sample, require second argument:
-                *sampleName = string; name of Sample to be cleaned
-            Returns:
-                None; cleans directories
-
-            Cleaning function for Experiment.
-            See runPipe --help for help
-        '''
-        assert type(thingToClean) == str, '{} is not a valid argument'.format(thingToClean)
-        if thingToClean == 'Reference':
-            arg = '-r'
-        elif thingToClean == 'Data':
-            arg = '-d'
-        elif thingToClean == 'Postprocessing':
-            arg = '-p'
-        elif thingToClean == 'All':
-            arg = '-a'
-        elif thingToClean == 'Sample':
-            if sampleName == None:
-                raise SystemExit('Need a valid sample name')
-            arg = sampleName
-        else:
-            raise SystemExit('Need a valid argument: ' +
-                            'Reference, Data, Postprocessing, All, or Sample')
-        if thingToClean == 'Sample':
-            subprocess.run(['clean.sh','-s',arg, self.Genome, self.Cdna, self.Gtf, self.Reference,
-                            self.Data, self.Postprocessing],check=True)
-        else:
-            subprocess.run(['clean.sh',arg, self.Genome, self.Cdna, self.Gtf, self.Reference,
-                            self.Data, self.Postprocessing],check=True)
-
-    def nukeProject(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Removes entire Project Directory Structure
-        '''
-        if NOCONFIRM:
-            shutil.rmtree(self.Project)
-        else:
-            while True:
-                answer = input('Are you sure you want to remove entire Project?(y,n) ')
-                if answer == 'y':
-                    shutil.rmtree(self.Project)
-                    break
-                elif answer == 'n':
-                    break
-                else:
-                    print('Please answer y or n')
-
-    ################################################################
-    ################################################################
-
     ################################################################
     # Stage Run Functions
     ################################################################
-
-    @funTime
-    def runStage1(self):
-        ''' Note: does not need to be run more than once
-
-        Prepare for Pipeline
-        '''
-        if not NOCONFIRM:
-            self.checkX11()
-        self.makeStructure()
-        self.makeSyms()
-
-    @funTime
+    #TODO docstrings
     def runStage2(self):
-        '''
-        Prepare Reference Data
-        '''
+    #TODO Check if statement
         if self.needToBuildKaliIndex():
             self.buildKallistoIndex()
         if not IS_REFERENCE_PREPARED:
             self.qcRef()
             self.ppRef()
-
-    @funTime
     def runStage3(self):
-        '''
-        Run Pipeline
-        '''
         print("Pipeline is running...")
         self.makeNotifyFolder()
         self.GO()
-        if "STRINGTIE" in globals():
-            stringtieStatus = self.runStringtiePhase(behavior='non-default')
-            if stringtieStatus == 'DONE' or stringtieStatus == 'c':
-                self.findPipeFinish()
-        else:
-            self.findPipeFinish()
-
+        self.findPipeFinish()
     def executeSample(self, number):
         ''' Arguments:
                 number = int; sample number
@@ -1607,14 +1702,7 @@ wait
         self.makeNotifyFolder2()
         print("Pipeline is running for sample_{} on {}...".format(number,os.uname()[1]))
         self.GO(int(number))
-
-    @funTime
     def runStage4(self):
-        ''' Note: Creating a metadata file should only need
-            to be done once
-
-        Prepare for DESeq2 Analysis
-        '''
         while True:
             if self.is3Finished() or self.checkEach():
                 time.sleep(6)
@@ -1624,51 +1712,14 @@ wait
                 self.gatherAllSampleOverrep(1)
                 self.gatherAllSampleOverrep(2)
                 self.createJsonMetadata()
-                if "STRINGTIE" in globals():
-                    self.organizeStringtieOutput()
-                    self.createBallgownCols()
-                    self.createBallgownScript()
-                elif "KALLISTO" in globals():
-                    self.organizeKallistoOutput()
-                    self.createSleuthCols()
-                    self.createSleuthScript()
-                else:
-                    self.createNiceCounts()
-                    self.createRCounts()
-                    self.createRCols()
-                    self.createRProgram()
-                    self.makeGoodCounts()
+                self.organizeKallistoOutput()
+                self.createSleuthCols()
+                self.createSleuthScript()
                 break
             else:
                 time.sleep(30)
-
-    @funTime
     def runStage5(self):
-        '''
-        Run R Analysis
-        '''
-        if "STRINGTIE" in globals():
-            self.runBallgownAnalysis()
-        elif "KALLISTO" in globals():
-            self.runSleuthAnalysis()
-        else:
-            self.runRProgram()
-            self.findRFinish()
-
-    @funTime
-    def runAll(self):
-        '''
-        Runs Stage 1 through Stage 5
-        '''
-        self.runStage1()
-        self.runStage2()
-        self.runStage3()
-        self.runStage4()
-        self.runStage5()
-
-    ################################################################
-    # End of Experiment class
-    ################################################################
+        self.runSleuthAnalysis()
 
 class Sample:
     '''
@@ -1698,18 +1749,6 @@ class Sample:
         self.logPath = '{}/Runtime.{}.log'.format(self.samplePath, self.sampleName)
         if maxCPU != None:
             self.Procs = maxCPU
-
-    def __repr__(self):
-        ''' Arguments:
-                None
-            Returns:
-                String representation print
-                ex: >print(Sample)
-                        Sample(sample_01)
-
-            Returns string representation of class
-        '''
-        return 'Sample(%r)'%(self.sampleName)
 
     ########################################################
     # Utilities
@@ -1840,7 +1879,6 @@ class Sample:
         command2 = r'unzip \*.zip'.format(fastqcFolder)
         goodCommand1 = self.formatCommand(command1)
         goodCommand2 = self.formatCommand(command2)
-
         # Executing Commands
         os.chdir(self.samplePath)
         self.writeFunctionCommand(goodCommand1)
@@ -2115,6 +2153,24 @@ class Sample:
             print('There was an error with findStranded')
 
     ########################################################
+    # End of Sample class
+    ########################################################
+class FCountsSample(Sample):
+    def __init__(self,sampleNumber,inputFile,maxCPU=None):
+        Sample.__init__(sampleNumber, inputFile, maxCPU)
+    def __repr__(self):
+        ''' Arguments:
+                None
+            Returns:
+                String representation print
+                ex: >print(Sample)
+                        Sample(sample_01)
+
+            Returns string representation of class
+        '''
+        return 'FCountsSample(%r)'%(self.sampleName)
+
+    ########################################################
     # Pipeline
     ########################################################
 
@@ -2212,6 +2268,176 @@ class Sample:
         self.writeFunctionTail('runFeatureCounts')
 
     ########################################################
+    # Gathering Data (for non-stringtie)
+    ########################################################
+
+    def getNiceColumns(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Scrapes featureCounts output for gene id, length of gene, and count
+        '''
+        self.writeFunctionHeader('getNiceColumns')
+        # Making Command
+        command = r'''tail -n +2 aligned.{sample}.counts | awk '{{printf ("%5s\t%s\t%s\n", $1, $6, $7)}}' > aligned.{sample}.counts.three'''
+        context = {"sample": self.sampleName}
+        goodCommand = self.formatCommand(command.format(**context))
+        # Executing
+        os.chdir(self.samplePath)
+        self.writeFunctionCommand(goodCommand)
+        subprocess.run(goodCommand,
+                            shell=True,
+                            check=True)
+        self.writeFunctionTail('getNiceColumns')
+
+    def getAlignedColumn(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Scrapes featureCounts output to get count column
+        '''
+        self.writeFunctionHeader('getAlignedColumn')
+        # Making Command
+        command = r'''tail -n +2 aligned.{sample}.counts | awk '{{print $7}}' > aligned.{sample}.counts.one'''
+        context = {"sample": self.sampleName}
+        goodCommand = self.formatCommand(command.format(**context))
+        # Executing
+        os.chdir(self.samplePath)
+        self.writeFunctionCommand(goodCommand)
+        subprocess.run(goodCommand,
+                            shell=True,
+                            check=True)
+        self.writeFunctionTail('getAlignedColumn')
+
+    ########################################################
+    # Run Sample
+    ########################################################
+    def runPart2(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Runs Pipeline sequentially
+            Note: Does not include Quality control steps: Fastqc and trimmomatic
+        '''
+        os.chdir(self.samplePath)
+        with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'a') as LOG:
+            LOG.write('\t\tRuntime Log Part 2 for {}\n'.format(self.sampleName))
+            LOG.write('----------------------------------------\n\n')
+        self.runSeqtk()
+        self.runBlastn()
+        self.runHisat()
+        self.runCompression()
+        self.runFeatureCounts()
+        self.getNiceColumns()
+        self.getAlignedColumn()
+        self.writeFunctionTail('runPart2')
+        with open(self.Project + '/runPipeNotify/{}'.format('done'+self.sampleName), 'w') as N:
+            N.write('{} is done'.format(self.samplePath))
+        with open(self.samplePath + '/.done', 'w') as N:
+            N.write('{} is done'.format(self.samplePath))
+
+    def runParts(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Run QC and Pipeline part sequentially
+        '''
+        self.runPart1()
+        self.runPart2()
+    ########################################################
+    # End of FCountsSample class
+    ########################################################
+class StringtieSample(Sample):
+    def __init__(self,sampleNumber,inputFile,maxCPU=None):
+        Sample.__init__(sampleNumber, inputFile, maxCPU)
+    def __repr__(self):
+        ''' Arguments:
+                None
+            Returns:
+                String representation print
+                ex: >print(Sample)
+                        Sample(sample_01)
+
+            Returns string representation of class
+        '''
+        return 'StringtieSample(%r)'%(self.sampleName)
+
+    ########################################################
+    # Pipeline
+    ########################################################
+
+    def runHisat(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Runs hisat2 on data
+        '''
+        self.writeFunctionHeader('runHisat')
+        strandedVar = self.findStranded()
+        if strandedVar:
+            FR = ' --rna-strandness FR'
+        else:
+            FR = ''
+        # Making Command
+        command = r"""hisat2 -k 5 -p {numProcs}{FRoRF} --dta --phred{phred} --known-splicesite-infile {ref}/splice_sites.txt -x {ref}/{basename} -1 read1.P.trim.{fastq}.gz -2 read2.P.trim.{fastq}.gz -S aligned.{sample}.sam"""
+        Phred = self.getPhred()
+        context = {
+                "numProcs": self.Procs,
+                "phred": str(Phred),
+                "ref": self.Reference,
+                "basename": self.Basename,
+                "fastq": self.Fastq,
+                "sample": self.sampleName,
+                "FRoRF": FR
+                }
+        goodCommand = self.formatCommand(command.format(**context))
+        # Executing
+        self.writeFunctionCommand(goodCommand)
+        os.chdir(self.samplePath)
+        subprocess.run(goodCommand,
+                            shell=True,
+                            check=True)
+        self.writeFunctionTail('runHisat')
+
+    def runCompression(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Compresses output of hisat2 with samtools
+        '''
+        self.writeFunctionHeader('runCompression')
+        # Making Command
+        command = r"samtools view -bT {ref}/{genome} -@{procs} aligned.{sample}.sam -o aligned.{sample}.bam"
+        context = {
+                "ref": self.Reference,
+                "genome": self.Genome,
+                "procs": self.Procs,
+                "sample": self.sampleName,
+                }
+        goodCommand = self.formatCommand(command.format(**context))
+        # Executing
+        os.chdir(self.samplePath)
+        self.writeFunctionCommand(goodCommand)
+        subprocess.run(goodCommand,
+                            shell=True,
+                            check=True)
+        os.chdir(self.samplePath)
+        os.remove('aligned.{}.sam'.format(self.sampleName))
+        self.writeFunctionTail('runCompression')
+
+    ########################################################
     # Stringtie
     ########################################################
 
@@ -2297,7 +2523,9 @@ class Sample:
         os.remove('aligned.{}.sam'.format(self.sampleName))
         self.writeFunctionTail('runCompression')
 
-
+    ########################################################
+    # Run Sample
+    ########################################################
     def stringtiePart2a(self):
         ''' Arguments:
                 None
@@ -2340,6 +2568,40 @@ class Sample:
         with open(self.samplePath + '/.done', 'w') as N:
             N.write('{} is done'.format(self.samplePath))
 
+    def runParts(self,stringtiePhase=None):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Run QC and Pipeline part sequentially
+        '''
+            if stringtiePhase == 'a':
+                self.runPart1()
+                self.stringtiePart2a()
+            elif stringtiePhase == 'c':
+                self.stringtiePart2c()
+            else:
+                raise ValueError('stringtiePhase must be specified for 
+                                stringtie sample calculations'
+    ########################################################
+    # End of StringtieSample class
+    ########################################################
+class KallistoSample(Sample):
+    def __init__(self,sampleNumber,inputFile,maxCPU=None):
+        Sample.__init__(sampleNumber, inputFile, maxCPU)
+    def __repr__(self):
+        ''' Arguments:
+                None
+            Returns:
+                String representation print
+                ex: >print(Sample)
+                        Sample(sample_01)
+
+            Returns string representation of class
+        '''
+        return 'KallistoSample(%r)'%(self.sampleName)
+
     ########################################################
     # Kallisto
     ########################################################
@@ -2377,6 +2639,9 @@ class Sample:
                             executable="/bin/bash")
         self.writeFunctionTail('runKallisto')
 
+    ########################################################
+    # Run Sample
+    ########################################################
     def runPart2Kallisto(self):
         ''' Arguments:
                 None
@@ -2399,83 +2664,7 @@ class Sample:
         with open(self.samplePath + '/.done', 'w') as N:
             N.write('{} is done'.format(self.samplePath))
  
-    ########################################################
-    # Gathering Data (for non-stringtie)
-    ########################################################
-
-    def getNiceColumns(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Scrapes featureCounts output for gene id, length of gene, and count
-        '''
-        self.writeFunctionHeader('getNiceColumns')
-        # Making Command
-        command = r'''tail -n +2 aligned.{sample}.counts | awk '{{printf ("%5s\t%s\t%s\n", $1, $6, $7)}}' > aligned.{sample}.counts.three'''
-        context = {"sample": self.sampleName}
-        goodCommand = self.formatCommand(command.format(**context))
-        # Executing
-        os.chdir(self.samplePath)
-        self.writeFunctionCommand(goodCommand)
-        subprocess.run(goodCommand,
-                            shell=True,
-                            check=True)
-        self.writeFunctionTail('getNiceColumns')
-
-    def getAlignedColumn(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Scrapes featureCounts output to get count column
-        '''
-        self.writeFunctionHeader('getAlignedColumn')
-        # Making Command
-        command = r'''tail -n +2 aligned.{sample}.counts | awk '{{print $7}}' > aligned.{sample}.counts.one'''
-        context = {"sample": self.sampleName}
-        goodCommand = self.formatCommand(command.format(**context))
-        # Executing
-        os.chdir(self.samplePath)
-        self.writeFunctionCommand(goodCommand)
-        subprocess.run(goodCommand,
-                            shell=True,
-                            check=True)
-        self.writeFunctionTail('getAlignedColumn')
-
-    ########################################################
-    # Pipeline Functions
-    ########################################################
-
-    def runPart2(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Runs Pipeline sequentially
-            Note: Does not include Quality control steps: Fastqc and trimmomatic
-        '''
-        os.chdir(self.samplePath)
-        with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'a') as LOG:
-            LOG.write('\t\tRuntime Log Part 2 for {}\n'.format(self.sampleName))
-            LOG.write('----------------------------------------\n\n')
-        self.runSeqtk()
-        self.runBlastn()
-        self.runHisat()
-        self.runCompression()
-        self.runFeatureCounts()
-        self.getNiceColumns()
-        self.getAlignedColumn()
-        self.writeFunctionTail('runPart2')
-        with open(self.Project + '/runPipeNotify/{}'.format('done'+self.sampleName), 'w') as N:
-            N.write('{} is done'.format(self.samplePath))
-        with open(self.samplePath + '/.done', 'w') as N:
-            N.write('{} is done'.format(self.samplePath))
-    
-    def runParts(self,stringtiePhase=None,kallisto=False):
+    def runParts(self):
         ''' Arguments:
                 None
             Returns:
@@ -2483,52 +2672,10 @@ class Sample:
 
             Run QC and Pipeline part sequentially
         '''
-        if NOCONFIRM:
-            if stringtiePhase == 'a':
-                self.runPart1()
-                self.stringtiePart2a()
-            if stringtiePhase == 'c':
-                self.stringtiePart2c()
-            if stringtiePhase == None:
-                self.runPart1()
-                if kallisto:
-                    self.runPart2Kallisto()
-                else:
-                    self.runPart2()
-        else:
-            projectName = os.path.basename(self.Project)
-            stMergeDir = self.Postprocessing + '/StringtieMerge'
-
-            sampleGTF = os.path.join(self.samplePath, "{}.st.gtf".format(self.sampleName))
-            stMergedFile = os.path.join(stMergeDir,"{}.stmerged.gtf".format(projectName))
-            sampleAbundance =os.path.join(self.samplePath, "{}.good.st.gtf".format(self.sampleName))
-
-            if stringtiePhase == 'a':
-                if not os.path.exists(sampleGTF):
-                    self.runPart1()
-                    self.stringtiePart2a()
-                else:
-                    raise SystemExit('{} exists\nCannot overwrite without --noconfirm'.format(
-                                    sampleGTF))
-            elif stringtiePhase == 'c' and os.path.exists(stMergedFile):
-                if not os.path.exists(sampleAbundance):
-                    self.stringtiePart2c()
-                else:
-                    raise SystemExit('Phase a and/or b have not been executed\n' + 
-                                    'Cannot run without --noconfirm')
-            elif stringtiePhase == None:
-                if not os.path.exists(sampleGTF):
-                    self.runPart1()
-                    if kallisto:
-                        self.runPart2Kallisto()
-                    else:
-                        self.runPart2()
-                else:
-                    raise SystemExit('Stringtie Pipeline has already been started\n' + 
-                                    'Cannot run without --noconfirm')
-
+        self.runPart1()
+        self.runPart2Kallisto()
     ########################################################
-    # End of Sample class
+    # End of KallistoSample class
     ########################################################
 
 #################################################################

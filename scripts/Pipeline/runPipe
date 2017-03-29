@@ -56,9 +56,6 @@ Options:
         Makes batch file to be used with slurm. The argument
         it takes is a comma-separated list of CPUs on each
         node in your cluster
-    --makebatchbiox
-        Modifies behavior of --makebatch. Makes batch file
-        with best behavior for our cluster(compute-1,compute-2)
     --batchjson <pathtoJSON>
         Uses json file already created to make batch file
         [default: False]
@@ -145,36 +142,36 @@ def main(arguments):
     pipeClasses.pipeUtils.NOCONFIRM = NOCONFIRM
     pipeClasses.pipeUtils.IS_REFERENCE_PREPARED = IS_REFERENCE_PREPARED
 
-    # Handling --stringtie
-    def makeSTGlobal():
-        '''
-            If --stringtie option given, same behavior as
-            without except Stage 3 is different.
-        '''
-        tmpStringtie = arguments['--stringtie']
-        if tmpStringtie != None:
-            possiblePhases = ['a','b','c','ab','bc','abc']
-            if tmpStringtie in possiblePhases:
-                global STRINGTIE
-                STRINGTIE = arguments['--stringtie']
-                pipeClasses.STRINGTIE = STRINGTIE
-            else:
-                raise SystemExit('Invalid argument to --stringtie: {}'.format(
-                                                    tmpStringtie))
-    makeSTGlobal()
+    ### Handling --stringtie
+    ##def makeSTGlobal():
+    ##    '''
+    ##        If --stringtie option given, same behavior as
+    ##        without except Stage 3 is different.
+    ##    '''
+    ##    tmpStringtie = arguments['--stringtie']
+    ##    if tmpStringtie != None:
+    ##        possiblePhases = ['a','b','c','ab','bc','abc']
+    ##        if tmpStringtie in possiblePhases:
+    ##            global STRINGTIE
+    ##            STRINGTIE = arguments['--stringtie']
+    ##            pipeClasses.STRINGTIE = STRINGTIE
+    ##        else:
+    ##            raise SystemExit('Invalid argument to --stringtie: {}'.format(
+    ##                                                tmpStringtie))
+    ##makeSTGlobal()
 
-    # Handling --kallisto
-    def makeKallistoGlobal():
-        '''
-            If --kallisto option given, same behavior as
-            without except Stage 3 is different.
-        '''
-        tmpKallisto = arguments['--kallisto']
-        if tmpKallisto:
-            global KALLISTO
-            KALLISTO = arguments['--kallisto']
-            pipeClasses.KALLISTO = KALLISTO
-    makeKallistoGlobal()
+    ### Handling --kallisto
+    ##def makeKallistoGlobal():
+    ##    '''
+    ##        If --kallisto option given, same behavior as
+    ##        without except Stage 3 is different.
+    ##    '''
+    ##    tmpKallisto = arguments['--kallisto']
+    ##    if tmpKallisto:
+    ##        global KALLISTO
+    ##        KALLISTO = arguments['--kallisto']
+    ##        pipeClasses.KALLISTO = KALLISTO
+    ##makeKallistoGlobal()
 
     # Handling --NUKE argument
     def deleteAll():
@@ -241,9 +238,6 @@ def main(arguments):
         '''
         if arguments['--batchjson'] != str(False):
             pipeClasses.checkJSON(arguments['--batchjson'])
-        if arguments['--makebatchbiox']:
-            ExperimentClass.makeBatchBiox(jsonFile=arguments['--batchjson'])
-            raise SystemExit('Batch file successfully created:\n\t{}/pipeBatch'.format(os.getcwd()))
         elif arguments['--makebatch'] != None:
             preNodes,Nodes = arguments['--makebatch'].split(','),[]
             for node in preNodes:
@@ -275,7 +269,12 @@ def main(arguments):
                             arguments['--maxcpu']))
 
     # Inititiating a class instance
-    PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'], maxCPU=checkMaxCPU())
+    if arguments['stringtie']:
+        PROJ = pipeClasses.StringtieExperiment(arguments['<pathtoInputFile>'], maxCPU=checkMaxCPU())
+    elif arguments['kallisto']:
+        PROJ = pipeClasses.KallistoExperiment(arguments['<pathtoInputFile>'], maxCPU=checkMaxCPU())
+    else:
+        PROJ = pipeClasses.FCountsExperiment(arguments['<pathtoInputFile>'], maxCPU=checkMaxCPU())
 
     # Inititiating a Runtime Log global location
     global RUNTIMELOG
@@ -283,25 +282,6 @@ def main(arguments):
 
     pipeClasses.RUNTIMELOG = RUNTIMELOG
 
-    # Running R analysis
-    def runR(ExperimentClass):
-        ''' Arguments:
-                ExperimentClass = class; experiment to run analysis on
-            Returns:
-                None
-
-            Runs R analysis, if:
-                --edger  :   Then only edgeR analysis done
-                --deseq  :   Then only DESeq2 analysis done
-                neither argument is provided then both are done
-        '''
-        if arguments['--edger'] or arguments['--deseq']:
-            if arguments['--edger']:
-                ExperimentClass.runEdgeR()
-            if arguments['--deseq']:
-                ExperimentClass.runDESeq()
-        else:
-            ExperimentClass.runStage5()
 
     # Running a specific sample
     def checkdashr():
@@ -395,6 +375,103 @@ def main(arguments):
                         ExperimentClass.runStage4()
                     if '5' in executionStages:
                         runR(ExperimentClass)
+    def executeFCProject(FCClass):
+        """ Arguments:
+                FCClass : FCountsExperiment Instance
+            Returns:
+                None
+        """
+        samplesToExecute = checkdashr()
+        stagesToExecute = checkdashe()
+        # Make batch file if necessary
+        FCClass.makeBatch()#TODO)
+        # Run Stage 1 if necessary
+        if '1' in stagesToExecute and stage1FCReadyToExecute():
+            FCClass.runStage1()
+        # Run Stage 2 if necessary
+        if '2' in stagesToExecute and stage2FCReadyToExecute():
+            FCClass.runStage2()
+        # Run Stage 3 if necessary
+        if '3' in stagesToExecute and stage3FCReadyToExecute():
+            if samplesToExecute == None:
+                FCClass.runStage3()
+            else:
+                for sample in samplesToExecute:
+                    FCClass.executeSample(sample)
+        # Run Stage 4 if necessary
+        if '4' in stagesToExecute and stage4FCReadyToExecute():
+            FCClass.runStage4()
+        # Run Stage 5 if necessary
+        if '5' in stagesToExecute and stage5FCReadyToExecute():
+            if arguments['--edger'] or arguments['--deseq']:
+                if arguments['--edger']:
+                    FCClass.runEdgeR()
+                if arguments['--deseq']:
+                    FCClass.runDESeq()
+            else:
+                FCClass.runStage5()
+
+#TODO Stage 2 PPref and sample stuff. Fix hisat to incorporate exons and in reference
+    def executeStringtieProject(StringtieClass):
+        """ Arguments:
+                StringtieClass : StringtieExperiment Instance
+            Returns:
+                None
+        """
+        samplesToExecute = checkdashr()
+        stagesToExecute = checkdashe()
+        phasesToExecute = checkdashs()
+        # Make batch file if necessary
+        StringtieClass.makeStringtieBatch()#TODO
+        # Run Stage 1 if necessary
+        if '1' in stagesToExecute and stage1STReadyToExecute():
+            StringtieClass.runStage1()
+        # Run Stage 2 if necessary
+        if '2' in stagesToExecute and stage2STReadyToExecute():
+            StringtieClass.runStage2()
+        # Run Stage 3 if necessary
+        if '3' in stagesToExecute and stage3STReadyToExecute():
+            if samplesToExecute == None:
+                StringtieClass.runStage3(phasesToExecute)
+            else:
+                for sample in samplesToExecute:
+                    StringtieClass.executeSample(sample, phasesToExecute)
+        # Run Stage 4 if necessary
+        if '4' in stagesToExecute and stage4STReadyToExecute():
+            StringtieClass.runStage4()
+        # Run Stage 5 if necessary
+        if '5' in stagesToExecute and stage5STReadyToExecute():
+            StringtieClass.runStage5()
+
+    def executeKallistoProject(KallistoClass):
+        """ Arguments:
+                KallistoClass : KallistoExperiment Instance
+            Returns:
+                None
+        """
+        samplesToExecute = checkdashr()
+        stagesToExecute = checkdashe()
+        # Make batch file if necessary
+        KallistoClass.makeKallistoBatch()#TODO)
+        # Run Stage 1 if necessary
+        if '1' in stagesToExecute and stage1KAReadyToExecute():
+            KallistoClass.runStage1()
+        # Run Stage 2 if necessary
+        if '2' in stagesToExecute and stage2KAReadyToExecute():
+            KallistoClass.runStage2()
+        # Run Stage 3 if necessary
+        if '3' in stagesToExecute and stage3KAReadyToExecute():
+            if samplesToExecute == None:
+                KallistoClass.runStage3()
+            else:
+                for sample in samplesToExecute:
+                    KallistoClass.executeSample(sample)
+        # Run Stage 4 if necessary
+        if '4' in stagesToExecute and stage4KAReadyToExecute():
+            KallistoClass.runStage4()
+        # Run Stage 5 if necessary
+        if '5' in stagesToExecute and stage5KAReadyToExecute():
+            KallistoClass.runStage5()
 
     ############################################################
     # Call for actually doing stuff
