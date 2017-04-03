@@ -49,7 +49,7 @@ function preProcess {
 	makeblastdb -in "${Cdna}" -dbtype nucl -out ""$basename".cdna.all"
 	extract_splice_sites.py "${Gtf}" > splice_sites.txt
 	extract_exons.py "${Gtf}" > known_exons.txt
-	hisat2-build "${Genome}" "$basename"
+	hisat2-build --ss splice_sites.txt --exon known_exons.txt "${Genome}" "$basename"
 	samtools faidx "${Genome}"
 }
 
