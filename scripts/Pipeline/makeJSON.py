@@ -1,10 +1,13 @@
 #!/usr/bin/python3
 
-'''Usage: makeJSON.py [-h | --help] [-j <jsonfile>]
+'''Usage:
+    runPipe mj [-h | --help] [-j <jsonfile> | --jsonfile <jsonfile>]
 
 Options:
-    -h --help               Show this screen
-    -j <jsonfile>           Optional name of JSON file to be saved to [default: Metadata.json] 
+    -h, --help
+        Show this screen
+    -j <jsonfile>, --jsonfile <jsonfile>
+        Optional name of JSON file to be saved to [default: Metadata.json] 
 '''
 
 ################################################################
@@ -108,4 +111,4 @@ def writeJSON(name):
 ################################################################
 if __name__ == '__main__':
     arguments = docopt(__doc__,version='1.0')
-    writeJSON(arguments['-j'])
+    writeJSON(arguments['--jsonfile'])
