@@ -1008,9 +1008,9 @@ class StringtieExperiment(Experiment):
     ###############################################################
     def runSample(self, sample, stPhase):
         sample.runParts(stPhase)
-    def GO(self, subject=0):
-        #TODO GET RID STRINGTIE GLOBAL VARIABLE
-        for phase in STRINGTIE:
+
+    def GO(self, phases, subject=0):
+        for phase in phases:
             nextPhase = self.runStringtiePhase()
             if nextPhase == 'DONE':
                 break
@@ -1034,6 +1034,7 @@ class StringtieExperiment(Experiment):
                         if os.path.exists(os.path.join(self.Data,name)):
                             experimentSample = self.createSampleClassNumber(subject)
                             self.runSample(experimentSample,stPhase=nextPhase)
+
     def makeStringtieBatch(self, cluster, jsonFile=False):
         ''' Arguments:
                 cluster = list; list of integers that describe number
@@ -1394,19 +1395,18 @@ wait
     ################################################################
     # Stage Run Functions
     ################################################################
-    #TODO Doc strings
     def runStage2(self):
         if not IS_REFERENCE_PREPARED:
             self.qcRef()
             self.ppRef()
-    def runStage3(self):
+    def runStage3(self, phases):
         print("Pipeline is running...")
         self.makeNotifyFolder()
-        self.GO()
+        self.GO(phases)
         stringtieStatus = self.runStringtiePhase(behavior='non-default')
         if stringtieStatus == 'DONE' or stringtieStatus == 'c':
             self.findPipeFinish()
-    def executeSample(self, number):
+    def executeSample(self, number, phases):
         ''' Arguments:
                 number = int; sample number
             Returns:
@@ -1416,7 +1416,7 @@ wait
         '''
         self.makeNotifyFolder2()
         print("Pipeline is running for sample_{} on {}...".format(number,os.uname()[1]))
-        self.GO(int(number))
+        self.GO(phases, int(number))
     def runStage4(self):
         while True:
             if self.is3Finished() or self.checkEach():
@@ -2576,14 +2576,13 @@ class StringtieSample(Sample):
 
             Run QC and Pipeline part sequentially
         '''
-            if stringtiePhase == 'a':
-                self.runPart1()
-                self.stringtiePart2a()
-            elif stringtiePhase == 'c':
-                self.stringtiePart2c()
-            else:
-                raise ValueError('stringtiePhase must be specified for 
-                                stringtie sample calculations'
+        if stringtiePhase == 'a':
+            self.runPart1()
+            self.stringtiePart2a()
+        elif stringtiePhase == 'c':
+            self.stringtiePart2c()
+        else:
+            raise ValueError('stringtiePhase must be specified for stringtie sample calculations')
     ########################################################
     # End of StringtieSample class
     ########################################################
