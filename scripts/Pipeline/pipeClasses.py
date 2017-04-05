@@ -267,6 +267,7 @@ class Experiment:
             function has finished analysis on all samples
         '''
         return pipeUtils.findFinish(self.Project, self.ogOriginal, behavior='non-default')
+
     def getOptimal(self, cluster, behavior='default', jsonPath=False, getBiggestCPU=False):
         ''' Arguments:
                 cluster = list; a list of integers that describes number of
@@ -637,9 +638,9 @@ class Experiment:
     ################################################################
     @funTime
     def runStage1(self):
-        if not IS_STRUCTURE_PREPARED:
-            self.makeStructure()
-            self.makeSyms()
+        self.makeStructure()
+        self.makeSyms()
+
     @funTime
     def runAll(self):
         '''
@@ -659,6 +660,7 @@ class Experiment:
 class FCountsExperiment(Experiment):
     def __init__(self,inputFile,maxCPU=None):
         Experiment.__init__(self,inputFile,maxCPU)
+
     def __repr__(self):
         ''' Arguments:
                 None
@@ -670,11 +672,14 @@ class FCountsExperiment(Experiment):
             Creates a string representation of class
         '''
         return 'FCountsExperiment(%r)'%(self.Project)
+
     ###############################################################
     # Utilities
     ###############################################################
+
     def runSample(self, sample):
         sample.runParts()
+
     def GO(self, subject=0):
         if subject == 0:
             self.makeNotifyFolder()
@@ -683,9 +688,10 @@ class FCountsExperiment(Experiment):
                 p.map(unwrap_self_runSample, zip([self]*len(Samples), Samples))
         else:
             name = 'sample_{:02g}'.format(subject)
-            if os.path.exists(self.Data + '/' + name):
+            if os.path.exists(os.path.join(self.Data, name)):
                 experimentSample = self.createSampleClassNumber(subject)
                 self.runSample(experimentSample)
+
     def makeBatch(self, cluster, jsonFile=False):
         ''' Arguments:
                 cluster = list; list of integers that describe number
@@ -899,6 +905,7 @@ wait
         '''
         pipeUtils.makeRreports(self.Postprocessing)
         pipeUtils.notifyEnding(self.Postprocessing,behavior='deseq')
+
     @funTime
     def runEdgeR(self):
         ''' Arguments:
@@ -935,6 +942,7 @@ wait
         experimentSamples = [FCountsSample(n, self.inputPath, maxCPU=self.Procs)
                             for n in range(1,self.getNumberofSamples() + 1)]
         return experimentSamples
+
     def createSampleClassNumber(self,subject):
         ''' Arguments:
                 subject = int; the sample to create, default is to create all sample classes
@@ -954,19 +962,23 @@ wait
     ################################################################
     # Stage Run Functions
     ################################################################
+
     def runStage2(self):
         if not IS_REFERENCE_PREPARED:
             self.qcRef()
             self.ppRef()
+
     def runStage3(self):
         print("Pipeline is running...")
         self.makeNotifyFolder()
         self.GO()
         self.findPipeFinish()
+
     def executeSample(self, number):
         self.makeNotifyFolder2() #TODO Fix makeNotifyFolder1 vs 2
         print("Pipeline is running for sample_{} on {}...".format(number,os.uname()[1]))
         self.GO(int(number))
+
     def runStage4(self):
         while True:
             if self.is3Finished() or self.checkEach():
@@ -984,14 +996,18 @@ wait
                 self.makeGoodCounts()
             else:
                 time.sleep(30)
+
     def runStage5(self):
         self.runRProgram()
         self.findRFinish()
 
+
 #@@
 class StringtieExperiment(Experiment):
+
     def __init__(self,inputFile,maxCPU=None):
         Experiment.__init__(self,inputFile,maxCPU)
+
     def __repr__(self):
         ''' Arguments:
                 None
@@ -1003,9 +1019,11 @@ class StringtieExperiment(Experiment):
             Creates a string representation of class
         '''
         return 'StringtieExperiment(%r)'%(self.Project)
+
     ###############################################################
     # Utilities
     ###############################################################
+
     def runSample(self, sample, stPhase):
         sample.runParts(stPhase)
 
@@ -1136,6 +1154,7 @@ wait
         experimentSamples = [StringtieSample(n, self.inputPath, maxCPU=self.Procs)
                             for n in range(1,self.getNumberofSamples() + 1)]
         return experimentSamples
+
     def createSampleClassNumber(self,subject):
         ''' Arguments:
                 subject = int; the sample to create, default is to create all sample classes
@@ -1392,13 +1411,16 @@ wait
         subprocess.run(ballgownCommand,
                             shell=True,
                             check=True)
+
     ################################################################
     # Stage Run Functions
     ################################################################
+
     def runStage2(self):
         if not IS_REFERENCE_PREPARED:
             self.qcRef()
             self.ppRef()
+
     def runStage3(self, phases):
         print("Pipeline is running...")
         self.makeNotifyFolder()
@@ -1406,6 +1428,7 @@ wait
         stringtieStatus = self.runStringtiePhase(behavior='non-default')
         if stringtieStatus == 'DONE' or stringtieStatus == 'c':
             self.findPipeFinish()
+
     def executeSample(self, number, phases):
         ''' Arguments:
                 number = int; sample number
@@ -1417,6 +1440,7 @@ wait
         self.makeNotifyFolder2()
         print("Pipeline is running for sample_{} on {}...".format(number,os.uname()[1]))
         self.GO(phases, int(number))
+
     def runStage4(self):
         while True:
             if self.is3Finished() or self.checkEach():
@@ -1433,13 +1457,17 @@ wait
                 break
             else:
                 time.sleep(30)
+
     def runStage5(self):
         self.runBallgownAnalysis()
 
+
 #@@@
 class KallistoExperiment(Experiment):
+
     def __init__(self,inputFile,maxCPU=None):
         Experiment.__init__(self,inputFile,maxCPU)
+
     def __repr__(self):
         ''' Arguments:
                 None
@@ -1451,11 +1479,14 @@ class KallistoExperiment(Experiment):
             Creates a string representation of class
         '''
         return 'StringtieExperiment(%r)'%(self.Project)
+
     ###############################################################
     # Utilities
     ###############################################################
+
     def runSample(self, sample):
         sample.runParts()
+
     def GO(self, subject=0):
         if subject == 0:
             self.makeNotifyFolder()
@@ -1468,6 +1499,7 @@ class KallistoExperiment(Experiment):
             if os.path.exists(self.Data + '/' + name):
                 experimentSample = self.createSampleClasses(subject)
                 self.runSample(experimentSample)
+
     def makeKallistoBatch(self, cluster, jsonFile=False):
         ''' Arguments:
                 cluster = list; list of integers that describe number
@@ -1559,6 +1591,7 @@ wait
         experimentSamples = [KallistoSample(n, self.inputPath, maxCPU=self.Procs)
                             for n in range(1,self.getNumberofSamples() + 1)]
         return experimentSamples
+
     def createSampleClassNumber(self,subject):
         ''' Arguments:
                 subject = int; the sample to create, default is to create all sample classes
@@ -1574,6 +1607,7 @@ wait
                 ), 'Need an int argument as a subject to create'
         experimentSample = KallistoSample(subject, self.inputPath, maxCPU=self.Procs)
         return experimentSample
+
     ################################################################
     # Kallisto Utilities
     ################################################################
@@ -1617,7 +1651,7 @@ wait
                                 check=True)
             with open(os.path.join(self.Reference, 'KaliIndexBuilt'),'w') as F:
                 F.write('True')
-    
+
     def organizeKallistoOutput(self):
         ''' Arguments:
                 None
@@ -1675,6 +1709,7 @@ wait
                             shell=True,
                             check=True,
                             executable="/bin/bash")
+
     ################################################################
     # Stage Run Functions
     ################################################################
@@ -1686,11 +1721,13 @@ wait
         if not IS_REFERENCE_PREPARED:
             self.qcRef()
             self.ppRef()
+
     def runStage3(self):
         print("Pipeline is running...")
         self.makeNotifyFolder()
         self.GO()
         self.findPipeFinish()
+
     def executeSample(self, number):
         ''' Arguments:
                 number = int; sample number
@@ -1702,6 +1739,7 @@ wait
         self.makeNotifyFolder2()
         print("Pipeline is running for sample_{} on {}...".format(number,os.uname()[1]))
         self.GO(int(number))
+
     def runStage4(self):
         while True:
             if self.is3Finished() or self.checkEach():
@@ -1718,8 +1756,11 @@ wait
                 break
             else:
                 time.sleep(30)
+
     def runStage5(self):
         self.runSleuthAnalysis()
+
+
 
 class Sample:
     '''
@@ -2044,8 +2085,8 @@ class Sample:
             LOG.write('----------------------------------------\n\n')
         self.runQCheck(1, self.Read1, self.Read2)
         self.runTrimmomatic(self.Read1, self.Read2)
-        #self.runQCheck(2, 'read1.P.trim.{}.gz'.format(self.Fastq),
-        #                    'read2.P.trim.{}.gz'.format(self.Fastq))
+        self.runQCheck(2, 'read1.P.trim.{}.gz'.format(self.Fastq),
+                            'read2.P.trim.{}.gz'.format(self.Fastq))
         self.writeFunctionTail('runPart1')
 
     ########################################################
@@ -2155,9 +2196,12 @@ class Sample:
     ########################################################
     # End of Sample class
     ########################################################
+
 class FCountsSample(Sample):
+
     def __init__(self,sampleNumber,inputFile,maxCPU=None):
-        Sample.__init__(sampleNumber, inputFile, maxCPU)
+        Sample.__init__(self, sampleNumber, inputFile, maxCPU=maxCPU)
+
     def __repr__(self):
         ''' Arguments:
                 None
@@ -2316,6 +2360,7 @@ class FCountsSample(Sample):
     ########################################################
     # Run Sample
     ########################################################
+
     def runPart2(self):
         ''' Arguments:
                 None
@@ -2352,12 +2397,15 @@ class FCountsSample(Sample):
         '''
         self.runPart1()
         self.runPart2()
+
     ########################################################
     # End of FCountsSample class
     ########################################################
 class StringtieSample(Sample):
+
     def __init__(self,sampleNumber,inputFile,maxCPU=None):
-        Sample.__init__(sampleNumber, inputFile, maxCPU)
+        Sample.__init__(self, sampleNumber, inputFile, maxCPU=maxCPU)
+
     def __repr__(self):
         ''' Arguments:
                 None
@@ -2526,6 +2574,7 @@ class StringtieSample(Sample):
     ########################################################
     # Run Sample
     ########################################################
+
     def stringtiePart2a(self):
         ''' Arguments:
                 None
@@ -2583,12 +2632,16 @@ class StringtieSample(Sample):
             self.stringtiePart2c()
         else:
             raise ValueError('stringtiePhase must be specified for stringtie sample calculations')
+
     ########################################################
     # End of StringtieSample class
     ########################################################
+
 class KallistoSample(Sample):
+
     def __init__(self,sampleNumber,inputFile,maxCPU=None):
-        Sample.__init__(sampleNumber, inputFile, maxCPU)
+        Sample.__init__(self, sampleNumber, inputFile, maxCPU=maxCPU)
+
     def __repr__(self):
         ''' Arguments:
                 None
@@ -2641,6 +2694,7 @@ class KallistoSample(Sample):
     ########################################################
     # Run Sample
     ########################################################
+
     def runPart2Kallisto(self):
         ''' Arguments:
                 None
@@ -2662,7 +2716,7 @@ class KallistoSample(Sample):
             N.write('{} is done'.format(self.samplePath))
         with open(self.samplePath + '/.done', 'w') as N:
             N.write('{} is done'.format(self.samplePath))
- 
+
     def runParts(self):
         ''' Arguments:
                 None
@@ -2673,6 +2727,7 @@ class KallistoSample(Sample):
         '''
         self.runPart1()
         self.runPart2Kallisto()
+
     ########################################################
     # End of KallistoSample class
     ########################################################
