@@ -1,23 +1,25 @@
 #!/usr/bin/python3
 
 '''Usage:
-    makeTrimBlacklist.py [-t <newadapterfile>]
+    runPipe mb [-t <newadapterfile> | --tofile <newadapterfile>]
 
 Used to create Trimmomatic blacklist called TruSeq3-PE.fa by default.
-Name and path can be specified by -t or --tofile
+Name/path can be specified by -t or --tofile
 
 Options:
     -h, --help
         Show this screen and exit
-    -t <newadapterfile>
+    -t <newadapterfile> | --tofile <newadapterfile>
         Where to save new blacklist [default: ./TruSeq3-PE.fa]
-'''
+
+Example:
+    runPipe mb --tofile ~/rna-seq/build/Trimmomatic/adapters/myBlacklist.fa'''
 
 from docopt import docopt
 
 def blacklist(filePath):
     ''' Arguments:
-            None
+            filePath : str; path to save new file
         Returns:
             None
 
@@ -69,7 +71,6 @@ TTTTTTTTTTCAAGCAGAAGACGGCATACGA
     with open(filePath,'w') as F:
         F.write(goodBlacklist)
 
-
 if __name__ == '__main__':
     argument = docopt(__doc__, version='makeTrimBlacklist.py 1.00')
-    blacklist(argument['-t'])
+    blacklist(argument['--tofile'])
