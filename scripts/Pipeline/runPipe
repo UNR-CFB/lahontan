@@ -1,5 +1,8 @@
 #!/usr/bin/python3
 
+#TODO Add -p threads to hisat2-build in PPofRef.sh
+#       Or just rewrite PPofRef in python.
+
 ################################################################
 # General Usage
 ################################################################
@@ -33,14 +36,15 @@ Options:
         Removes entire project Directory specified in input file
 
 Available runPipe commands are:
-    fc      Use featureCounts utilities
-    st      Use Stringtie utilities
-    ka      Use kallisto utilities
+    fc      For running featureCounts pipeline
+    st      For running Stringtie pipeline
+    ka      For running kallisto pipeline
     mj      Provoke questionnaire to make a Metadata file
+    mb      Create trimmomatic blacklist
 
 See 'runPipe help <command>' for more information on a specific 
 command'''
-VERSION = 'runPipe version 1.01\nAuthor: Alberto Nava'
+VERSION = 'runPipe experimental version\nAuthor: Alberto Nava'
 
 ################################################################
 # Importations
@@ -51,10 +55,31 @@ from timeit import default_timer as timer
 import time
 import pipeClasses
 import os
+import glob
 
 ################################################################
 # Utilities
 ################################################################
+
+def testFile(filePath):
+    """ Arguments:
+            filePath : str; path to a file
+        Returns:
+            None
+        Tests existence of file
+    """
+    if not os.path.exists(filePath):
+        raise SystemExit('{} does not exist'.format(filePath))
+
+def testDir(dirPath):
+    """ Arguments:
+            dirPath : str; path to a directory
+        Returns:
+            None
+        Tests existence of directory
+    """
+    if not os.path.isdir(dirPath):
+        raise SystemExit('{} does not exist'.format(dirPath))
 
 def makeGlobalVars(arguments):
     # Global Variables to be used in scripts
@@ -232,17 +257,19 @@ def checkdashr(ExperimentClass, arguments):
 
 def checkdashe(arguments):
     # Determining what stages to run of Pipeline
-    if arguments['--execute']:
+    if arguments['--execute'] == 'A':
+        executionStages = ["1","2","3","4","5"]
+    else:
         executionStages = arguments['--execute'].split(',')
-        possibleStages = ["1","2","3","4","5","A"]
-        executeUsage = ('Invalid argument to --execute: {}'.format(arguments['--execute']) + 
-                            'Possible arguments: {}'.format(str(possibleStages)))
-        if len(set(executionStages)) != len(executionStages):
+    possibleStages = ["1","2","3","4","5","A"]
+    executeUsage = ('Invalid argument to --execute: {}'.format(arguments['--execute']) + 
+                        'Possible arguments: {}'.format(str(possibleStages)))
+    if len(set(executionStages)) != len(executionStages):
+        raise SystemExit(executeUsage)
+    for stage in executionStages:
+        if stage not in possibleStages:
             raise SystemExit(executeUsage)
-        for stage in executionStages:
-            if stage not in possibleStages:
-                raise SystemExit(executeUsage)
-        return executionStages
+    return executionStages
 
 def checkdashp(arguments):
     # Handling st --phase
@@ -254,10 +281,33 @@ def checkdashp(arguments):
     executionPhases = arguments['--stringtie'].split('')
     return executionPhases
 
-def stage1FCReadyToExecute(ExperimentClass):
+def stage1ReadyToExecute(ExperimentClass):
+    """ Arguments:
+            ExperimentClass : Experiment; instance of a class
+        Returns:
+            None
+    """
+    testFile(ExperimentClass.inputPath)
     return True
-
-def stage2FCReadyToExecute(ExperimentClass):
+    
+def stage2ReadyToExecute(ExperimentClass):
+    """ Arguments:
+            ExperimentClass : Experiment; instance of a class
+        Returns:
+            None
+    """
+    projectPath = ExperimentClass.Project
+    dataPath = ExperimentClass.Data
+    refPath = ExperimentClass.Reference
+    origPath = ExperimentClass.Original
+    ppPath = ExperimentClass.Postprocessing
+    for directory in [projectPath, dataPath, refPath, origPath, ppPath]:
+        testDir(directory)
+    for sample in glob.glob(os.path.join(dataPath,'sample_*')):
+        if len(glob.glob(os.path.join(sample,'*'))) != 2:
+            raise SystemExit('Symbolic links to Original data missing')
+    for ref in [ExperimentClass.Gtf, ExperimentClass.Cdna, ExperimentClass.Genome]:
+        testFile(ref)
     return True
 
 def stage3FCReadyToExecute(ExperimentClass):
@@ -269,12 +319,6 @@ def stage4FCReadyToExecute(ExperimentClass):
 def stage5FCReadyToExecute(ExperimentClass):
     return True
 
-def stage1STReadyToExecute(ExperimentClass):
-    return True
-
-def stage2STReadyToExecute(ExperimentClass):
-    return True
-
 def stage3STReadyToExecute(ExperimentClass):
     return True
 
@@ -282,12 +326,6 @@ def stage4STReadyToExecute(ExperimentClass):
     return True
 
 def stage5STReadyToExecute(ExperimentClass):
-    return True
-
-def stage1KAReadyToExecute(ExperimentClass):
-    return True
-
-def stage2KAReadyToExecute(ExperimentClass):
     return True
 
 def stage3KAReadyToExecute(ExperimentClass):
@@ -329,7 +367,6 @@ Options:
         node in your cluster
     --batchjson <pathtoJSON>
         Uses json file already created to make batch file
-        [default: False]
     --edger
         Runs edgeR analysis only. Default is to run both 
     --deseq
@@ -346,18 +383,18 @@ Options:
     makeGlobalVars(arguments)
     # Clean directories if necessary
     clean(arguments)
-    # Make batch file if necessary
-    makeBatch(PROJ, arguments)
     cpuLimit = checkMaxCPU(arguments)
-    FCClass = pipeClasses.FCountsExperiment(arguments['<pathtoInputFile>'], maxCPU=cpuLimit)
+    FCClass = pipeClasses.FCountsExperiment(arguments['<input>'], maxCPU=cpuLimit)
+    # Make batch file if necessary
+    makeBatch(FCClass, arguments)
     setGlobalLog(FCClass)
     samplesToExecute = checkdashr(FCClass, arguments)
     stagesToExecute = checkdashe(arguments)
     # Run Stage 1 if necessary
-    if '1' in stagesToExecute and stage1FCReadyToExecute(FCClass):
+    if '1' in stagesToExecute and stage1ReadyToExecute(FCClass):
         FCClass.runStage1()
     # Run Stage 2 if necessary
-    if '2' in stagesToExecute and stage2FCReadyToExecute(FCClass):
+    if '2' in stagesToExecute and stage2ReadyToExecute(FCClass):
         FCClass.runStage2()
     # Run Stage 3 if necessary
     if '3' in stagesToExecute and stage3FCReadyToExecute(FCClass):
@@ -426,19 +463,19 @@ Options:
     makeGlobalVars(arguments)
     # Clean directories if necessary
     clean(arguments)
-    # Make batch file if necessary
-    makeBatch(PROJ, arguments)
     cpuLimit = checkMaxCPU(arguments)
-    StringtieClass = pipeClasses.StringtieExperiment(arguments['<pathtoInputFile>'], maxCPU=cpuLimit)
+    StringtieClass = pipeClasses.StringtieExperiment(arguments['<input>'], maxCPU=cpuLimit)
+    # Make batch file if necessary
+    makeBatch(StringtieClass, arguments)
     setGlobalLog(StringtieClass)
     samplesToExecute = checkdashr(StringtieClass, arguments)
     stagesToExecute = checkdashe(arguments)
     phasesToExecute = checkdashp(arguments)
     # Run Stage 1 if necessary
-    if '1' in stagesToExecute and stage1STReadyToExecute(StringtieClass):
+    if '1' in stagesToExecute and stage1ReadyToExecute(StringtieClass):
         StringtieClass.runStage1()
     # Run Stage 2 if necessary
-    if '2' in stagesToExecute and stage2STReadyToExecute(StringtieClass):
+    if '2' in stagesToExecute and stage2ReadyToExecute(StringtieClass):
         StringtieClass.runStage2()
     # Run Stage 3 if necessary
     if '3' in stagesToExecute and stage3STReadyToExecute(StringtieClass):
@@ -493,18 +530,18 @@ Options:
     makeGlobalVars(arguments)
     # Clean directories if necessary
     clean(arguments)
-    # Make batch file if necessary
-    makeBatch(PROJ, arguments)
     cpuLimit = checkMaxCPU(arguments)
-    KallistoClass = pipeClasses.KallistoExperiment(arguments['<pathtoInputFile>'], maxCPU=cpuLimit)
+    KallistoClass = pipeClasses.KallistoExperiment(arguments['<input>'], maxCPU=cpuLimit)
+    # Make batch file if necessary
+    makeBatch(KallistoClass, arguments)
     setGlobalLog(KallistoClass)
     samplesToExecute = checkdashr(KallistoClass, arguments)
     stagesToExecute = checkdashe(arguments)
     # Run Stage 1 if necessary
-    if '1' in stagesToExecute and stage1KAReadyToExecute(KallistoClass):
+    if '1' in stagesToExecute and stage1ReadyToExecute(KallistoClass):
         KallistoClass.runStage1()
     # Run Stage 2 if necessary
-    if '2' in stagesToExecute and stage2KAReadyToExecute(KallistoClass):
+    if '2' in stagesToExecute and stage2ReadyToExecute(KallistoClass):
         KallistoClass.runStage2()
     # Run Stage 3 if necessary
     if '3' in stagesToExecute and stage3KAReadyToExecute(KallistoClass):
@@ -535,13 +572,24 @@ def moreHelp(arguments):
     except IndexError:
         raise SystemExit(__doc__)
     if helpCommand == 'fc':
-        print('This is featureCounts')
+        print('This is featureCounts information #TODO')
+        raise SystemExit(featureCounts.__doc__)
     elif helpCommand == 'st':
-        print('This is stringtie')
+        print('This is stringtie information #TODO')
+        raise SystemExit(stringtie.__doc__)
     elif helpCommand == 'ka':
-        print('This is kallisto')
+        print('This is kallisto information #TODO')
+        raise SystemExit(kallisto.__doc__)
+    elif helpCommand == 'mj':
+        print('This is makeJSON information #TODO')
+        import makeJSON
+        raise SystemExit(makeJSON.__doc__)
+    elif helpCommand == 'mb':
+        print('This is makeTrimBlacklist')
+        import makeTrimBlacklist
+        raise SystemExit(makeTrimBlacklist.__doc__)
     elif helpCommand == 'help':
-        print('Help command provides help')
+        print('Help command provides help #TODO')
     else:
         raise SystemExit(__doc__)
 
@@ -567,6 +615,10 @@ if __name__ == '__main__':
         import makeJSON
         args.update(docopt(makeJSON.__doc__, argv=argv))
         makeJSON.writeJSON(args['--jsonfile'])
+    elif args['<command>'] == 'mb':
+        import makeTrimBlacklist
+        args.update(docopt(makeTrimBlacklist.__doc__, argv=argv))
+        makeTrimBlacklist.blacklist(args['--tofile'])
     elif args['<command>'] == 'help':
         moreHelp(args)
     elif args['<command>'] == None:
