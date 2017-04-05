@@ -7,8 +7,7 @@ Options:
     -h, --help
         Show this screen
     -j <jsonfile>, --jsonfile <jsonfile>
-        Optional name of JSON file to be saved to [default: Metadata.json] 
-'''
+        Optional name of JSON file to be saved to [default: Metadata.json]'''
 
 ################################################################
 # Importations
