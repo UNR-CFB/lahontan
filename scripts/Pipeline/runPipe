@@ -193,7 +193,7 @@ def checkJSON():
     if JSFI != None:
         pipeClasses.checkJSON(JSFI)
 
-def makeBatch(ExperimentClass, arguments): #TODO check max cpu
+def makeBatch(ExperimentClass, arguments):
     ''' Arguments:
             ExperimentClass = class; experiment to run analysis on
         Returns:
@@ -278,7 +278,7 @@ def checkdashp(arguments):
                         'Possible arguments: {}'.format(str(possiblePhases)))
     if arguments['--phase'] not in possiblePhases:
         raise SystemExit(stringtieUsage)
-    executionPhases = arguments['--stringtie'].split('')
+    executionPhases = list(arguments['--phase'])
     return executionPhases
 
 def stage1ReadyToExecute(ExperimentClass):
@@ -304,9 +304,10 @@ def stage2ReadyToExecute(ExperimentClass):
     for directory in [projectPath, dataPath, refPath, origPath, ppPath]:
         testDir(directory)
     for sample in glob.glob(os.path.join(dataPath,'sample_*')):
-        if len(glob.glob(os.path.join(sample,'*'))) != 2:
+        if len(glob.glob(os.path.join(sample,'*'))) < 2:
             raise SystemExit('Symbolic links to Original data missing')
-    for ref in [ExperimentClass.Gtf, ExperimentClass.Cdna, ExperimentClass.Genome]:
+    for ref in [os.path.join(ExperimentClass.Reference, f) for f 
+            in [ExperimentClass.Gtf, ExperimentClass.Cdna, ExperimentClass.Genome]]:
         testFile(ref)
     return True
 
@@ -450,7 +451,6 @@ Options:
         node in your cluster
     --batchjson <pathtoJSON>
         Uses json file already created to make batch file
-        [default: False]
     -c <placeToClean>, --clean <placeToClean>
         Cleans <placeToClean>; Possible places include:
             Reference
@@ -517,7 +517,6 @@ Options:
         node in your cluster
     --batchjson <pathtoJSON>
         Uses json file already created to make batch file
-        [default: False]
     -c <placeToClean>, --clean <placeToClean>
         Cleans <placeToClean>; Possible places include:
             Reference

@@ -1,24 +1,5 @@
 #!/usr/bin/python3
 
-'''Usage: pipeClasses.py [-h | --help] [-j <jsonFile> | --jsonfile <jsonFile>]
-                    [--noconfirm] [-c <placeToClean> | --clean <placeToClean>]
-                    [-s <sampleName> | --sampleclean <sampleName>]
-                    [--NUKE] [-r <runlogPath> | --runtime <runlogPath>] <pathtoInput>
-
-Options:
-    -h --help                                  :    Show this screen and exit
-    -j <jsonFile>, --jsonfile <jsonFile>       :    Ignores JSON file creation and uses specified
-                                                    path to JSON
-    --noconfirm                                :    Ignore all user prompts except JSON file creation
-    -c <placeToClean>, --clean <placeToClean>  :    Cleans <placeToClean>: Possible places include:
-                                                    Reference, Data, Postprocessing, All
-    -s <sampleName>, --sampleclean <sampleName>:    Similar to -c,--clean; but instead just cleans a
-                                                    single sample directory <sampleName>
-    --NUKE                                     :    Removes entire project Directory
-    -r <runlogPath>, --runtime <runlogPath>    :    Optional directory path for Runtime Log file to
-                                                    be created in [default: $Project]
-'''
-
 ################################################################
 # Importations
 ################################################################
@@ -497,6 +478,16 @@ class Experiment:
         else:
             return True
 
+    def redirectSTDERR(self,command,logfile):
+        ''' Arguments:
+                command = string; a command that you wish to control stderr
+                logfile = string; file for stderr and stdout to be saved to
+            Returns:
+                correctCommand = string; the command to be subprocessed
+        '''
+        correctCommand = r'{{ time -p {0}; }} >> {1} 2>&1'.format(command, logfile)
+        return correctCommand
+
     ###############################################################
     # Stage 1 and 2 Functions
     ###############################################################
@@ -939,8 +930,10 @@ wait
             Creates all Sample Classes and returns them in a list
             Number of samples is based on self.getNumberofSamples() function
         '''
-        experimentSamples = [FCountsSample(n, self.inputPath, maxCPU=self.Procs)
-                            for n in range(1,self.getNumberofSamples() + 1)]
+        numSamples = self.getNumberofSamples()
+        sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
+        experimentSamples = [FCountsSample(n, self.inputPath, maxCPU=sampCpuMax)
+                            for n in range(1,numSamples + 1)]
         return experimentSamples
 
     def createSampleClassNumber(self,subject):
@@ -1029,7 +1022,7 @@ class StringtieExperiment(Experiment):
 
     def GO(self, phases, subject=0):
         for phase in phases:
-            nextPhase = self.runStringtiePhase()
+            nextPhase = self.runStringtiePhase(phases)
             if nextPhase == 'DONE':
                 break
             else:
@@ -1151,8 +1144,10 @@ wait
             Creates all Sample Classes and returns them in a list
             Number of samples is based on self.getNumberofSamples() function
         '''
-        experimentSamples = [StringtieSample(n, self.inputPath, maxCPU=self.Procs)
-                            for n in range(1,self.getNumberofSamples() + 1)]
+        numSamples = self.getNumberofSamples()
+        sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
+        experimentSamples = [StringtieSample(n, self.inputPath, maxCPU=sampCpuMax)
+                            for n in range(1,numSamples + 1)]
         return experimentSamples
 
     def createSampleClassNumber(self,subject):
@@ -1174,16 +1169,6 @@ wait
     ############################################################
     # Stringtie Utilities
     ############################################################
-
-    def redirectSTDERR(self,command,logfile):
-        ''' Arguments:
-                command = string; a command that you wish to control stderr
-                logfile = string; file for stderr and stdout to be saved to
-            Returns:
-                correctCommand = string; the command to be subprocessed
-        '''
-        correctCommand = r'{{ time -p {0}; }} >> {1} 2>&1'.format(command, logfile)
-        return correctCommand
 
     def makeStringtieMergelist(self):
         ''' Arguments:
@@ -1310,7 +1295,7 @@ wait
             nextPhase = 'DONE'
         return nextPhase
 
-    def runStringtiePhase(self, behavior='default'):
+    def runStringtiePhase(self, stringtiePhases, behavior='default'):
         ''' Arguments:
                 None
             Returns:
@@ -1320,13 +1305,13 @@ wait
         nextPhase = self.nextStringtiePhase()
         if nextPhase == 'DONE':
             runPhase = nextPhase
-        elif len(STRINGTIE) == 1:
-            if STRINGTIE == nextPhase:
+        elif len(stringtiePhases) == 1:
+            if stringtiePhases == nextPhase:
                 runPhase = nextPhase
             else:
                 if behavior == 'default':
-                    raise SystemExit('Cannot run --stringtie {}\nPlease run --stringtie {} first for all samples'.format(STRINGTIE,nextPhase))
-        elif nextPhase in STRINGTIE:
+                    raise SystemExit('Cannot run --stringtie {}\nPlease run --stringtie {} first for all samples'.format(stringtiePhases,nextPhase))
+        elif nextPhase in stringtiePhases:
             runPhase = nextPhase
         else:
             runPhase = 'DONE'
@@ -1425,7 +1410,7 @@ wait
         print("Pipeline is running...")
         self.makeNotifyFolder()
         self.GO(phases)
-        stringtieStatus = self.runStringtiePhase(behavior='non-default')
+        stringtieStatus = self.runStringtiePhase(phases, behavior='non-default')
         if stringtieStatus == 'DONE' or stringtieStatus == 'c':
             self.findPipeFinish()
 
@@ -1497,7 +1482,7 @@ class KallistoExperiment(Experiment):
         else:
             name = 'sample_{:02g}'.format(subject)
             if os.path.exists(self.Data + '/' + name):
-                experimentSample = self.createSampleClasses(subject)
+                experimentSample = self.createSampleClassNumber(subject)
                 self.runSample(experimentSample)
 
     def makeKallistoBatch(self, cluster, jsonFile=False):
@@ -1588,8 +1573,10 @@ wait
             Creates all Sample Classes and returns them in a list
             Number of samples is based on self.getNumberofSamples() function
         '''
-        experimentSamples = [KallistoSample(n, self.inputPath, maxCPU=self.Procs)
-                            for n in range(1,self.getNumberofSamples() + 1)]
+        numSamples = self.getNumberofSamples()
+        sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
+        experimentSamples = [KallistoSample(n, self.inputPath, maxCPU=sampCpuMax)
+                            for n in range(1,numSamples + 1)]
         return experimentSamples
 
     def createSampleClassNumber(self,subject):
@@ -1618,13 +1605,10 @@ wait
             Returns:
                 None
         '''
-        if "KALLISTO" in globals():
-            if os.path.exists(os.path.join(self.Reference, 'KaliIndexBuilt')):
-                return False
-            else:
-                return True
-        else:
+        if os.path.exists(os.path.join(self.Reference, 'KaliIndexBuilt')):
             return False
+        else:
+            return True
 
     @funTime
     def buildKallistoIndex(self):
@@ -1713,7 +1697,7 @@ wait
     ################################################################
     # Stage Run Functions
     ################################################################
-    #TODO docstrings
+
     def runStage2(self):
     #TODO Check if statement
         if self.needToBuildKaliIndex():
