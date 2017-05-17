@@ -112,9 +112,15 @@ def makeTimeFile(logPath):
     with open(logPath, 'w') as R:
         R.write('runPipe Runtime File\n-----------------------------------------\n\n')
 
-def unwrap_self_runSample(arg, **kwarg):
+def unwrap_self_runSample_fc(arg, **kwarg):
     ''' Magic for multiprocessing '''
-    return Experiment.runSample(*arg, **kwarg)
+    return FCountsExperiment.runSample(*arg, **kwarg)
+def unwrap_self_runSample_st(arg, **kwarg):
+    ''' Magic for multiprocessing '''
+    return StringtieExperiment.runSample(*arg, **kwarg)
+def unwrap_self_runSample_ka(arg, **kwarg):
+    ''' Magic for multiprocessing '''
+    return KallistoExperiment.runSample(*arg, **kwarg)
 
 ################################################################
 # Defining Experiment Class
@@ -558,11 +564,63 @@ class Experiment:
         '''
         if not self.isReferencePrepared():
             print("Preprocessing Data...")
-            pipeUtils.preProcessingReference(self.Reference,
-                                                self.Cdna,
-                                                self.Gtf,
-                                                self.Genome,
-                                                self.Basename)
+            ppLog = os.path.join(self.Reference, 'Preprocessing.log')
+            Context = {
+                    "cdna": self.Cdna,
+                    "basename": self.Basename,
+                    "gtf": self.Gtf,
+                    "genome": self.Genome,
+                    "cpu": self.Procs
+                    }
+            makeBlastdb = """time -p makeblastdb -in {cdna} -dbtype nucl -out {basename}.cdna.all""".format(**Context)
+            extractSpliceSites = """time -p extract_splice_sites.py {gtf} > splice_sites.txt""".format(**Context)
+            extractExons = """time -p extract_exons.py {gtf} > known_exons.txt""".format(**Context)
+            hisatBuild = """time -p hisat2-build -p {cpu} --ss splice_sites.txt --exon known_exons.txt {genome} {basename}""".format(**Context)
+            samtoolsFaidx = """time -p samtools faidx {genome}""".format(**Context)
+            os.chdir(self.Reference)
+            with open(ppLog, 'w') as PPlog:
+                PPlog.write('\n{}\n{}'.format(makeBlastdb,'='*50))
+                subprocess.run(makeBlastdb,
+                                    shell=True,
+                                    check=True,
+                                    executable="/bin/bash",
+                                    stdout=PPlog,
+                                    stderr=subprocess.STDOUT)
+                PPlog.write('\n{}\n{}'.format(extractSpliceSites,'='*50))
+                subprocess.run(extractSpliceSites,
+                                    shell=True,
+                                    check=True,
+                                    executable="/bin/bash",
+                                    stdout=PPlog,
+                                    stderr=subprocess.STDOUT)
+                PPlog.write('\n{}\n{}'.format(extractExons,'='*50))
+                subprocess.run(extractExons,
+                                    shell=True,
+                                    check=True,
+                                    executable="/bin/bash",
+                                    stdout=PPlog,
+                                    stderr=subprocess.STDOUT)
+                PPlog.write('\n{}\n{}'.format(hisatBuild,'='*50))
+                subprocess.run(hisatBuild,
+                                    shell=True,
+                                    check=True,
+                                    executable="/bin/bash",
+                                    stdout=PPlog,
+                                    stderr=subprocess.STDOUT)
+                PPlog.write('\n{}\n{}'.format(samtoolsFaidx,'='*50))
+                subprocess.run(samtoolsFaidx,
+                                    shell=True,
+                                    check=True,
+                                    executable="/bin/bash",
+                                    stdout=PPlog,
+                                    stderr=subprocess.STDOUT)
+            with open(os.path.join(self.Project, '.init'), 'a') as F:
+                F.write('P')
+            #pipeUtils.preProcessingReference(self.Reference,
+            #                                    self.Cdna,
+            #                                    self.Gtf,
+            #                                    self.Genome,
+            #                                    self.Basename)
 
     ################################################################
     # Cleaning Functions
@@ -676,7 +734,7 @@ class FCountsExperiment(Experiment):
             self.makeNotifyFolder()
             Samples = self.createAllSampleClasses()
             with multiprocessing.Pool(self.Procs) as p:
-                p.map(unwrap_self_runSample, zip([self]*len(Samples), Samples))
+                p.map(unwrap_self_runSample_fc, zip([self]*len(Samples), Samples))
         else:
             name = 'sample_{:02g}'.format(subject)
             if os.path.exists(os.path.join(self.Data, name)):
@@ -1035,7 +1093,7 @@ class StringtieExperiment(Experiment):
                         with multiprocessing.Pool(self.Procs) as p:
                             # Have to use partial in order to get optional argument into
                             # multiprocessing
-                            p.map(partial(unwrap_self_runSample, stPhase=nextPhase),
+                            p.map(partial(unwrap_self_runSample_st, stPhase=nextPhase),
                                     zip([self]*len(Samples), Samples))
                 else:
                     if nextPhase == 'b':
@@ -1477,7 +1535,7 @@ class KallistoExperiment(Experiment):
             self.makeNotifyFolder()
             Samples = self.createAllSampleClasses()
             with multiprocessing.Pool(self.Procs) as p:
-                p.map(unwrap_self_runSample,
+                p.map(unwrap_self_runSample_ka,
                         zip([self]*len(Samples), Samples))
         else:
             name = 'sample_{:02g}'.format(subject)
@@ -1746,6 +1804,9 @@ wait
 
 
 
+################################################################
+# Defining Sample Class
+################################################################
 class Sample:
     '''
     For a specific sample: run analyses
