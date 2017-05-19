@@ -787,14 +787,19 @@ class FCountsExperiment(Experiment):
 #SBATCH --time=400
 #SBATCH --cpus-per-task={CPT}
 #SBATCH --ntasks={NTASKS}
-#SBATCH --job-name="Pipeline"
+#SBATCH --job-name="featureCounts Pipeline"
 #SBATCH --export=PATH,RNASEQDIR,HOME
 
 inputFile='{INPUT}'
 jsonFile='{JSON}'
 
-# Stage 1 and 2
-{STAGE12}
+# Stage 1
+{STAGE1}
+
+wait
+
+# Stage 2
+{STAGE2}
 
 wait
 
@@ -819,22 +824,23 @@ wait
             ref = ''
         else:
             ref = ' --use-reference'
-        command12 = 'srun -N1 -c1 -n1 runPipe --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
+        command1 = 'srun -N1 -c1 -n1 runPipe fcounts --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1 "${{inputFile}}"'.format(ref)
+        command2 = 'srun -N1 -c{1} -n1 runPipe fcounts --noconfirm{0} --jsonfile "${{jsonFile}}" --maxcpu {1} --execute 2 "${{inputFile}}"'.format(ref,max(cluster))
         bestPath = self.getOptimal(cluster,behavior='non-default',jsonPath=jsonFile)
         command3,counter,sampleNum = '',1,1
         for path in sorted(bestPath):
             Pstep = bestPath[path]['Procs']
             Sstep = bestPath[path]['Samps']
             for S in range(sampleNum,sampleNum + Sstep):
-                com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm{2} --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref)
+                com = 'srun -N1 -c{0} -n1 --exclusive runPipe fcounts --noconfirm{2} --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref)
                 command3 += com
             if counter != len(bestPath):
                 command3 += 'wait\n'
             counter += 1
             sampleNum += Sstep
-        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
-        command5a = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --edger "${{inputFile}}" &'.format(ref)
-        command5b = 'srun -N1 -c1 -n1 --exclusive runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --deseq "${{inputFile}}" &'.format(ref)
+        command4 = 'srun -N1 -c1 -n1 runPipe fcounts --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
+        command5a = 'srun -N1 -c1 -n1 --exclusive runPipe fcounts --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --edger "${{inputFile}}" &'.format(ref)
+        command5b = 'srun -N1 -c1 -n1 --exclusive runPipe fcounts --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --deseq "${{inputFile}}" &'.format(ref)
         command5 = command5a + '\n' + command5b
         Context = {
                 "NODES": len(cluster),
@@ -842,7 +848,8 @@ wait
                 "NTASKS": bestPath['Step 1']['Samps'],
                 "INPUT": self.inputPath,
                 "JSON": JSFI,
-                "STAGE12": command12,
+                "STAGE1": command1,
+                "STAGE2": command2,
                 "STAGE3": command3,
                 "STAGE4": command4,
                 "STAGE5": command5,
@@ -1161,15 +1168,18 @@ class StringtieExperiment(Experiment):
 #SBATCH --time=400
 #SBATCH --cpus-per-task={CPT}
 #SBATCH --ntasks={NTASKS}
-#SBATCH --job-name="Pipeline"
+#SBATCH --job-name="Stringtie Pipeline"
 #SBATCH --export=PATH,RNASEQDIR,HOME
 
 inputFile='{INPUT}'
 jsonFile='{JSON}'
 
-# Stage 1 and 2
-{STAGE12}
+# Stage 1
+{STAGE1}
+wait
 
+# Stage 2
+{STAGE2}
 wait
 
 # Stage 3
@@ -1198,7 +1208,8 @@ wait
             ref = ''
         else:
             ref = ' --use-reference'
-        command12 = 'srun -N1 -c1 -n1 runPipe --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 "${{inputFile}}"'.format(ref)
+        command1 = 'srun -N1 -c1 -n1 runPipe string --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1 "${{inputFile}}"'.format(ref)
+        command2 = 'srun -N1 -c{1} -n1 runPipe string --noconfirm{0} --jsonfile "${{jsonFile}}" --maxcpu {1} --execute 2 "${{inputFile}}"'.format(ref,max(cluster))
         bestPath = self.getOptimal(cluster,behavior='non-default',jsonPath=jsonFile)
         def getStage3(phase):
             # For Phase a and c
@@ -1207,23 +1218,24 @@ wait
                 Pstep = bestPath[path]['Procs']
                 Sstep = bestPath[path]['Samps']
                 for S in range(sampleNum,sampleNum + Sstep):
-                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm{2} --maxcpu {0} -e 3 -r {1} --stringtie {3} "${{inputFile}}" &\n'.format(Pstep,S,ref,phase)
+                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe string --noconfirm{2} --maxcpu {0} -e 3 -r {1} --phase {3} "${{inputFile}}" &\n'.format(Pstep,S,ref,phase)
                     command3 += com
                 if counter != len(bestPath):
                     command3 += 'wait\n'
                 counter += 1
                 sampleNum += Sstep
             return command3
-        command3b = 'srun -N1 -c{1} -n1 --exclusive runPipe --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 3 --stringtie b "${{inputFile}}"'.format(ref, max(cluster))
-        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 --stringtie abc "${{inputFile}}"'.format(ref)
-        command5 = 'srun -N1 -c{1} -n1 --exclusive runPipe --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 5 --stringtie abc "${{inputFile}}"'.format(ref, max(cluster))
+        command3b = 'srun -N1 -c{1} -n1 --exclusive runPipe string --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 3 --phase b "${{inputFile}}"'.format(ref, max(cluster))
+        command4 = 'srun -N1 -c1 -n1 runPipe string --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
+        command5 = 'srun -N1 -c{1} -n1 --exclusive runPipe string --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 5 "${{inputFile}}"'.format(ref, max(cluster))
         Context = {
                 "NODES": len(cluster),
                 "CPT": bestPath['Step 1']['Procs'],
                 "NTASKS": bestPath['Step 1']['Samps'],
                 "INPUT": self.inputPath,
                 "JSON": JSFI,
-                "STAGE12": command12,
+                "STAGE1": command1,
+                "STAGE2": command2,
                 "STAGE3a": getStage3('a'),
                 "STAGE3b": command3b,
                 "STAGE3c": getStage3('c'),
@@ -1601,15 +1613,18 @@ class KallistoExperiment(Experiment):
 #SBATCH --time=400
 #SBATCH --cpus-per-task={CPT}
 #SBATCH --ntasks={NTASKS}
-#SBATCH --job-name="Pipeline"
+#SBATCH --job-name="Kallisto Pipeline"
 #SBATCH --export=PATH,RNASEQDIR,HOME
 
 inputFile='{INPUT}'
 jsonFile='{JSON}'
 
-# Stage 1 and 2
-{STAGE12}
+# Stage 1
+{STAGE1}
+wait
 
+# Stage 2
+{STAGE2}
 wait
 
 # Stage 3
@@ -1632,7 +1647,8 @@ wait
             ref = ''
         else:
             ref = ' --use-reference'
-        command12 = 'srun -N1 -c1 -n1 runPipe --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1,2 --kallisto "${{inputFile}}"'.format(ref)
+        command1 = 'srun -N1 -c1 -n1 runPipe kall --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1 "${{inputFile}}"'.format(ref)
+        command2 = 'srun -N1 -c{1} -n1 runPipe kall --noconfirm{0} --jsonfile "${{jsonFile}}" --maxcpu {1} --execute 2 "${{inputFile}}"'.format(ref,max(cluster))
         bestPath = self.getOptimal(cluster,behavior='non-default',jsonPath=jsonFile)
         def getStage3():
             command3,counter,sampleNum = '',1,1
@@ -1640,22 +1656,23 @@ wait
                 Pstep = bestPath[path]['Procs']
                 Sstep = bestPath[path]['Samps']
                 for S in range(sampleNum,sampleNum + Sstep):
-                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe --noconfirm{2} --maxcpu {0} -e 3 -r {1} --kallisto "${{inputFile}}" &\n'.format(Pstep,S,ref)
+                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe kall --noconfirm{2} --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref)
                     command3 += com
                 if counter != len(bestPath):
                     command3 += 'wait\n'
                 counter += 1
                 sampleNum += Sstep
             return command3
-        command4 = 'srun -N1 -c1 -n1 runPipe --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 --kallisto "${{inputFile}}"'.format(ref)
-        command5 = 'srun -N1 -c{1} -n1 --exclusive runPipe --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 5 --kallisto "${{inputFile}}"'.format(ref, max(cluster))
+        command4 = 'srun -N1 -c1 -n1 runPipe kall --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
+        command5 = 'srun -N1 -c{1} -n1 --exclusive runPipe kall --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 5 "${{inputFile}}"'.format(ref, max(cluster))
         Context = {
                 "NODES": len(cluster),
                 "CPT": bestPath['Step 1']['Procs'],
                 "NTASKS": bestPath['Step 1']['Samps'],
                 "INPUT": self.inputPath,
                 "JSON": JSFI,
-                "STAGE12": command12,
+                "STAGE1": command1,
+                "STAGE2": command2,
                 "STAGE3": getStage3(),
                 "STAGE4": command4,
                 "STAGE5": command5
