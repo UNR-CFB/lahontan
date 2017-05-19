@@ -115,9 +115,11 @@ def makeTimeFile(logPath):
 def unwrap_self_runSample_fc(arg, **kwarg):
     ''' Magic for multiprocessing '''
     return FCountsExperiment.runSample(*arg, **kwarg)
+
 def unwrap_self_runSample_st(arg, **kwarg):
     ''' Magic for multiprocessing '''
     return StringtieExperiment.runSample(*arg, **kwarg)
+
 def unwrap_self_runSample_ka(arg, **kwarg):
     ''' Magic for multiprocessing '''
     return KallistoExperiment.runSample(*arg, **kwarg)
@@ -242,7 +244,21 @@ class Experiment:
             Calls pipeUtils.findFinish() to figure out when self.GO()
             function has finished analysis on all samples
         '''
-        pipeUtils.findFinish(self.Project, self.ogOriginal)
+        numSamples = self.getNumberofSamples()
+        doneGlob = os.path.join(self.Data, 'sample*/.done')
+        notifyFolder = os.path.join(self.Project, 'runPipeNotify')
+        while True:
+            if os.path.isdir(notifyFolder):
+                if len(os.listdir(notifyFolder)) == numSamples or len(glob.glob(doneGlob)) == numSamples:
+                    shutil.rmtree(notifyFolder)
+                    break
+                else:
+                    pass
+            elif len(glob.glob(doneGlob)) == numSamples:
+                break
+            else:
+                pass
+            time.sleep(2)
 
     def is3Finished(self):
         ''' Arguments:
@@ -253,7 +269,20 @@ class Experiment:
             Calls pipeUtils.findFinish() to figure out when self.GO()
             function has finished analysis on all samples
         '''
-        return pipeUtils.findFinish(self.Project, self.ogOriginal, behavior='non-default')
+        numSamples = self.getNumberofSamples()
+        doneGlob = os.path.join(self.Data, 'sample*/.done')
+        notifyFolder = os.path.join(self.Project, 'runPipeNotify')
+        finished = False
+        if os.path.isdir(notifyFolder):
+            if len(os.listdir(notifyFolder)) == numSamples or len(glob.glob(doneGlob)) == numSamples: 
+                finished = True
+            else:
+                finished = False
+        elif len(glob.glob(doneGlob)) == numSamples:
+            finished = True
+        else:
+            finished = False
+        return finished
 
     def getOptimal(self, cluster, behavior='default', jsonPath=False, getBiggestCPU=False):
         ''' Arguments:
@@ -727,7 +756,8 @@ class FCountsExperiment(Experiment):
     ###############################################################
 
     def runSample(self, sample):
-        sample.runParts()
+        if not sample.isFinished():
+            sample.runParts()
 
     def GO(self, subject=0):
         if subject == 0:
@@ -840,9 +870,18 @@ wait
             All = F.readlines()[5:]
         updatedGTF = []
         for line in All:
-            ID = re.search(GI,line).group(0).split(' ')[1].split('"')[1]
-            Name = re.search(GN,line).group(0).split(' ')[1].split('"')[1]
-            BioType = re.search(GT,line).group(0).split(' ')[1].split('"')[1]
+            try:
+                ID = re.search(GI,line).group(0).split(' ')[1].split('"')[1]
+            except AttributeError: # line doesn't have a field for name, id, or type
+                ID = 'N/A'
+            try:
+                Name = re.search(GN,line).group(0).split(' ')[1].split('"')[1]
+            except AttributeError: # line doesn't have a field for name, id, or type
+                Name = 'N/A'
+            try:
+                BioType = re.search(GT,line).group(0).split(' ')[1].split('"')[1]
+            except AttributeError: # line doesn't have a field for name, id, or type
+                BioType = 'N/A'
             Chr = line.split('\t')[0]
             updatedGTF.append('\t'.join([ID,Name,BioType,Chr]))
         with open(os.path.join(self.Postprocessing,'INTC'),'w') as F:
@@ -1033,7 +1072,7 @@ wait
     def runStage4(self):
         while True:
             if self.is3Finished() or self.checkEach():
-                time.sleep(6)
+                time.sleep(1)
                 print('Preparing for R analysis...')
                 if os.path.isdir(os.path.join(self.Project,'runPipeNotify')):
                     shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
@@ -1045,8 +1084,9 @@ wait
                 self.createRCols()
                 self.createRProgram()
                 self.makeGoodCounts()
+                break
             else:
-                time.sleep(30)
+                time.sleep(1)
 
     def runStage5(self):
         self.runRProgram()
@@ -1076,7 +1116,8 @@ class StringtieExperiment(Experiment):
     ###############################################################
 
     def runSample(self, sample, stPhase):
-        sample.runParts(stPhase)
+        if not sample.isFinished():
+            sample.runParts(stPhase)
 
     def GO(self, phases, subject=0):
         for phase in phases:
@@ -1487,7 +1528,7 @@ wait
     def runStage4(self):
         while True:
             if self.is3Finished() or self.checkEach():
-                time.sleep(6)
+                time.sleep(1)
                 print('Preparing for R analysis...')
                 if os.path.isdir(os.path.join(self.Project,'runPipeNotify')):
                     shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
@@ -1499,7 +1540,7 @@ wait
                 self.createBallgownScript()
                 break
             else:
-                time.sleep(30)
+                time.sleep(1)
 
     def runStage5(self):
         self.runBallgownAnalysis()
@@ -1528,7 +1569,8 @@ class KallistoExperiment(Experiment):
     ###############################################################
 
     def runSample(self, sample):
-        sample.runParts()
+        if not sample.isFinished():
+            sample.runParts()
 
     def GO(self, subject=0):
         if subject == 0:
@@ -1785,7 +1827,7 @@ wait
     def runStage4(self):
         while True:
             if self.is3Finished() or self.checkEach():
-                time.sleep(6)
+                time.sleep(1)
                 print('Preparing for R analysis...')
                 if os.path.isdir(os.path.join(self.Project,'runPipeNotify')):
                     shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
@@ -1797,7 +1839,7 @@ wait
                 self.createSleuthScript()
                 break
             else:
-                time.sleep(30)
+                time.sleep(1)
 
     def runStage5(self):
         self.runSleuthAnalysis()
@@ -1938,6 +1980,19 @@ class Sample:
         with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'w') as LOG:
             LOG.write('\t\tRuntime Log for {}\n'.format(sampleName))
             LOG.write('----------------------------------------\n\n')
+
+    def isFinished(self):
+        ''' Arguments:
+                None
+            Returns:
+                bool: True = sample has finished running
+                      False = sample not finished
+
+            Checks to see if '.done' exists in sample directory
+        '''
+        if os.path.exists(os.path.join(self.samplePath, '.done')):
+            return True
+        return False
 
     ########################################################
     # Quality Control
