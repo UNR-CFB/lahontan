@@ -26,6 +26,7 @@ Available runPipe commands:
     mj      Provoke questionnaire to make a Metadata file
     mb      Create trimmomatic blacklist
     cl      Clean any project directories
+    fo      Finds optimal execution path for batch execution
 
 See 'runPipe help <command>' for more information on a specific 
 command'''
@@ -177,10 +178,6 @@ def clean(arguments):
         PROJ.clean('Sample',arguments['--sampleclean'])
         raise SystemExit
 
-def checkJSON():
-    # Checking JSON file for syntax errors
-    if JSFI != None:
-        pipeClasses.checkJSON(JSFI)
 
 def makeBatch(ExperimentClass, arguments):
     ''' Arguments:
@@ -373,7 +370,8 @@ Options:
         Use Reference data that has already been prepared.
         Put path to already prepared reference data in 
         INPUT file
-        Note: Need to run Stage 1 with this argument'''
+        Note: Need to run Stage 1 with this argument or add to
+        "--makebatch" argument'''
     makeGlobalVars(arguments)
     cpuLimit = checkMaxCPU(arguments)
     testFile(arguments['<input>'])
@@ -449,11 +447,14 @@ Options:
         Use Reference data that has already been prepared.
         Put path to already prepared reference data in 
         INPUT file
-        Note: Need to run Stage 1 with this argument
+        Note: Need to run Stage 1 with this argument or add to
+        "--makebatch" argument
     --makebatch <cluster>
         Makes batch file to be used with slurm. The argument
         it takes is a comma-separated list of CPUs on each
-        node in your cluster'''
+        node in your cluster
+    --batchjson <pathtoJSON>
+        Uses json file already created to make batch file'''
     makeGlobalVars(arguments)
     cpuLimit = checkMaxCPU(arguments)
     testFile(arguments['<input>'])
@@ -516,7 +517,8 @@ Options:
         Use Reference data that has already been prepared.
         Put path to already prepared reference data in 
         INPUT file
-        Note: Need to run Stage 1 with this argument
+        Note: Need to run Stage 1 with this argument or add to
+        "--makebatch" argument
     --makebatch <cluster>
         Makes batch file to be used with slurm. The argument
         it takes is a comma-separated list of CPUs on each
@@ -604,6 +606,10 @@ def moreHelp(arguments):
     elif helpCommand == 'cl':
         print('This is cleanup information #TODO')
         raise SystemExit(cleanup.__doc__)
+    elif helpCommand == 'fo':
+        print('This is optPath information #TODO')
+        import optPath
+        raise SystemExit(optPath.__doc__)
     elif helpCommand == 'help':
         print('Help command provides help #TODO')
     else:
@@ -638,6 +644,10 @@ if __name__ == '__main__':
     elif args['<command>'] == 'cl':
         args.update(docopt(cleanup.__doc__, argv=argv))
         cleanup(args)
+    elif args['<command>'] == 'fo':
+        import optPath
+        args.update(docopt(optPath.__doc__, argv=argv))
+        optPath.main(args)
     elif args['<command>'] == 'help':
         moreHelp(args)
     elif args['<command>'] == None:
