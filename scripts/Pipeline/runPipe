@@ -1,8 +1,5 @@
 #!/usr/bin/python3
 
-#TODO Add -p threads to hisat2-build in PPofRef.sh
-#       Or just rewrite PPofRef in python.
-
 ################################################################
 # General Usage
 ################################################################
@@ -15,19 +12,6 @@ Options:
         Show this screen and exit
     --version
         Show version and exit
-    --maxcpu <CPUs>
-        Limits number of CPUs used by Pipeline. Default is to
-        use all available CPUs
-    --noconfirm
-        Ignore all user prompts except JSON file creation
-    --use-reference
-        Use Reference data that has already been prepared.
-        Put path to already prepared reference data in 
-        INPUT file
-        Note: Need to run Stage 1 with this argument
-    -j <jsonFile>, --jsonfile <jsonFile>
-        Ignores JSON Metadata file creation and uses specified
-        path to JSON Metadata
     --reference-qc <pathtoReferences>
         Runs Quality Control check on Reference files
     --reference-pp <pathtoReferences>
@@ -35,12 +19,13 @@ Options:
     --NUKE <input>
         Removes entire project Directory specified in input file
 
-Available runPipe commands are:
+Available runPipe commands:
     fc      For running featureCounts pipeline
     st      For running Stringtie pipeline
     ka      For running kallisto pipeline
     mj      Provoke questionnaire to make a Metadata file
     mb      Create trimmomatic blacklist
+    cl      Clean any project directories
 
 See 'runPipe help <command>' for more information on a specific 
 command'''
@@ -69,7 +54,9 @@ def testFile(filePath):
         Tests existence of file
     """
     if not os.path.exists(filePath):
-        raise SystemExit('{} does not exist'.format(filePath))
+        raise SystemExit('Error: {} does not exist\n\n{}'.format(filePath,__doc__))
+    elif os.path.isdir(filePath):
+        raise SystemExit('Error: {} is a directory\n\n{}'.format(filePath,__doc__))
 
 def testDir(dirPath):
     """ Arguments:
@@ -79,7 +66,7 @@ def testDir(dirPath):
         Tests existence of directory
     """
     if not os.path.isdir(dirPath):
-        raise SystemExit('{} does not exist'.format(dirPath))
+        raise SystemExit('Error: {} does not exist\n\n{}'.format(dirPath,__doc__))
 
 def makeGlobalVars(arguments):
     # Global Variables to be used in scripts
@@ -87,6 +74,8 @@ def makeGlobalVars(arguments):
     NOCONFIRM = arguments['--noconfirm']
     global JSFI # Metadata JSON file
     JSFI = arguments['--jsonfile']
+    if JSFI:
+        testFile(JSFI)
     global IS_REFERENCE_PREPARED
     IS_REFERENCE_PREPARED = arguments['--use-reference']
     pipeClasses.JSFI = JSFI
@@ -362,6 +351,12 @@ Options:
     -r <integer>, --runsample <integer>
         Runs Stage 3 of the pipeline on the sample specified
         by the integer
+    -j <jsonFile>, --jsonfile <jsonFile>
+        Ignores JSON Metadata file creation and uses specified
+        path to JSON Metadata
+    --maxcpu <CPUs>
+        Limits number of CPUs used by Pipeline. Default is to
+        use all available CPUs
     --makebatch <cluster>
         Makes batch file to be used with slurm. The argument
         it takes is a comma-separated list of CPUs on each
@@ -372,19 +367,16 @@ Options:
         Runs edgeR analysis only. Default is to run both 
     --deseq
         Runs DESeq2 analysis only. Default is to run both
-    -c <placeToClean>, --clean <placeToClean>
-        Cleans <placeToClean>; Possible places include:
-            Reference
-            Data
-            Postprocessing
-            All
-    --sampleclean <sampleName>
-        Similar to --clean; but instead just cleans a
-        single sample directory, <sampleName>'''
+    --noconfirm
+        Ignore all user prompts except JSON file creation
+    --use-reference
+        Use Reference data that has already been prepared.
+        Put path to already prepared reference data in 
+        INPUT file
+        Note: Need to run Stage 1 with this argument'''
     makeGlobalVars(arguments)
-    # Clean directories if necessary
-    clean(arguments)
     cpuLimit = checkMaxCPU(arguments)
+    testFile(arguments['<input>'])
     FCClass = pipeClasses.FCountsExperiment(arguments['<input>'], maxCPU=cpuLimit)
     # Make batch file if necessary
     makeBatch(FCClass, arguments)
@@ -445,25 +437,26 @@ Options:
         Note: If you will be running phase b, you cannot specify
         a sample to run with --runsample
         [default: abc]
+    -j <jsonFile>, --jsonfile <jsonFile>
+        Ignores JSON Metadata file creation and uses specified
+        path to JSON Metadata
+    --maxcpu <CPUs>
+        Limits number of CPUs used by Pipeline. Default is to
+        use all available CPUs
+    --noconfirm
+        Ignore all user prompts except JSON file creation
+    --use-reference
+        Use Reference data that has already been prepared.
+        Put path to already prepared reference data in 
+        INPUT file
+        Note: Need to run Stage 1 with this argument
     --makebatch <cluster>
         Makes batch file to be used with slurm. The argument
         it takes is a comma-separated list of CPUs on each
-        node in your cluster
-    --batchjson <pathtoJSON>
-        Uses json file already created to make batch file
-    -c <placeToClean>, --clean <placeToClean>
-        Cleans <placeToClean>; Possible places include:
-            Reference
-            Data
-            Postprocessing
-            All
-    --sampleclean <sampleName>
-        Similar to --clean; but instead just cleans a
-        single sample directory, <sampleName>'''
+        node in your cluster'''
     makeGlobalVars(arguments)
-    # Clean directories if necessary
-    clean(arguments)
     cpuLimit = checkMaxCPU(arguments)
+    testFile(arguments['<input>'])
     StringtieClass = pipeClasses.StringtieExperiment(arguments['<input>'], maxCPU=cpuLimit)
     # Make batch file if necessary
     makeBatch(StringtieClass, arguments)
@@ -511,25 +504,28 @@ Options:
     -r <integer>, --runsample <integer>
         Runs Stage 3 of the pipeline on the sample specified
         by the integer
+    -j <jsonFile>, --jsonfile <jsonFile>
+        Ignores JSON Metadata file creation and uses specified
+        path to JSON Metadata
+    --maxcpu <CPUs>
+        Limits number of CPUs used by Pipeline. Default is to
+        use all available CPUs
+    --noconfirm
+        Ignore all user prompts except JSON file creation
+    --use-reference
+        Use Reference data that has already been prepared.
+        Put path to already prepared reference data in 
+        INPUT file
+        Note: Need to run Stage 1 with this argument
     --makebatch <cluster>
         Makes batch file to be used with slurm. The argument
         it takes is a comma-separated list of CPUs on each
         node in your cluster
     --batchjson <pathtoJSON>
-        Uses json file already created to make batch file
-    -c <placeToClean>, --clean <placeToClean>
-        Cleans <placeToClean>; Possible places include:
-            Reference
-            Data
-            Postprocessing
-            All
-    --sampleclean <sampleName>
-        Similar to --clean; but instead just cleans a
-        single sample directory, <sampleName>'''
+        Uses json file already created to make batch file'''
     makeGlobalVars(arguments)
-    # Clean directories if necessary
-    clean(arguments)
     cpuLimit = checkMaxCPU(arguments)
+    testFile(arguments['<input>'])
     KallistoClass = pipeClasses.KallistoExperiment(arguments['<input>'], maxCPU=cpuLimit)
     # Make batch file if necessary
     makeBatch(KallistoClass, arguments)
@@ -556,6 +552,25 @@ Options:
     if '5' in stagesToExecute and stage5KAReadyToExecute(KallistoClass):
         KallistoClass.runStage5()
 
+def cleanup(arguments):
+    '''Usage:
+    runPipe cl [options] <input>
+
+Options:
+    -h, --help
+        Show this screen and exit
+    -c <placeToClean>, --clean <placeToClean>
+        Cleans <placeToClean>; Possible places include:
+            Reference
+            Data
+            Postprocessing
+            All
+    --sampleclean <sampleName>
+        Similar to --clean; but instead just cleans a
+        single sample directory, <sampleName>'''
+    makeGlobalVars(arguments)
+    clean(arguments)
+
 def otherStuff(arguments):
     if any(arguments.values()):
         makeGlobalVars(arguments)
@@ -565,7 +580,6 @@ def otherStuff(arguments):
         raise SystemExit(__doc__)
 
 def moreHelp(arguments):
-    makeGlobalVars(arguments)
     try:
         helpCommand = arguments['<args>'][0]
     except IndexError:
@@ -587,6 +601,9 @@ def moreHelp(arguments):
         print('This is makeTrimBlacklist')
         import makeTrimBlacklist
         raise SystemExit(makeTrimBlacklist.__doc__)
+    elif helpCommand == 'cl':
+        print('This is cleanup information #TODO')
+        raise SystemExit(cleanup.__doc__)
     elif helpCommand == 'help':
         print('Help command provides help #TODO')
     else:
@@ -618,6 +635,9 @@ if __name__ == '__main__':
         import makeTrimBlacklist
         args.update(docopt(makeTrimBlacklist.__doc__, argv=argv))
         makeTrimBlacklist.blacklist(args['--tofile'])
+    elif args['<command>'] == 'cl':
+        args.update(docopt(cleanup.__doc__, argv=argv))
+        cleanup(args)
     elif args['<command>'] == 'help':
         moreHelp(args)
     elif args['<command>'] == None:
