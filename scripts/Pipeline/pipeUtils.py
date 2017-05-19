@@ -28,26 +28,6 @@ import makeEdgeReport
 # Useful Utilities
 ################################################################
 
-def textMe(toPhoneNumber,message):
-    pass
-#    ''' Arguments:
-#            toPhoneNumber = string; phone number that you wish message to be sent to
-#            message = string; message that you wish to send   
-#        Returns:
-#            None; Texts toPhoneNumber the message
-#
-#        Uses twilio to send a text message when finished.
-#        Needs to be enabled first
-#    '''
-#    accountSID = 'AC17039a9f9b17f2ae2d188ca54db201ac'
-#    authToken = 'da2a8dbeca04139270ed22e4d0224b5f'
-#    twilioNumber = '+17756004137'
-#    twilioCli = TwilioRestClient(accountSID, authToken)
-#    message = twilioCli.messages.create(body=str(message), from_=twilioNumber, to=toPhoneNumber)
-#
-#    Notification = 'This message was sent to {}:\n{}'.format(toPhoneNumber,message.body)
-#    print(Notification)
-
 def getNumberofFiles(path):
     ''' Arguments:
             path = string of the path to a directory where you
@@ -322,46 +302,6 @@ def qcReference(referencePath,genomeName):
             break
 
 ################################################################
-# Pre-Processing of Reference Data once QC complete
-################################################################
-
-def preProcessingReference(referencePath,cdnaName,gtfName,genomeName,baseName):
-    ''' Arguments:
-            referencePath = string of the path to the Reference Directory
-            cdnaName = string; name of Cdna file
-            gtfName = string; name of Gtf file
-            genomeName = string; name of the genome file
-            baseName = string; base name created
-        Returns:
-            None
-        
-        Preprocesses reference data by running PPofRef.sh
-    '''
-    if not NOCONFIRM:
-        if not os.path.isdir(referencePath):
-            raise SystemExit("Path is not a directory:\n{}".format(referencePath))
-        if genomeName not in os.listdir(referencePath):
-            raise SystemExit("{} not in {}".format(genomeName, referencePath))
-        if cdnaName not in os.listdir(referencePath):
-            raise SystemExit("{} not in {}".format(cdnaName, referencePath))
-        if gtfName not in os.listdir(referencePath):
-            raise SystemExit("{} not in {}".format(gtfName, referencePath))
-    # Executing shell script
-    os.chdir(referencePath)
-    with open('Preprocessing.log','w') as PPlog:
-        subprocess.run(["PPofRef.sh",referencePath,cdnaName,gtfName,genomeName,baseName],
-                        stdout=PPlog,stderr=subprocess.STDOUT,check=True)
-    if not NOCONFIRM:
-        if 'Reference_Report.txt' not in os.listdir(referencePath):
-            raise SystemExit("{} not in {}".format('Reference_Report.txt', referencePath))
-        if 'splice_sites.txt' not in os.listdir(referencePath):
-            raise SystemExit("{} not in {}".format('splice_sites.txt', referencePath))
-        if 'known_exons.txt' not in os.listdir(referencePath):
-            raise SystemExit("{} not in {}".format('known_exons.txt', referencePath))
-    with open('{}/../.init'.format(referencePath),'a') as f:
-        f.write('P')
-
-################################################################
 # Run Pipeline
 ################################################################
 
@@ -630,27 +570,6 @@ def makeEdgeRreport(postProcessingPath):
     subprocess.run(["runEdgeR.sh",postProcessingPath],check=True)
 
 ###############################################################
-def Main(pathtoInput):
-    '''
-    Please use runPipe.py
-    See runPipe.py --help
-    '''
-    Project,Reference,Original,Gtf,Cdna,Genome,Basename,Fastq,Procs = exportVariables(pathtoInput)
-    createStructure(Project,Original)
-    createSymLinks(Project,Original,Reference)
-    qcReference(Project + '/Reference', Genome)
-    preProcessingReference(Project + '/Reference', Cdna, Gtf, Genome, Basename)
-    runPipe(Project + '/Data', Fastq, Procs, Project + '/Reference', Genome, Basename,Project,Gtf)
-    createMetaData(Project + '/Postprocessing')
-    findFinish(Project, Original)
-    makeNiceCounts(Project + '/Postprocessing', Project + '/Data')
-    makeTotalTime(Project + '/Postprocessing', Project + '/Data')
-    createColumnFile(Project + '/Postprocessing')
-    createCountFile(Project + '/Postprocessing')
-    createRScript(Project + '/Postprocessing')
-    makeRreports(Project + '/Postprocessing')
-    notifyEnding(Project + '/Postprocessing')
-
 if __name__ == '__main__':
-    arguments = docopt(__doc__,version='Version 1.0\nAuthor: Alberto')
+    arguments = docopt(__doc__,version='Version 1.0\nAuthor: Alberto Nava')
     raise SystemExit('Please use runPipe.py\nSee runPipe.py --help')
