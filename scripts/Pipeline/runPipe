@@ -20,13 +20,13 @@ Options:
         Removes entire project Directory specified in input file
 
 Available runPipe commands:
-    fc      For running featureCounts pipeline
-    st      For running Stringtie pipeline
-    ka      For running kallisto pipeline
-    mj      Provoke questionnaire to make a Metadata file
-    mb      Create trimmomatic blacklist
-    cl      Clean any project directories
-    fo      Finds optimal execution path for batch execution
+    fcounts     For running featureCounts pipeline
+    string      For running Stringtie pipeline
+    kall        For running kallisto pipeline
+    mj          Provoke questionnaire to make a Metadata file
+    mb          Create trimmomatic blacklist
+    clean       Clean any project directories
+    fo          Finds optimal execution path for batch execution
 
 See 'runPipe help <command>' for more information on a specific 
 command'''
@@ -178,7 +178,6 @@ def clean(arguments):
         PROJ.clean('Sample',arguments['--sampleclean'])
         raise SystemExit
 
-
 def makeBatch(ExperimentClass, arguments):
     ''' Arguments:
             ExperimentClass = class; experiment to run analysis on
@@ -198,9 +197,9 @@ def makeBatch(ExperimentClass, arguments):
                 raise SystemExit('Not a valid argument to --makebatch: {}'.format(
                                         arguments['--makebatch']))
             Nodes.append(int(node))
-        if arguments['<command>'] == 'st':
+        if arguments['<command>'] == 'string':
             ExperimentClass.makeStringtieBatch(cluster=Nodes,jsonFile=arguments['--batchjson'])
-        elif arguments['<command>'] == 'ka':
+        elif arguments['<command>'] == 'kall':
             ExperimentClass.makeKallistoBatch(cluster=Nodes,jsonFile=arguments['--batchjson'])
         else:
             ExperimentClass.makeBatch(cluster=Nodes,jsonFile=arguments['--batchjson'])
@@ -258,7 +257,7 @@ def checkdashe(arguments):
     return executionStages
 
 def checkdashp(arguments):
-    # Handling st --phase
+    # Handling string --phase
     possiblePhases = ['a','b','c','ab','bc','abc']
     stringtieUsage = ('Invalid argument to --phase: {}'.format(arguments['--phase']) + 
                         'Possible arguments: {}'.format(str(possiblePhases)))
@@ -275,7 +274,7 @@ def stage1ReadyToExecute(ExperimentClass):
     """
     testFile(ExperimentClass.inputPath)
     return True
-    
+
 def stage2ReadyToExecute(ExperimentClass):
     """ Arguments:
             ExperimentClass : Experiment; instance of a class
@@ -330,7 +329,7 @@ def stage5KAReadyToExecute(ExperimentClass):
 
 def featureCounts(arguments):
     '''Usage:
-    runPipe fc [options] <input>
+    runPipe fcounts [options] <input>
 
 Options:
     -h, --help
@@ -409,7 +408,7 @@ Options:
 
 def stringtie(arguments):
     '''Usage:
-    runPipe st [options] <input>
+    runPipe string [options] <input>
 
 Options:
     -h, --help
@@ -487,7 +486,7 @@ Options:
 
 def kallisto(arguments):
     '''Usage:
-    runPipe ka [options] <input>
+    runPipe kall [options] <input>
 
 Options:
     -h, --help
@@ -556,7 +555,7 @@ Options:
 
 def cleanup(arguments):
     '''Usage:
-    runPipe cl [options] <input>
+    runPipe clean [options] <input>
 
 Options:
     -h, --help
@@ -586,13 +585,13 @@ def moreHelp(arguments):
         helpCommand = arguments['<args>'][0]
     except IndexError:
         raise SystemExit(__doc__)
-    if helpCommand == 'fc':
+    if helpCommand == 'fcounts':
         print('This is featureCounts information #TODO')
         raise SystemExit(featureCounts.__doc__)
-    elif helpCommand == 'st':
+    elif helpCommand == 'string':
         print('This is stringtie information #TODO')
         raise SystemExit(stringtie.__doc__)
-    elif helpCommand == 'ka':
+    elif helpCommand == 'kall':
         print('This is kallisto information #TODO')
         raise SystemExit(kallisto.__doc__)
     elif helpCommand == 'mj':
@@ -603,7 +602,7 @@ def moreHelp(arguments):
         print('This is makeTrimBlacklist')
         import makeTrimBlacklist
         raise SystemExit(makeTrimBlacklist.__doc__)
-    elif helpCommand == 'cl':
+    elif helpCommand == 'clean':
         print('This is cleanup information #TODO')
         raise SystemExit(cleanup.__doc__)
     elif helpCommand == 'fo':
@@ -624,13 +623,13 @@ if __name__ == '__main__':
 
     args = docopt(__doc__, version=VERSION, options_first=True)
     argv = [args['<command>']] + args['<args>']
-    if args['<command>'] == 'fc':
+    if args['<command>'] == 'fcounts':
         args.update(docopt(featureCounts.__doc__, argv=argv))
         featureCounts(args)
-    elif args['<command>'] == 'st':
+    elif args['<command>'] == 'string':
         args.update(docopt(stringtie.__doc__, argv=argv))
         stringtie(args)
-    elif args['<command>'] == 'ka':
+    elif args['<command>'] == 'kall':
         args.update(docopt(kallisto.__doc__, argv=argv))
         kallisto(args)
     elif args['<command>'] == 'mj':
@@ -641,7 +640,7 @@ if __name__ == '__main__':
         import makeTrimBlacklist
         args.update(docopt(makeTrimBlacklist.__doc__, argv=argv))
         makeTrimBlacklist.blacklist(args['--tofile'])
-    elif args['<command>'] == 'cl':
+    elif args['<command>'] == 'clean':
         args.update(docopt(cleanup.__doc__, argv=argv))
         cleanup(args)
     elif args['<command>'] == 'fo':
