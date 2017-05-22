@@ -16,8 +16,19 @@ Options:
         Runs Quality Control check on Reference files
     --reference-pp <pathtoReferences>
         Pre processes Reference data
+    -j <jsonFile>, --jsonfile <jsonFile>
+        Ignores JSON Metadata file creation and uses specified
+        path to JSON Metadata
+    --noconfirm
+        Ignore all user prompts except JSON file creation
     --NUKE <input>
         Removes entire project Directory specified in input file
+    --use-reference
+        Use Reference data that has already been prepared.
+        Put path to already prepared reference data in 
+        INPUT file
+        Note: Need to run Stage 1 with this argument or add to
+        "--makebatch" argument
 
 Available runPipe commands:
     fcounts     For running featureCounts pipeline

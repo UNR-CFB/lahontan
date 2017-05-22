@@ -47,7 +47,8 @@ function makeDataSyms {
 
     samplecounter=1
     directorycounter=0
-    for file in "${Original}"/*; do
+    OriginalFiles=$(echo "${Original}/*" | sort)
+    for file in ${OriginalFiles}; do
     	name=$(echo "${file}" | awk -F '/' '{print $NF}')
         samplename=$(printf "sample_%02d" "${samplecounter}")
     
