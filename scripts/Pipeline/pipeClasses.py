@@ -788,7 +788,7 @@ class FCountsExperiment(Experiment):
 #SBATCH --cpus-per-task={CPT}
 #SBATCH --ntasks={NTASKS}
 #SBATCH --job-name="featureCounts Pipeline"
-#SBATCH --export=PATH,RNASEQDIR,HOME
+#SBATCH --export=PATH,RNASEQDIR,HOME,LC_ALL="en_us.UTF-8"
 
 inputFile='{INPUT}'
 jsonFile='{JSON}'
@@ -1169,7 +1169,7 @@ class StringtieExperiment(Experiment):
 #SBATCH --cpus-per-task={CPT}
 #SBATCH --ntasks={NTASKS}
 #SBATCH --job-name="Stringtie Pipeline"
-#SBATCH --export=PATH,RNASEQDIR,HOME
+#SBATCH --export=PATH,RNASEQDIR,HOME,LC_ALL="en_us.UTF-8"
 
 inputFile='{INPUT}'
 jsonFile='{JSON}'
@@ -1614,7 +1614,7 @@ class KallistoExperiment(Experiment):
 #SBATCH --cpus-per-task={CPT}
 #SBATCH --ntasks={NTASKS}
 #SBATCH --job-name="Kallisto Pipeline"
-#SBATCH --export=PATH,RNASEQDIR,HOME
+#SBATCH --export=PATH,RNASEQDIR,HOME,LC_ALL="en_us.UTF-8"
 
 inputFile='{INPUT}'
 jsonFile='{JSON}'
