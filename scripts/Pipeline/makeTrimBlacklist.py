@@ -9,7 +9,7 @@ Name/path can be specified by -t or --tofile
 Options:
     -h, --help
         Show this screen and exit
-    -t <newadapterfile> | --tofile <newadapterfile>
+    -t <newadapterfile>, --tofile <newadapterfile>
         Where to save new blacklist [default: ./TruSeq3-PE.fa]
 
 Example:
