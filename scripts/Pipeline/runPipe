@@ -1,7 +1,375 @@
 #!/usr/bin/python3
 
+################################################################
+# General Usage
+################################################################
+
 '''Usage:
-    runPipe [options] <pathtoInputFile>
+    runPipe [options] [<command>] [<args>...]
+
+Options:
+    -h, --help
+        Show this screen and exit
+    --version
+        Show version and exit
+    --noconfirm
+        Ignore all user prompts except JSON file creation
+
+Available runPipe commands:
+    fcounts     For running featureCounts pipeline
+    string      For running Stringtie pipeline
+    kall        For running kallisto pipeline
+    mj          Provoke questionnaire to make a Metadata file
+    mb          Create trimmomatic blacklist
+    clean       Clean any project directories
+    fo          Finds optimal execution path for batch execution
+    prepref     Pre-processes reference data
+
+See 'runPipe help <command>' for more information on a specific 
+command'''
+VERSION = 'runPipe experimental version\nAuthor: Alberto Nava'
+
+################################################################
+# Importations
+################################################################
+
+from docopt import docopt
+from timeit import default_timer as timer
+import time
+import pipeClasses
+import os
+import glob
+import subprocess
+
+################################################################
+# Utilities
+################################################################
+
+def testFile(filePath):
+    """ Arguments:
+            filePath : str; path to a file
+        Returns:
+            None
+        Tests existence of file
+    """
+    if not os.path.exists(filePath):
+        raise SystemExit('Error: {} does not exist\n\n{}'.format(filePath,__doc__))
+    elif os.path.isdir(filePath):
+        raise SystemExit('Error: {} is a directory\n\n{}'.format(filePath,__doc__))
+
+def testDir(dirPath):
+    """ Arguments:
+            dirPath : str; path to a directory
+        Returns:
+            None
+        Tests existence of directory
+    """
+    if not os.path.isdir(dirPath):
+        raise SystemExit('Error: {} does not exist\n\n{}'.format(dirPath,__doc__))
+
+def makeGlobalVars(arguments):
+    # Global Variables to be used in scripts
+    global NOCONFIRM
+    NOCONFIRM = arguments['--noconfirm']
+    global JSFI # Metadata JSON file
+    if '--jsonfile' in arguments.keys():
+        JSFI = arguments['--jsonfile']
+        if JSFI:
+            testFile(JSFI)
+    else:
+        JSFI = None
+    global IS_REFERENCE_PREPARED
+    if '--use-reference' in arguments.keys():
+        IS_REFERENCE_PREPARED = arguments['--use-reference']
+    else:
+        IS_REFERENCE_PREPARED = False
+    pipeClasses.JSFI = JSFI
+    pipeClasses.NOCONFIRM = NOCONFIRM
+    pipeClasses.IS_REFERENCE_PREPARED = IS_REFERENCE_PREPARED
+    pipeClasses.pipeUtils.JSFI = JSFI
+    pipeClasses.pipeUtils.NOCONFIRM = NOCONFIRM
+    pipeClasses.pipeUtils.IS_REFERENCE_PREPARED = IS_REFERENCE_PREPARED
+
+def ppRef(referenceDir, cdna, basename, gtf, genome, cpulimit=None):
+    ''' Arguments:
+            None
+        Returns:
+            None
+
+        Handles preprocessing without class structure
+    '''
+    if cpulimit == None:
+        cpulimit = os.cpu_count()
+    ppLog = os.path.join(referenceDir, 'Preprocessing.log')
+    Context = {
+            "cdna": cdna,
+            "basename": basename,
+            "gtf": gtf,
+            "genome": genome,
+            "cpu": cpulimit
+            }
+    makeBlastdb = """time -p makeblastdb -in {cdna} -dbtype nucl -out {basename}.cdna.all""".format(**Context)
+    extractSpliceSites = """time -p extract_splice_sites.py {gtf} > splice_sites.txt""".format(**Context)
+    extractExons = """time -p extract_exons.py {gtf} > known_exons.txt""".format(**Context)
+    hisatBuild = """time -p hisat2-build -p {cpu} --ss splice_sites.txt --exon known_exons.txt {genome} {basename}""".format(**Context)
+    samtoolsFaidx = """time -p samtools faidx {genome}""".format(**Context)
+    os.chdir(referenceDir)
+    print("Preprocessing Data...")
+    with open(ppLog, 'w') as PPlog:
+        PPlog.write('\n{}\n{}'.format(makeBlastdb,'='*50))
+        subprocess.run(makeBlastdb,
+                            shell=True,
+                            check=True,
+                            executable="/bin/bash",
+                            stdout=PPlog,
+                            stderr=subprocess.STDOUT)
+        PPlog.write('\n{}\n{}'.format(extractSpliceSites,'='*50))
+        subprocess.run(extractSpliceSites,
+                            shell=True,
+                            check=True,
+                            executable="/bin/bash",
+                            stdout=PPlog,
+                            stderr=subprocess.STDOUT)
+        PPlog.write('\n{}\n{}'.format(extractExons,'='*50))
+        subprocess.run(extractExons,
+                            shell=True,
+                            check=True,
+                            executable="/bin/bash",
+                            stdout=PPlog,
+                            stderr=subprocess.STDOUT)
+        PPlog.write('\n{}\n{}'.format(hisatBuild,'='*50))
+        subprocess.run(hisatBuild,
+                            shell=True,
+                            check=True,
+                            executable="/bin/bash",
+                            stdout=PPlog,
+                            stderr=subprocess.STDOUT)
+        PPlog.write('\n{}\n{}'.format(samtoolsFaidx,'='*50))
+        subprocess.run(samtoolsFaidx,
+                            shell=True,
+                            check=True,
+                            executable="/bin/bash",
+                            stdout=PPlog,
+                            stderr=subprocess.STDOUT)
+    with open(os.path.join(self.Project, '.init'), 'a') as F:
+        F.write('P')
+
+
+def clean(arguments):
+    # Handling Cleaning Arguments
+    possibleCleanArguments = ['All','Reference','Data','Postprocessing']
+    if arguments['--clean']:
+        assert arguments['--clean'] in possibleCleanArguments, 'Invalid Cleaning Argument: Run runPipe.py -h for available arguments'
+        PROJ = pipeClasses.Experiment(arguments['<input>'])
+        if arguments['--clean'] != 'All':
+            if arguments['--clean'] == 'Data':
+                if not os.path.isdir(PROJ.Data):
+                    raise SystemExit('{} does not exist'.format(PROJ.Data))
+            if arguments['--clean'] == 'Reference':
+                if not os.path.isdir(PROJ.Reference):
+                    raise SystemExit('{} does not exist'.format(PROJ.Reference))
+            if arguments['--clean'] == 'Postprocessing':
+                if not os.path.isdir(PROJ.Postprocessing):
+                    raise SystemExit('{} does not exist'.format(PROJ.Postprocessing))
+        if NOCONFIRM:
+            PROJ.clean(arguments['--clean'])
+            raise SystemExit
+        else:
+            while True:
+                answer = input('Are you sure you wish to clean {}?(y/n) '.format(arguments['--clean']))
+                if answer == 'y':
+                    PROJ.clean(arguments['--clean'])
+                    raise SystemExit
+                elif answer == 'n':
+                    raise SystemExit
+                else:
+                    print('Please answer y or n')
+    elif arguments['--sampleclean']:
+        PROJ = pipeClasses.Experiment(arguments['<input>'])
+        if not os.path.isdir(str(PROJ.Data + '/' + arguments['--sampleclean'])):
+            raise SystemExit('{} does not exist'.format(str(PROJ.Data + '/' +
+                                                        arguments['--sampleclean'])))
+        if NOCONFIRM:
+            PROJ.clean('Sample',arguments['--sampleclean'])
+            raise SystemExit
+        else:
+            while True:
+                answer = input('Are you sure you wish to clean {}?(y/n) '.format(arguments['--sampleclean']))
+                if answer == 'y':
+                    PROJ.clean('Sample',arguments['--sampleclean'])
+                    raise SystemExit
+                elif answer == 'n':
+                    raise SystemExit
+                else:
+                    print('Please answer y or n')
+        raise SystemExit
+    else:
+        if NOCONFIRM:
+            PROJ.clean('All')
+            raise SystemExit
+        else:
+            while True:
+                answer = input('Are you sure you wish to clean All?(y/n) ')
+                if answer == 'y':
+                    PROJ.clean('All')
+                    raise SystemExit
+                elif answer == 'n':
+                    raise SystemExit
+                else:
+                    print('Please answer y or n')
+
+def makeBatch(ExperimentClass, arguments):
+    ''' Arguments:
+            ExperimentClass = class; experiment to run analysis on
+        Returns:
+            None
+
+        If --makebatch argument given, then make batch script to be
+        used with slurm, and then exit
+    '''
+    # Making slurm batch files if necessary
+    if arguments['--batchjson']:
+        pipeClasses.checkJSON(arguments['--batchjson'])
+    if arguments['--makebatch']:
+        preNodes,Nodes = arguments['--makebatch'].split(','),[]
+        for node in preNodes:
+            if not node.isdigit() or int(node) <= 0:
+                raise SystemExit('Not a valid argument to --makebatch: {}'.format(
+                                        arguments['--makebatch']))
+            Nodes.append(int(node))
+        if arguments['<command>'] == 'string':
+            ExperimentClass.makeStringtieBatch(cluster=Nodes,jsonFile=arguments['--batchjson'])
+        elif arguments['<command>'] == 'kall':
+            ExperimentClass.makeKallistoBatch(cluster=Nodes,jsonFile=arguments['--batchjson'])
+        else:
+            ExperimentClass.makeBatch(cluster=Nodes,jsonFile=arguments['--batchjson'])
+        raise SystemExit('Batch file successfully created:\n\t{}/pipeBatch'.format(os.getcwd()))
+
+def checkMaxCPU(arguments):
+    # Returning a maximum CPU value if given
+    if arguments['--maxcpu']:
+        if arguments['--maxcpu'].isdigit():
+            Max = int(arguments['--maxcpu'])
+            if Max <= os.cpu_count() and Max > 0:
+                return Max
+            else:
+                raise SystemExit('--maxcpu greater than available CPUs')
+        else:
+            raise SystemExit('Invalid value to --maxcpu: {}'.format(
+                        arguments['--maxcpu']))
+    else:
+        return None
+
+def setGlobalLog(ExperimentClass):
+    # Inititiating a Runtime Log global location
+    global RUNTIMELOG
+    RUNTIMELOG = str(ExperimentClass.Project + '/Runtime.log')
+    pipeClasses.RUNTIMELOG = RUNTIMELOG
+
+def checkdashr(ExperimentClass, arguments):
+    # Running a specific sample
+    if arguments['--runsample']:
+        samples = arguments['--runsample'].split(',')
+        possibleSamples = [str(a+1) for a in range(ExperimentClass.getNumberofSamples())]
+        runsampleUsage = ('Invalid argument to --runsample: {}'.format(arguments['--runsample']) + 
+                            'Possible arguments: {}'.format(str(possibleSamples)))
+        if len(set(samples)) != len(samples):
+            raise SystemExit(runsampleUsage)
+        for sample in samples:
+            if sample not in possibleSamples:
+                raise SystemExit(runsampleUsage)
+        return samples
+
+def checkdashe(arguments):
+    # Determining what stages to run of Pipeline
+    if arguments['--execute'] == 'A':
+        executionStages = ["1","2","3","4","5"]
+    else:
+        executionStages = arguments['--execute'].split(',')
+    possibleStages = ["1","2","3","4","5","A"]
+    executeUsage = ('Invalid argument to --execute: {}'.format(arguments['--execute']) + 
+                        'Possible arguments: {}'.format(str(possibleStages)))
+    if len(set(executionStages)) != len(executionStages):
+        raise SystemExit(executeUsage)
+    for stage in executionStages:
+        if stage not in possibleStages:
+            raise SystemExit(executeUsage)
+    return executionStages
+
+def checkdashp(arguments):
+    # Handling string --phase
+    possiblePhases = ['a','b','c','ab','bc','abc']
+    stringtieUsage = ('Invalid argument to --phase: {}'.format(arguments['--phase']) + 
+                        'Possible arguments: {}'.format(str(possiblePhases)))
+    if arguments['--phase'] not in possiblePhases:
+        raise SystemExit(stringtieUsage)
+    executionPhases = list(arguments['--phase'])
+    return executionPhases
+
+def stage1ReadyToExecute(ExperimentClass):
+    """ Arguments:
+            ExperimentClass : Experiment; instance of a class
+        Returns:
+            None
+    """
+    testFile(ExperimentClass.inputPath)
+    return True
+
+def stage2ReadyToExecute(ExperimentClass):
+    """ Arguments:
+            ExperimentClass : Experiment; instance of a class
+        Returns:
+            None
+    """
+    projectPath = ExperimentClass.Project
+    dataPath = ExperimentClass.Data
+    refPath = ExperimentClass.Reference
+    origPath = ExperimentClass.Original
+    ppPath = ExperimentClass.Postprocessing
+    for directory in [projectPath, dataPath, refPath, origPath, ppPath]:
+        testDir(directory)
+    for sample in glob.glob(os.path.join(dataPath,'sample_*')):
+        if len(glob.glob(os.path.join(sample,'*'))) < 2:
+            raise SystemExit('Symbolic links to Original data missing')
+    for ref in [os.path.join(ExperimentClass.Reference, f) for f 
+            in [ExperimentClass.Gtf, ExperimentClass.Cdna, ExperimentClass.Genome]]:
+        testFile(ref)
+    return True
+
+def stage3FCReadyToExecute(ExperimentClass):
+    return True
+
+def stage4FCReadyToExecute(ExperimentClass):
+    return True
+
+def stage5FCReadyToExecute(ExperimentClass):
+    return True
+
+def stage3STReadyToExecute(ExperimentClass):
+    return True
+
+def stage4STReadyToExecute(ExperimentClass):
+    return True
+
+def stage5STReadyToExecute(ExperimentClass):
+    return True
+
+def stage3KAReadyToExecute(ExperimentClass):
+    return True
+
+def stage4KAReadyToExecute(ExperimentClass):
+    return True
+
+def stage5KAReadyToExecute(ExperimentClass):
+    return True
+
+################################################################
+# Usage Functions
+################################################################
+
+def featureCounts(arguments):
+    '''Usage:
+    runPipe fcounts [options] <input>
 
 Options:
     -h, --help
@@ -22,15 +390,234 @@ Options:
     -j <jsonFile>, --jsonfile <jsonFile>
         Ignores JSON Metadata file creation and uses specified
         path to JSON Metadata
-    -s <phase>, --stringtie <phase>
+    --maxcpu <CPUs>
+        Limits number of CPUs used by Pipeline. Default is to
+        use all available CPUs
+    --makebatch <cluster>
+        Makes batch file to be used with slurm. The argument
+        it takes is a comma-separated list of CPUs on each
+        node in your cluster
+    --batchjson <pathtoJSON>
+        Uses json file already created to make batch file
+    --edger
+        Runs edgeR analysis only. Default is to run both 
+    --deseq
+        Runs DESeq2 analysis only. Default is to run both
+    --noconfirm
+        Ignore all user prompts except JSON file creation
+    --use-blacklist <blacklist>
+        Trimmomatic blacklist used for quality control
+        [default: $RNASEQDIR/Trimmomatic/adapters/TruSeq3-PE.fa]
+    --use-reference
+        Use Reference data that has already been prepared.
+        Put path to already prepared reference data in 
+        INPUT file
+        Note: Need to run Stage 1 with this argument or add to
+        "--makebatch" argument'''
+    makeGlobalVars(arguments)
+    cpuLimit = checkMaxCPU(arguments)
+    testFile(arguments['<input>'])
+    testFile(os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
+    FCClass = pipeClasses.FCountsExperiment(arguments['<input>'],
+                                            maxCPU=cpuLimit,
+                                            blacklist=os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
+    # Make batch file if necessary
+    makeBatch(FCClass, arguments)
+    setGlobalLog(FCClass)
+    samplesToExecute = checkdashr(FCClass, arguments)
+    stagesToExecute = checkdashe(arguments)
+    # Run Stage 1 if necessary
+    if '1' in stagesToExecute and stage1ReadyToExecute(FCClass):
+        FCClass.runStage1()
+    # Run Stage 2 if necessary
+    if '2' in stagesToExecute and stage2ReadyToExecute(FCClass):
+        FCClass.runStage2()
+    # Run Stage 3 if necessary
+    if '3' in stagesToExecute and stage3FCReadyToExecute(FCClass):
+        if samplesToExecute == None:
+            FCClass.runStage3()
+        else:
+            for sample in samplesToExecute:
+                FCClass.executeSample(sample)
+    # Run Stage 4 if necessary
+    if '4' in stagesToExecute and stage4FCReadyToExecute(FCClass):
+        FCClass.runStage4()
+    # Run Stage 5 if necessary
+    if '5' in stagesToExecute and stage5FCReadyToExecute(FCClass):
+        if arguments['--edger'] or arguments['--deseq']:
+            if arguments['--edger']:
+                FCClass.runEdgeR()
+            if arguments['--deseq']:
+                FCClass.runDESeq()
+        else:
+            FCClass.runStage5()
+
+def stringtie(arguments):
+    '''Usage:
+    runPipe string [options] <input>
+
+Options:
+    -h, --help
+        Show this screen and exit
+    -e <stage>, --execute <stage>
+        Comma-separated list of stages to be executed.
+        Possible stages include:
+            1: Creating Project Structure
+            2: Preparing Reference Data
+            3: Running actual Pipeline
+            4: Preparing for R analysis
+            5: Running R analysis
+            A: (1,2,3,4,5); A=all i.e. runs entire pipeline
+        [default: A]
+    -r <integer>, --runsample <integer>
+        Runs Stage 3 of the pipeline on the sample specified
+        by the integer
+    -p <phase>, --phase <phase>
         Use stringtie tools to replace featureCounts. phase can
         be any of: "a","b","c","ab","bc","abc"
         Option also used to specify stringtie postprocessing
         options in which case use: "--execute 4 --stringtie abc"
         Note: If you will be running phase b, you cannot specify
         a sample to run with --runsample
-    -k, --kallisto
-        Use kallisto tools to replace featureCounts and hisat2.
+        [default: abc]
+    -j <jsonFile>, --jsonfile <jsonFile>
+        Ignores JSON Metadata file creation and uses specified
+        path to JSON Metadata
+    --maxcpu <CPUs>
+        Limits number of CPUs used by Pipeline. Default is to
+        use all available CPUs
+    --noconfirm
+        Ignore all user prompts except JSON file creation
+    --use-blacklist <blacklist>
+        Trimmomatic blacklist used for quality control
+        [default: $RNASEQDIR/Trimmomatic/adapters/TruSeq3-PE.fa]
+    --use-reference
+        Use Reference data that has already been prepared.
+        Put path to already prepared reference data in 
+        INPUT file
+        Note: Need to run Stage 1 with this argument or add to
+        "--makebatch" argument
+    --makebatch <cluster>
+        Makes batch file to be used with slurm. The argument
+        it takes is a comma-separated list of CPUs on each
+        node in your cluster
+    --batchjson <pathtoJSON>
+        Uses json file already created to make batch file'''
+    makeGlobalVars(arguments)
+    cpuLimit = checkMaxCPU(arguments)
+    testFile(arguments['<input>'])
+    testFile(os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
+    StringtieClass = pipeClasses.StringtieExperiment(arguments['<input>'], 
+                                                     maxCPU=cpuLimit, 
+                                                     blacklist=os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
+    # Make batch file if necessary
+    makeBatch(StringtieClass, arguments)
+    setGlobalLog(StringtieClass)
+    samplesToExecute = checkdashr(StringtieClass, arguments)
+    stagesToExecute = checkdashe(arguments)
+    phasesToExecute = checkdashp(arguments)
+    # Run Stage 1 if necessary
+    if '1' in stagesToExecute and stage1ReadyToExecute(StringtieClass):
+        StringtieClass.runStage1()
+    # Run Stage 2 if necessary
+    if '2' in stagesToExecute and stage2ReadyToExecute(StringtieClass):
+        StringtieClass.runStage2()
+    # Run Stage 3 if necessary
+    if '3' in stagesToExecute and stage3STReadyToExecute(StringtieClass):
+        if samplesToExecute == None:
+            StringtieClass.runStage3(phasesToExecute)
+        else:
+            for sample in samplesToExecute:
+                StringtieClass.executeSample(sample, phasesToExecute)
+    # Run Stage 4 if necessary
+    if '4' in stagesToExecute and stage4STReadyToExecute(StringtieClass):
+        StringtieClass.runStage4()
+    # Run Stage 5 if necessary
+    if '5' in stagesToExecute and stage5STReadyToExecute(StringtieClass):
+        StringtieClass.runStage5()
+
+def kallisto(arguments):
+    '''Usage:
+    runPipe kall [options] <input>
+
+Options:
+    -h, --help
+        Show this screen and exit
+    -e <stage>, --execute <stage>
+        Comma-separated list of stages to be executed.
+        Possible stages include:
+            1: Creating Project Structure
+            2: Preparing Reference Data
+            3: Running actual Pipeline
+            4: Preparing for R analysis
+            5: Running R analysis
+            A: (1,2,3,4,5); A=all i.e. runs entire pipeline
+        [default: A]
+    -r <integer>, --runsample <integer>
+        Runs Stage 3 of the pipeline on the sample specified
+        by the integer
+    -j <jsonFile>, --jsonfile <jsonFile>
+        Ignores JSON Metadata file creation and uses specified
+        path to JSON Metadata
+    --maxcpu <CPUs>
+        Limits number of CPUs used by Pipeline. Default is to
+        use all available CPUs
+    --noconfirm
+        Ignore all user prompts except JSON file creation
+    --use-blacklist <blacklist>
+        Trimmomatic blacklist used for quality control
+        [default: $RNASEQDIR/Trimmomatic/adapters/TruSeq3-PE.fa]
+    --use-reference
+        Use Reference data that has already been prepared.
+        Put path to already prepared reference data in 
+        INPUT file
+        Note: Need to run Stage 1 with this argument or add to
+        "--makebatch" argument
+    --makebatch <cluster>
+        Makes batch file to be used with slurm. The argument
+        it takes is a comma-separated list of CPUs on each
+        node in your cluster
+    --batchjson <pathtoJSON>
+        Uses json file already created to make batch file'''
+    makeGlobalVars(arguments)
+    cpuLimit = checkMaxCPU(arguments)
+    testFile(arguments['<input>'])
+    testFile(os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
+    KallistoClass = pipeClasses.KallistoExperiment(arguments['<input>'], 
+                                                   maxCPU=cpuLimit, 
+                                                   blacklist=os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
+    # Make batch file if necessary
+    makeBatch(KallistoClass, arguments)
+    setGlobalLog(KallistoClass)
+    samplesToExecute = checkdashr(KallistoClass, arguments)
+    stagesToExecute = checkdashe(arguments)
+    # Run Stage 1 if necessary
+    if '1' in stagesToExecute and stage1ReadyToExecute(KallistoClass):
+        KallistoClass.runStage1()
+    # Run Stage 2 if necessary
+    if '2' in stagesToExecute and stage2ReadyToExecute(KallistoClass):
+        KallistoClass.runStage2()
+    # Run Stage 3 if necessary
+    if '3' in stagesToExecute and stage3KAReadyToExecute(KallistoClass):
+        if samplesToExecute == None:
+            KallistoClass.runStage3()
+        else:
+            for sample in samplesToExecute:
+                KallistoClass.executeSample(sample)
+    # Run Stage 4 if necessary
+    if '4' in stagesToExecute and stage4KAReadyToExecute(KallistoClass):
+        KallistoClass.runStage4()
+    # Run Stage 5 if necessary
+    if '5' in stagesToExecute and stage5KAReadyToExecute(KallistoClass):
+        KallistoClass.runStage5()
+
+def cleanup(arguments):
+    '''Usage:
+    runPipe clean [options] <input>
+
+Options:
+    -h, --help
+        Show this screen and exit
     -c <placeToClean>, --clean <placeToClean>
         Cleans <placeToClean>; Possible places include:
             Reference
@@ -39,435 +626,147 @@ Options:
             All
     --sampleclean <sampleName>
         Similar to --clean; but instead just cleans a
-        single sample directory, <sampleName>
+        single sample directory, <sampleName>'''
+    makeGlobalVars(arguments)
+    clean(arguments)
+
+def referenceProcessing(arguments):
+    '''Usage:
+    runPipe prepref [options] <pathtoReferenceDir>
+
+Options:
+    -h, --help
+        Show this screen and exit
+    -q, --qualitycheck
+        Only run quality check on references. Default behavior
+        is to run both quality control and preprocessing
+    -p, --preprocess
+        Only run preprocessing on references. Default behavior
+        is to run both quality control and preprocessing
+    -k, --kallisto
+        Additionally build kallisto index
+        Note: index required if kallisto pipeline to be used
     --maxcpu <CPUs>
-        Limits number of CPUs used by Pipeline. Without
-        argument, default is to use all available CPUs
-    --reference-qc <pathtoReferences>
-        Runs Quality Control check on Reference files
-    --reference-pp <pathtoReferences>
-        Pre processes Reference data
-    --use-reference
-        Use Reference data that has already been prepared.
-        Put path to already prepared reference data in 
-        INPUT file
-        Note: Need to run Stage 1 with this argument
-    --makebatch <cluster>
-        Makes batch file to be used with slurm. The argument
-        it takes is a comma-separated list of CPUs on each
-        node in your cluster
-    --makebatchbiox
-        Modifies behavior of --makebatch. Makes batch file
-        with best behavior for our cluster(compute-1,compute-2)
-    --batchjson <pathtoJSON>
-        Uses json file already created to make batch file
-        [default: False]
-    --noconfirm
-        Ignore all user prompts except JSON file creation
-    --NUKE
-        Removes entire project Directory
-    --edger
-        Runs edgeR analysis only. Default is to run both 
-    --deseq
-        Runs DESeq2 analysis only. Default is to run both
-'''
-
-#Examples:
-#    runPipe.py /path/to/INPUT
-#        This will run the pipeline using the input variables
-#        from /path/to/INPUT with all the default behavior
-#
-#    runPipe.py --execute 1,2 /path/to/INPUT
-#        This will run the first and second stage of the
-#        pipeline using the input variables from /path/to/INPUT
-#
-#    runPipe.py --runsample 1,2 /path/to/INPUT
-#        This will run third stage on the first and second
-#        sample. Note that it will also run first and second
-#        stage if needed
-#
-#    runPipe.py --jsonfile /path/to/Metadata /path/to/INPUT
-#        This will run the pipeline using the input variables
-#        from /path/to/INPUTfile and will use the JSON located
-#        at /path/to/Metadata for DESeq2 and edgeR analysis
-#
-#    runPipe.py --clean Data /path/to/INPUT
-#        This will wipe all of the pipeline's actions on all
-#        samples within the respective Project Directory
-#        leaving only the symlinks that were created
-#
-#    runPipe.py --NUKE /path/to/INPUT
-#        This will remove entire Project directory denoted by
-#        the INPUT variable "Project".
-#        Note: Will leave original Reference and Data folders
-#        as they were originally made
-#'''
-
-################################################################
-# Importations
-################################################################
-
-from docopt import docopt
-from timeit import default_timer as timer
-import time
-import pipeClasses
-import os
-
-################################################################
-# Handling Command line arguments
-################################################################
-
-def main(arguments):
-    ''' Arguments:                   
-            None                     
-        Returns:                     
-            None                     
-                                     
-        Handles arguments from docopt
-        Creates Experiment Class     
-        Runs Experiment methods      
-        Tip: search for @@@          
-    '''                              
-    t1 = timer()
-
-    # Global Variables to be used in scripts
-    global NOCONFIRM
-    NOCONFIRM = arguments['--noconfirm']
-    global JSFI # Metadata JSON file
-    JSFI = arguments['--jsonfile']
-    global IS_REFERENCE_PREPARED
-    IS_REFERENCE_PREPARED = arguments['--use-reference']
-
-    pipeClasses.JSFI = JSFI
-    pipeClasses.NOCONFIRM = NOCONFIRM
-    pipeClasses.IS_REFERENCE_PREPARED = IS_REFERENCE_PREPARED
-    pipeClasses.pipeUtils.JSFI = JSFI
-    pipeClasses.pipeUtils.NOCONFIRM = NOCONFIRM
-    pipeClasses.pipeUtils.IS_REFERENCE_PREPARED = IS_REFERENCE_PREPARED
-
-    # Handling --stringtie
-    def makeSTGlobal():
-        '''
-            If --stringtie option given, same behavior as
-            without except Stage 3 is different.
-        '''
-        tmpStringtie = arguments['--stringtie']
-        if tmpStringtie != None:
-            possiblePhases = ['a','b','c','ab','bc','abc']
-            if tmpStringtie in possiblePhases:
-                global STRINGTIE
-                STRINGTIE = arguments['--stringtie']
-                pipeClasses.STRINGTIE = STRINGTIE
-            else:
-                raise SystemExit('Invalid argument to --stringtie: {}'.format(
-                                                    tmpStringtie))
-    makeSTGlobal()
-
-    # Handling --kallisto
-    def makeKallistoGlobal():
-        '''
-            If --kallisto option given, same behavior as
-            without except Stage 3 is different.
-        '''
-        tmpKallisto = arguments['--kallisto']
-        if tmpKallisto:
-            global KALLISTO
-            KALLISTO = arguments['--kallisto']
-            pipeClasses.KALLISTO = KALLISTO
-    makeKallistoGlobal()
-
-    # Handling --NUKE argument
-    def deleteAll():
-        if arguments['--NUKE']:
-            if NOCONFIRM:
-                PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'])
-                PROJ.nukeProject()
-                raise SystemExit
-            else:
-                PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'])
-                while True:
-                    answer = input('Are you sure you wish to remove {}?(y/n) '.format(PROJ.Project))
-                    if answer == 'y':
-                        PROJ.nukeProject()
-                        raise SystemExit
-                    elif answer == 'n':
-                        raise SystemExit
-                    else:
-                        print('Please answer y or n')
-    deleteAll()
-
-    # Handling Cleaning Arguments
-    def Clean():
-        possibleCleanArguments = ['All','Reference','Data','Postprocessing']
-        if arguments['--clean'] != None:
-            assert arguments['--clean'] in possibleCleanArguments, 'Invalid Cleaning Argument: Run runPipe.py -h for available arguments'
-            PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'])
-            if arguments['--clean'] != 'All':
-                if arguments['--clean'] == 'Data':
-                    if not os.path.isdir(PROJ.Data):
-                        raise SystemExit('{} does not exist'.format(PROJ.Data))
-                if arguments['--clean'] == 'Reference':
-                    if not os.path.isdir(PROJ.Reference):
-                        raise SystemExit('{} does not exist'.format(PROJ.Reference))
-                if arguments['--clean'] == 'Postprocessing':
-                    if not os.path.isdir(PROJ.Postprocessing):
-                        raise SystemExit('{} does not exist'.format(PROJ.Postprocessing))
-            PROJ.clean(arguments['--clean'])
-            raise SystemExit
-        elif arguments['--sampleclean'] != None:
-            PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'])
-            if not os.path.isdir(str(PROJ.Data + '/' + arguments['--sampleclean'])):
-                raise SystemExit('{} does not exist'.format(str(PROJ.Data + '/' +
-                                                            arguments['--sampleclean'])))
-            PROJ.clean('Sample',arguments['--sampleclean'])
-            raise SystemExit
-    Clean()
-
-    # Checking JSON file for syntax errors
-    def checkJSON():
-        if JSFI != None:
-            pipeClasses.checkJSON(JSFI)
-    checkJSON()
-
-    # Making slurm batch files if necessary
-    def makeBatch(ExperimentClass):
-        ''' Arguments:
-                ExperimentClass = class; experiment to run analysis on
-            Returns:
-                None
-
-            If --makebatch argument given, then make batch script to be
-            used with slurm, and then exit
-        '''
-        if arguments['--batchjson'] != str(False):
-            pipeClasses.checkJSON(arguments['--batchjson'])
-        if arguments['--makebatchbiox']:
-            ExperimentClass.makeBatchBiox(jsonFile=arguments['--batchjson'])
-            raise SystemExit('Batch file successfully created:\n\t{}/pipeBatch'.format(os.getcwd()))
-        elif arguments['--makebatch'] != None:
-            preNodes,Nodes = arguments['--makebatch'].split(','),[]
-            for node in preNodes:
-                if not node.isdigit() or int(node) <= 0:
-                    raise SystemExit('Not a valid argument to --makebatch: {}'.format(
-                                            arguments['--makebatch']))
-                Nodes.append(int(node))
-            if arguments['--stringtie'] != None:
-                ExperimentClass.makeStringtieBatch(cluster=Nodes,jsonFile=arguments['--batchjson'])
-            elif arguments['--kallisto']:
-                ExperimentClass.makeKallistoBatch(cluster=Nodes,jsonFile=arguments['--batchjson'])
-            else:
-                ExperimentClass.makeBatch(cluster=Nodes,jsonFile=arguments['--batchjson'])
-            raise SystemExit('Batch file successfully created:\n\t{}/pipeBatch'.format(os.getcwd()))
-
-    # Returning a maximum CPU value if given
-    def checkMaxCPU():
-        if arguments['--maxcpu'] == None:
-            return None
-        else:
-            if arguments['--maxcpu'].isdigit():
-                Max = int(arguments['--maxcpu'])
-                if Max <= os.cpu_count() and Max > 0:
-                    return Max
-                else:
-                    raise SystemExit('--maxcpu greater than available CPUs')
-            else:
-                raise SystemExit('Invalid value to --maxcpu: {}'.format(
-                            arguments['--maxcpu']))
-
-    # Inititiating a class instance
-    PROJ = pipeClasses.Experiment(arguments['<pathtoInputFile>'], maxCPU=checkMaxCPU())
-
-    # Inititiating a Runtime Log global location
-    global RUNTIMELOG
-    RUNTIMELOG = str(PROJ.Project + '/Runtime.log')
-
-    pipeClasses.RUNTIMELOG = RUNTIMELOG
-
-    # Running R analysis
-    def runR(ExperimentClass):
-        ''' Arguments:
-                ExperimentClass = class; experiment to run analysis on
-            Returns:
-                None
-
-            Runs R analysis, if:
-                --edger  :   Then only edgeR analysis done
-                --deseq  :   Then only DESeq2 analysis done
-                neither argument is provided then both are done
-        '''
-        if arguments['--edger'] or arguments['--deseq']:
-            if arguments['--edger']:
-                ExperimentClass.runEdgeR()
-            if arguments['--deseq']:
-                ExperimentClass.runDESeq()
-        else:
-            ExperimentClass.runStage5()
-
-    # Running a specific sample
-    def checkdashr():
-        if arguments['--runsample'] == None:
-            return None
-        else:
-            samples = arguments['--runsample'].split(',')
-            possibleSamples = [str(a+1) for a in range(PROJ.getNumberofSamples())]
-            if len(samples) == 0:
-                print('Argument not valid: {}'.format(
-                        arguments['--runsample']))
-                print('Possible arguments for --runsample: {}'.format(
-                        ','.join(possibleSamples)))
-                raise SystemExit
-            if len(set(samples)) != len(samples):
-                print('Argument not valid: {}'.format(
-                        arguments['--runsample']))
-                print('Possible arguments for --runsample: {}'.format(
-                        ','.join(possibleSamples)))
-                raise SystemExit('No repeats allowed')
-            for sample in samples:
-                if sample not in possibleSamples:
-                    print('Argument not valid: {}'.format(
-                            arguments['--runsample']))
-                    print('Possible arguments for --runsample: {}'.format(
-                            ','.join(possibleSamples)))
-                    raise SystemExit('Argument not possible')
-            return samples
-
-    # Determining what stages to run of Pipeline
-    def checkdashe():
-        executionStages = arguments['--execute'].split(',')
-        possibleStages = ["1","2","3","4","5","A"]
-        if len(executionStages) == 0:
-            print('Argument not valid: {}'.format(
-                    arguments['--execute']))
-            raise SystemExit('Possible arguments for --execute: {}'.format(
-                            ','.join(possibleStages)))
-        if len(set(executionStages)) != len(executionStages):
-            print('Argument not valid: {}'.format(
-                    arguments['--execute']))
-            print('Possible arguments for --execute: {}'.format(
-                    ','.join(possibleStages)))
-            raise SystemExit('No repeats allowed')
-        for stage in executionStages:
-            if stage not in possibleStages:
-                print('Argument not valid: {}'.format(
-                        arguments['--execute']))
-                raise SystemExit('Possible arguments for --execute: {}'.format(
-                                ','.join(possibleStages)))
-        return executionStages
-
-    # Final Execution
-    def executeProject(ExperimentClass):
-        ''' Arguments:
-                ExperimentClass = class; experiment to run analysis on
-            Returns:
-                None
-
-            Runs Experiment methods based on --execute,--runsample or
-            just entire pipeline if not specified
-        '''
-        makeBatch(ExperimentClass)
-        executionSamples = checkdashr()
-        executionStages = checkdashe()
-
-        if executionSamples == None:
-            if 'A' in executionStages:
-                ExperimentClass.runAll()
-            else:
-                for stageNumber in executionStages:
-                    if str(stageNumber) == '5':
-                        runR(ExperimentClass)
-                    else:
-                        exec('ExperimentClass.runStage{}()'.format(stageNumber))
-        else:
-            if not os.path.exists(ExperimentClass.Data):
-                ExperimentClass.runStage1()
-            if "KALLISTO" in globals() and ExperimentClass.needToBuildKaliIndex():
-                ExperimentClass.runStage2()
-            elif not os.path.exists(os.path.join(ExperimentClass.Reference,'Reference_Report.txt')):
-                ExperimentClass.runStage2()
-            for sample in executionSamples:
-                ExperimentClass.executeSample(int(sample))
-            if ExperimentClass.is3Finished():
-                if 'A' in executionStages:
-                    ExperimentClass.runStage4()
-                    runR(ExperimentClass)
-                else:
-                    if '4' in executionStages:
-                        ExperimentClass.runStage4()
-                    if '5' in executionStages:
-                        runR(ExperimentClass)
-
-    ############################################################
-    # Call for actually doing stuff
-    ############################################################
-    # @@@
-    executeProject(PROJ)
-    ############################################################
-
-    t2 = timer()
-
-    timeused = str(time.strftime('%H:%M:%S', time.gmtime(t2-t1)))
-    print('Total time elapsed: {}'.format(timeused))
-
-# For Checking reference Data without an Experiment Structure
-def side(arguments):
-    ''' Arguments:                   
-            None                     
-        Returns:                     
-            None                     
-
-        Runs Alternate Analysis
-    '''                              
-    if arguments['--reference-qc'] != None:
-        NOCONFIRM = arguments['--noconfirm']
-        pipeClasses.pipeUtils.NOCONFIRM = NOCONFIRM
-        Init = arguments['--reference-qc']+'/.init'
-        if not os.path.exists(Init):
-            Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(
-                                                    arguments['--reference-qc'])
-            with open(Init,'w') as f:
-                f.write('\n'.join([Gtf,Cdna,Genome]))
-        else:
-            with open(Init,'r') as f:
-                Stuff = f.readlines()
-            Gtf = Stuff[0].rstrip('\n')
-            Cdna = Stuff[1].rstrip('\n')
-            Genome = Stuff[2].rstrip('\n')
-        pipeClasses.pipeUtils.qcReference(arguments['--reference-qc'],Genome)
-        raise SystemExit
-    if arguments['--reference-pp'] != None:
-        NOCONFIRM = arguments['--noconfirm']
-        pipeClasses.pipeUtils.NOCONFIRM = NOCONFIRM
-        Init = arguments['--reference-pp']+'/.init'
-        if not os.path.exists(Init):
-            Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(
-                                                    arguments['--reference-pp'])
-            with open(Init,'w') as f:
-                f.write('\n'.join([Gtf,Cdna,Genome]))
-        else:
-            with open(Init,'r') as f:
-                Stuff = f.readlines()
-            Gtf = Stuff[0].rstrip('\n')
-            Cdna = Stuff[1].rstrip('\n')
-            Genome = Stuff[2].rstrip('\n')
-        Basename = pipeClasses.pipeUtils.getBasename(Genome)
-        pipeClasses.pipeUtils.preProcessingReference(arguments['--reference-pp'],
-                                                    Cdna,Gtf,Genome,Basename)
-        if arguments['--kallisto'] and pipeClasses.needToBuildKaliIndex():
-            pipeClasses.buildKallistoIndex()
-        raise SystemExit
-
-# Evaluating which analysis to run
-def MainVsSide(arguments):
-    if arguments['--reference-pp'] != None:
-        return 'side'
-    if arguments['--reference-qc'] != None:
-        return 'side'
-    return 'main'
-
-################################################################
-if __name__ == '__main__':
-    argument = docopt(__doc__, version='Version 1.00\nAuthor: Alberto')
-    if MainVsSide(argument) == 'main':
-        main(argument)
+        Limit the number of CPU that get used to preprocess
+        reference data.
+        Note: default is to use all available
+        
+Mandatory Arguments:
+    <pathtoReferenceDir>
+        Path to directory that contains a GTF, cDNA, and
+        reference genome'''
+    makeGlobalVars(arguments)
+    cpuLimit = checkMaxCPU(arguments)
+    if not os.path.isdir(arguments['<pathtoReferenceDir>']):
+        raise SystemExit('Reference directory does not exist: {}'.format(arguments['<pathtoReferenceDir>']))
+    Init = os.path.join(arguments['<pathtoReferenceDir>'],'.init')
+    if not os.path.exists(Init):
+        Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(
+                                                arguments['<pathtoReferenceDir>'])
+        with open(Init,'w') as f:
+            f.write('\n'.join([Gtf,Cdna,Genome]))
     else:
-        side(argument)
+        with open(Init,'r') as f:
+            Stuff = f.readlines()
+        Gtf = Stuff[0].rstrip('\n')
+        Cdna = Stuff[1].rstrip('\n')
+        Genome = Stuff[2].rstrip('\n')
+    Basename = pipeClasses.pipeUtils.getBasename(Genome)
+    if arguments['--qualitycheck'] and not arguments['--preprocess']: # only q
+        pipeClasses.pipeUtils.qcReference(arguments['<pathtoReferenceDir>'],Genome)
+    elif not arguments['--qualitycheck'] and arguments['--preprocess']: # only p
+        ppRef(arguments['<pathtoReferenceDir>'], Cdna, Basename, Gtf, Genome, cpuLimit)
+    else: #both
+        pipeClasses.pipeUtils.qcReference(arguments['<pathtoReferenceDir>'],Genome)
+        ppRef(arguments['<pathtoReferenceDir>'], Cdna, Basename, Gtf, Genome, cpuLimit)
+    if arguments['--kallisto'] and pipeClasses.needToBuildKaliIndex():
+        pipeClasses.buildKallistoIndex()
+
+def otherStuff(arguments):
+    if any(arguments.values()):
+        raise SystemExit(__doc__)
+    else:
+        raise SystemExit(__doc__)
+
+def moreHelp(arguments):
+    try:
+        helpCommand = arguments['<args>'][0]
+    except IndexError:
+        raise SystemExit(__doc__)
+    if helpCommand == 'fcounts':
+        print('''This is featureCounts information #TODO''')
+        raise SystemExit(featureCounts.__doc__)
+    elif helpCommand == 'string':
+        print('''This is stringtie information #TODO''')
+        raise SystemExit(stringtie.__doc__)
+    elif helpCommand == 'kall':
+        print('''This is kallisto information #TODO''')
+        raise SystemExit(kallisto.__doc__)
+    elif helpCommand == 'mj':
+        print('''This is makeJSON information #TODO''')
+        import makeJSON
+        raise SystemExit(makeJSON.__doc__)
+    elif helpCommand == 'mb':
+        print('''This is makeTrimBlacklist''')
+        import makeTrimBlacklist
+        raise SystemExit(makeTrimBlacklist.__doc__)
+    elif helpCommand == 'clean':
+        print('''This is cleanup information #TODO''')
+        raise SystemExit(cleanup.__doc__)
+    elif helpCommand == 'fo':
+        print('''This is optPath information #TODO''')
+        import optPath
+        raise SystemExit(optPath.__doc__)
+    elif helpCommand == 'prepref':
+        print('''This is reference preprocessing information #TODO''')
+        raise SystemExit(referenceProcessing.__doc__)
+    elif helpCommand == 'help':
+        print('''Help command provides help #TODO''')
+    else:
+        raise SystemExit(__doc__)
+
+################################################################
+# Reading Command-Line Arguments
+################################################################
+
+if __name__ == '__main__':
+    beginTime = timer()
+
+    args = docopt(__doc__, version=VERSION, options_first=True)
+    argv = [args['<command>']] + args['<args>']
+    if args['<command>'] == 'fcounts':
+        args.update(docopt(featureCounts.__doc__, argv=argv))
+        featureCounts(args)
+    elif args['<command>'] == 'string':
+        args.update(docopt(stringtie.__doc__, argv=argv))
+        stringtie(args)
+    elif args['<command>'] == 'kall':
+        args.update(docopt(kallisto.__doc__, argv=argv))
+        kallisto(args)
+    elif args['<command>'] == 'mj':
+        import makeJSON
+        args.update(docopt(makeJSON.__doc__, argv=argv))
+        makeJSON.writeJSON(args['--jsonfile'])
+    elif args['<command>'] == 'mb':
+        import makeTrimBlacklist
+        args.update(docopt(makeTrimBlacklist.__doc__, argv=argv))
+        makeTrimBlacklist.blacklist(args['--tofile'])
+    elif args['<command>'] == 'clean':
+        args.update(docopt(cleanup.__doc__, argv=argv))
+        cleanup(args)
+    elif args['<command>'] == 'fo':
+        import optPath
+        args.update(docopt(optPath.__doc__, argv=argv))
+        optPath.main(args)
+    elif args['<command>'] == 'prepref':
+        args.update(docopt(referenceProcessing.__doc__, argv=argv))
+        referenceProcessing(args)
+    elif args['<command>'] == 'help':
+        moreHelp(args)
+    elif args['<command>'] == None:
+        otherStuff(args)
+    else:
+        raise SystemExit("{} is not a runPipe command. See runPipe help".format(args['<command>']))
+
+    timeused = str(time.strftime('%H:%M:%S', time.gmtime(timer() - beginTime)))
+    print('Total time elapsed: {}'.format(timeused))
