@@ -6,8 +6,6 @@
 Options:
     -h, --help
         Show this screen and exit
-    --version
-        Show version and exit
     -t <filename, --tofile <filename>
         Name of file to be saved to
         [default: ./OptimalPath.dat]
@@ -229,5 +227,5 @@ def main(arguments):
         customizePath(numSamples, cluster, arguments['--tofile'])
 
 if __name__ == '__main__':
-    argument = docopt(__doc__, version='optPath.py 1.0')
+    argument = docopt(__doc__)
     main(argument)
