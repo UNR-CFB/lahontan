@@ -12,23 +12,8 @@ Options:
         Show this screen and exit
     --version
         Show version and exit
-    --reference-qc <pathtoReferences>
-        Runs Quality Control check on Reference files
-    --reference-pp <pathtoReferences>
-        Pre processes Reference data
-    -j <jsonFile>, --jsonfile <jsonFile>
-        Ignores JSON Metadata file creation and uses specified
-        path to JSON Metadata
     --noconfirm
         Ignore all user prompts except JSON file creation
-    --NUKE <input>
-        Removes entire project Directory specified in input file
-    --use-reference
-        Use Reference data that has already been prepared.
-        Put path to already prepared reference data in 
-        INPUT file
-        Note: Need to run Stage 1 with this argument or add to
-        "--makebatch" argument
 
 Available runPipe commands:
     fcounts     For running featureCounts pipeline
@@ -38,6 +23,7 @@ Available runPipe commands:
     mb          Create trimmomatic blacklist
     clean       Clean any project directories
     fo          Finds optimal execution path for batch execution
+    prepref     Pre-processes reference data
 
 See 'runPipe help <command>' for more information on a specific 
 command'''
@@ -53,6 +39,7 @@ import time
 import pipeClasses
 import os
 import glob
+import subprocess
 
 ################################################################
 # Utilities
@@ -85,11 +72,17 @@ def makeGlobalVars(arguments):
     global NOCONFIRM
     NOCONFIRM = arguments['--noconfirm']
     global JSFI # Metadata JSON file
-    JSFI = arguments['--jsonfile']
-    if JSFI:
-        testFile(JSFI)
+    if '--jsonfile' in arguments.keys():
+        JSFI = arguments['--jsonfile']
+        if JSFI:
+            testFile(JSFI)
+    else:
+        JSFI = None
     global IS_REFERENCE_PREPARED
-    IS_REFERENCE_PREPARED = arguments['--use-reference']
+    if '--use-reference' in arguments.keys():
+        IS_REFERENCE_PREPARED = arguments['--use-reference']
+    else:
+        IS_REFERENCE_PREPARED = False
     pipeClasses.JSFI = JSFI
     pipeClasses.NOCONFIRM = NOCONFIRM
     pipeClasses.IS_REFERENCE_PREPARED = IS_REFERENCE_PREPARED
@@ -97,71 +90,70 @@ def makeGlobalVars(arguments):
     pipeClasses.pipeUtils.NOCONFIRM = NOCONFIRM
     pipeClasses.pipeUtils.IS_REFERENCE_PREPARED = IS_REFERENCE_PREPARED
 
-def referenceProcessing(arguments):
-    ''' Arguments:                   
-            None                     
-        Returns:                     
-            None                     
+def ppRef(referenceDir, cdna, basename, gtf, genome, cpulimit=None):
+    ''' Arguments:
+            None
+        Returns:
+            None
 
-        Runs Alternate Analysis
-    '''                              
-    if arguments['--reference-qc']:
-        NOCONFIRM = arguments['--noconfirm']
-        pipeClasses.pipeUtils.NOCONFIRM = NOCONFIRM
-        Init = arguments['--reference-qc']+'/.init'
-        if not os.path.exists(Init):
-            Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(
-                                                    arguments['--reference-qc'])
-            with open(Init,'w') as f:
-                f.write('\n'.join([Gtf,Cdna,Genome]))
-        else:
-            with open(Init,'r') as f:
-                Stuff = f.readlines()
-            Gtf = Stuff[0].rstrip('\n')
-            Cdna = Stuff[1].rstrip('\n')
-            Genome = Stuff[2].rstrip('\n')
-        pipeClasses.pipeUtils.qcReference(arguments['--reference-qc'],Genome)
-        raise SystemExit
-    if arguments['--reference-pp']:
-        NOCONFIRM = arguments['--noconfirm']
-        pipeClasses.pipeUtils.NOCONFIRM = NOCONFIRM
-        Init = arguments['--reference-pp']+'/.init'
-        if not os.path.exists(Init):
-            Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(
-                                                    arguments['--reference-pp'])
-            with open(Init,'w') as f:
-                f.write('\n'.join([Gtf,Cdna,Genome]))
-        else:
-            with open(Init,'r') as f:
-                Stuff = f.readlines()
-            Gtf = Stuff[0].rstrip('\n')
-            Cdna = Stuff[1].rstrip('\n')
-            Genome = Stuff[2].rstrip('\n')
-        Basename = pipeClasses.pipeUtils.getBasename(Genome)
-        pipeClasses.pipeUtils.preProcessingReference(arguments['--reference-pp'],
-                                                    Cdna,Gtf,Genome,Basename)
-        if arguments['--kallisto'] and pipeClasses.needToBuildKaliIndex(): #TODO check condition
-            pipeClasses.buildKallistoIndex()
-        raise SystemExit
+        Handles preprocessing without class structure
+    '''
+    if cpulimit == None:
+        cpulimit = os.cpu_count()
+    ppLog = os.path.join(referenceDir, 'Preprocessing.log')
+    Context = {
+            "cdna": cdna,
+            "basename": basename,
+            "gtf": gtf,
+            "genome": genome,
+            "cpu": cpulimit
+            }
+    makeBlastdb = """time -p makeblastdb -in {cdna} -dbtype nucl -out {basename}.cdna.all""".format(**Context)
+    extractSpliceSites = """time -p extract_splice_sites.py {gtf} > splice_sites.txt""".format(**Context)
+    extractExons = """time -p extract_exons.py {gtf} > known_exons.txt""".format(**Context)
+    hisatBuild = """time -p hisat2-build -p {cpu} --ss splice_sites.txt --exon known_exons.txt {genome} {basename}""".format(**Context)
+    samtoolsFaidx = """time -p samtools faidx {genome}""".format(**Context)
+    os.chdir(referenceDir)
+    print("Preprocessing Data...")
+    with open(ppLog, 'w') as PPlog:
+        PPlog.write('\n{}\n{}'.format(makeBlastdb,'='*50))
+        subprocess.run(makeBlastdb,
+                            shell=True,
+                            check=True,
+                            executable="/bin/bash",
+                            stdout=PPlog,
+                            stderr=subprocess.STDOUT)
+        PPlog.write('\n{}\n{}'.format(extractSpliceSites,'='*50))
+        subprocess.run(extractSpliceSites,
+                            shell=True,
+                            check=True,
+                            executable="/bin/bash",
+                            stdout=PPlog,
+                            stderr=subprocess.STDOUT)
+        PPlog.write('\n{}\n{}'.format(extractExons,'='*50))
+        subprocess.run(extractExons,
+                            shell=True,
+                            check=True,
+                            executable="/bin/bash",
+                            stdout=PPlog,
+                            stderr=subprocess.STDOUT)
+        PPlog.write('\n{}\n{}'.format(hisatBuild,'='*50))
+        subprocess.run(hisatBuild,
+                            shell=True,
+                            check=True,
+                            executable="/bin/bash",
+                            stdout=PPlog,
+                            stderr=subprocess.STDOUT)
+        PPlog.write('\n{}\n{}'.format(samtoolsFaidx,'='*50))
+        subprocess.run(samtoolsFaidx,
+                            shell=True,
+                            check=True,
+                            executable="/bin/bash",
+                            stdout=PPlog,
+                            stderr=subprocess.STDOUT)
+    with open(os.path.join(self.Project, '.init'), 'a') as F:
+        F.write('P')
 
-def deleteAll(arguments):
-    # Handling --NUKE argument
-    if arguments['--NUKE']:
-        if NOCONFIRM:
-            PROJ = pipeClasses.Experiment(arguments['--NUKE'])
-            PROJ.nukeProject()
-            raise SystemExit
-        else:
-            PROJ = pipeClasses.Experiment(arguments['--NUKE'])
-            while True:
-                answer = input('Are you sure you wish to remove {}?(y/n) '.format(PROJ.Project))
-                if answer == 'y':
-                    PROJ.nukeProject()
-                    raise SystemExit
-                elif answer == 'n':
-                    raise SystemExit
-                else:
-                    print('Please answer y or n')
 
 def clean(arguments):
     # Handling Cleaning Arguments
@@ -179,15 +171,52 @@ def clean(arguments):
             if arguments['--clean'] == 'Postprocessing':
                 if not os.path.isdir(PROJ.Postprocessing):
                     raise SystemExit('{} does not exist'.format(PROJ.Postprocessing))
-        PROJ.clean(arguments['--clean'])
-        raise SystemExit
+        if NOCONFIRM:
+            PROJ.clean(arguments['--clean'])
+            raise SystemExit
+        else:
+            while True:
+                answer = input('Are you sure you wish to clean {}?(y/n) '.format(arguments['--clean']))
+                if answer == 'y':
+                    PROJ.clean(arguments['--clean'])
+                    raise SystemExit
+                elif answer == 'n':
+                    raise SystemExit
+                else:
+                    print('Please answer y or n')
     elif arguments['--sampleclean']:
         PROJ = pipeClasses.Experiment(arguments['<input>'])
         if not os.path.isdir(str(PROJ.Data + '/' + arguments['--sampleclean'])):
             raise SystemExit('{} does not exist'.format(str(PROJ.Data + '/' +
                                                         arguments['--sampleclean'])))
-        PROJ.clean('Sample',arguments['--sampleclean'])
+        if NOCONFIRM:
+            PROJ.clean('Sample',arguments['--sampleclean'])
+            raise SystemExit
+        else:
+            while True:
+                answer = input('Are you sure you wish to clean {}?(y/n) '.format(arguments['--sampleclean']))
+                if answer == 'y':
+                    PROJ.clean('Sample',arguments['--sampleclean'])
+                    raise SystemExit
+                elif answer == 'n':
+                    raise SystemExit
+                else:
+                    print('Please answer y or n')
         raise SystemExit
+    else:
+        if NOCONFIRM:
+            PROJ.clean('All')
+            raise SystemExit
+        else:
+            while True:
+                answer = input('Are you sure you wish to clean All?(y/n) ')
+                if answer == 'y':
+                    PROJ.clean('All')
+                    raise SystemExit
+                elif answer == 'n':
+                    raise SystemExit
+                else:
+                    print('Please answer y or n')
 
 def makeBatch(ExperimentClass, arguments):
     ''' Arguments:
@@ -376,6 +405,9 @@ Options:
         Runs DESeq2 analysis only. Default is to run both
     --noconfirm
         Ignore all user prompts except JSON file creation
+    --use-blacklist <blacklist>
+        Trimmomatic blacklist used for quality control
+        [default: $RNASEQDIR/Trimmomatic/adapters/TruSeq3-PE.fa]
     --use-reference
         Use Reference data that has already been prepared.
         Put path to already prepared reference data in 
@@ -385,7 +417,10 @@ Options:
     makeGlobalVars(arguments)
     cpuLimit = checkMaxCPU(arguments)
     testFile(arguments['<input>'])
-    FCClass = pipeClasses.FCountsExperiment(arguments['<input>'], maxCPU=cpuLimit)
+    testFile(os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
+    FCClass = pipeClasses.FCountsExperiment(arguments['<input>'],
+                                            maxCPU=cpuLimit,
+                                            blacklist=os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
     # Make batch file if necessary
     makeBatch(FCClass, arguments)
     setGlobalLog(FCClass)
@@ -453,6 +488,9 @@ Options:
         use all available CPUs
     --noconfirm
         Ignore all user prompts except JSON file creation
+    --use-blacklist <blacklist>
+        Trimmomatic blacklist used for quality control
+        [default: $RNASEQDIR/Trimmomatic/adapters/TruSeq3-PE.fa]
     --use-reference
         Use Reference data that has already been prepared.
         Put path to already prepared reference data in 
@@ -468,7 +506,10 @@ Options:
     makeGlobalVars(arguments)
     cpuLimit = checkMaxCPU(arguments)
     testFile(arguments['<input>'])
-    StringtieClass = pipeClasses.StringtieExperiment(arguments['<input>'], maxCPU=cpuLimit)
+    testFile(os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
+    StringtieClass = pipeClasses.StringtieExperiment(arguments['<input>'], 
+                                                     maxCPU=cpuLimit, 
+                                                     blacklist=os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
     # Make batch file if necessary
     makeBatch(StringtieClass, arguments)
     setGlobalLog(StringtieClass)
@@ -523,6 +564,9 @@ Options:
         use all available CPUs
     --noconfirm
         Ignore all user prompts except JSON file creation
+    --use-blacklist <blacklist>
+        Trimmomatic blacklist used for quality control
+        [default: $RNASEQDIR/Trimmomatic/adapters/TruSeq3-PE.fa]
     --use-reference
         Use Reference data that has already been prepared.
         Put path to already prepared reference data in 
@@ -538,7 +582,10 @@ Options:
     makeGlobalVars(arguments)
     cpuLimit = checkMaxCPU(arguments)
     testFile(arguments['<input>'])
-    KallistoClass = pipeClasses.KallistoExperiment(arguments['<input>'], maxCPU=cpuLimit)
+    testFile(os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
+    KallistoClass = pipeClasses.KallistoExperiment(arguments['<input>'], 
+                                                   maxCPU=cpuLimit, 
+                                                   blacklist=os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
     # Make batch file if necessary
     makeBatch(KallistoClass, arguments)
     setGlobalLog(KallistoClass)
@@ -583,11 +630,61 @@ Options:
     makeGlobalVars(arguments)
     clean(arguments)
 
+def referenceProcessing(arguments):
+    '''Usage:
+    runPipe prepref [options] <pathtoReferenceDir>
+
+Options:
+    -h, --help
+        Show this screen and exit
+    -q, --qualitycheck
+        Only run quality check on references. Default behavior
+        is to run both quality control and preprocessing
+    -p, --preprocess
+        Only run preprocessing on references. Default behavior
+        is to run both quality control and preprocessing
+    -k, --kallisto
+        Additionally build kallisto index
+        Note: index required if kallisto pipeline to be used
+    --maxcpu <CPUs>
+        Limit the number of CPU that get used to preprocess
+        reference data.
+        Note: default is to use all available
+        
+Mandatory Arguments:
+    <pathtoReferenceDir>
+        Path to directory that contains a GTF, cDNA, and
+        reference genome'''
+    makeGlobalVars(arguments)
+    cpuLimit = checkMaxCPU(arguments)
+    if not os.path.isdir(arguments['<pathtoReferenceDir>']):
+        raise SystemExit('Reference directory does not exist: {}'.format(arguments['<pathtoReferenceDir>']))
+    Init = os.path.join(arguments['<pathtoReferenceDir>'],'.init')
+    if not os.path.exists(Init):
+        Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(
+                                                arguments['<pathtoReferenceDir>'])
+        with open(Init,'w') as f:
+            f.write('\n'.join([Gtf,Cdna,Genome]))
+    else:
+        with open(Init,'r') as f:
+            Stuff = f.readlines()
+        Gtf = Stuff[0].rstrip('\n')
+        Cdna = Stuff[1].rstrip('\n')
+        Genome = Stuff[2].rstrip('\n')
+    Basename = pipeClasses.pipeUtils.getBasename(Genome)
+    if arguments['--qualitycheck'] and not arguments['--preprocess']: # only q
+        pipeClasses.pipeUtils.qcReference(arguments['<pathtoReferenceDir>'],Genome)
+    elif not arguments['--qualitycheck'] and arguments['--preprocess']: # only p
+        ppRef(arguments['<pathtoReferenceDir>'], Cdna, Basename, Gtf, Genome, cpuLimit)
+    else: #both
+        pipeClasses.pipeUtils.qcReference(arguments['<pathtoReferenceDir>'],Genome)
+        ppRef(arguments['<pathtoReferenceDir>'], Cdna, Basename, Gtf, Genome, cpuLimit)
+    if arguments['--kallisto'] and pipeClasses.needToBuildKaliIndex():
+        pipeClasses.buildKallistoIndex()
+
 def otherStuff(arguments):
     if any(arguments.values()):
-        makeGlobalVars(arguments)
-        deleteAll(arguments)
-        referenceProcessing(arguments)
+        raise SystemExit(__doc__)
     else:
         raise SystemExit(__doc__)
 
@@ -597,31 +694,34 @@ def moreHelp(arguments):
     except IndexError:
         raise SystemExit(__doc__)
     if helpCommand == 'fcounts':
-        print('This is featureCounts information #TODO')
+        print('''This is featureCounts information #TODO''')
         raise SystemExit(featureCounts.__doc__)
     elif helpCommand == 'string':
-        print('This is stringtie information #TODO')
+        print('''This is stringtie information #TODO''')
         raise SystemExit(stringtie.__doc__)
     elif helpCommand == 'kall':
-        print('This is kallisto information #TODO')
+        print('''This is kallisto information #TODO''')
         raise SystemExit(kallisto.__doc__)
     elif helpCommand == 'mj':
-        print('This is makeJSON information #TODO')
+        print('''This is makeJSON information #TODO''')
         import makeJSON
         raise SystemExit(makeJSON.__doc__)
     elif helpCommand == 'mb':
-        print('This is makeTrimBlacklist')
+        print('''This is makeTrimBlacklist''')
         import makeTrimBlacklist
         raise SystemExit(makeTrimBlacklist.__doc__)
     elif helpCommand == 'clean':
-        print('This is cleanup information #TODO')
+        print('''This is cleanup information #TODO''')
         raise SystemExit(cleanup.__doc__)
     elif helpCommand == 'fo':
-        print('This is optPath information #TODO')
+        print('''This is optPath information #TODO''')
         import optPath
         raise SystemExit(optPath.__doc__)
+    elif helpCommand == 'prepref':
+        print('''This is reference preprocessing information #TODO''')
+        raise SystemExit(referenceProcessing.__doc__)
     elif helpCommand == 'help':
-        print('Help command provides help #TODO')
+        print('''Help command provides help #TODO''')
     else:
         raise SystemExit(__doc__)
 
@@ -658,6 +758,9 @@ if __name__ == '__main__':
         import optPath
         args.update(docopt(optPath.__doc__, argv=argv))
         optPath.main(args)
+    elif args['<command>'] == 'prepref':
+        args.update(docopt(referenceProcessing.__doc__, argv=argv))
+        referenceProcessing(args)
     elif args['<command>'] == 'help':
         moreHelp(args)
     elif args['<command>'] == None:
