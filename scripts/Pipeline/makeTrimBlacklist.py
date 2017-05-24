@@ -10,7 +10,7 @@ Options:
     -h, --help
         Show this screen and exit
     -t <newadapterfile>, --tofile <newadapterfile>
-        Where to save new blacklist [default: ./TruSeq3-PE.fa]
+        Where to save new blacklist [default: ./CustomBlacklist.fa]
 
 Example:
     runPipe mb --tofile ~/rna-seq/build/Trimmomatic/adapters/myBlacklist.fa'''
