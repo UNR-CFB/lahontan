@@ -133,7 +133,7 @@ class Experiment:
         This class provides tools to analyze data
     '''
 
-    def __init__(self, inputPath, maxCPU=None):
+    def __init__(self, inputPath, maxCPU=None, blacklist=None):
         ''' Arguments:
                 inputPath = string; path to INPUT file
                 *maxCPU = int; maximum number of CPUs to be used
@@ -158,6 +158,7 @@ class Experiment:
         self.Fastq = str(variables["Fastq"])
         self.Procs = int(variables["Procs"])
         self.inputPath = str(inputPath)
+        self.Blacklist = str(blacklist)
 
     def __repr__(self):
         ''' Arguments:
@@ -383,6 +384,7 @@ class Experiment:
                 resultDict['Step {}'.format(counter+1)]['Samps'] = iteration
                 counter += 1
             return resultDict
+        #TODO Fix --makebatch with no --batchfile
         if jsonPath != str(False):
             with open(jsonPath) as JF:
                 jsonData = json.load(JF,object_pairs_hook=pipeUtils.makeCols.OrderedDict)
@@ -645,11 +647,6 @@ class Experiment:
                                     stderr=subprocess.STDOUT)
             with open(os.path.join(self.Project, '.init'), 'a') as F:
                 F.write('P')
-            #pipeUtils.preProcessingReference(self.Reference,
-            #                                    self.Cdna,
-            #                                    self.Gtf,
-            #                                    self.Genome,
-            #                                    self.Basename)
 
     ################################################################
     # Cleaning Functions
@@ -690,27 +687,6 @@ class Experiment:
             subprocess.run(['clean.sh',arg, self.Genome, self.Cdna, self.Gtf, self.Reference,
                             self.Data, self.Postprocessing],check=True)
 
-    def nukeProject(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Removes entire Project Directory Structure
-        '''
-        if NOCONFIRM:
-            shutil.rmtree(self.Project)
-        else:
-            while True:
-                answer = input('Are you sure you want to remove entire Project?(y,n) ')
-                if answer == 'y':
-                    shutil.rmtree(self.Project)
-                    break
-                elif answer == 'n':
-                    break
-                else:
-                    print('Please answer y or n')
-
     ################################################################
     # Stage Run Functions
     ################################################################
@@ -736,8 +712,8 @@ class Experiment:
 
 #@
 class FCountsExperiment(Experiment):
-    def __init__(self,inputFile,maxCPU=None):
-        Experiment.__init__(self,inputFile,maxCPU)
+    def __init__(self,inputFile,maxCPU=None,blacklist=None):
+        Experiment.__init__(self,inputFile,maxCPU,blacklist)
 
     def __repr__(self):
         ''' Arguments:
@@ -832,7 +808,7 @@ wait
             Pstep = bestPath[path]['Procs']
             Sstep = bestPath[path]['Samps']
             for S in range(sampleNum,sampleNum + Sstep):
-                com = 'srun -N1 -c{0} -n1 --exclusive runPipe fcounts --noconfirm{2} --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref)
+                com = 'srun -N1 -c{0} -n1 --exclusive runPipe fcounts --noconfirm{2} --use-blacklist {3} --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref,self.Blacklist)
                 command3 += com
             if counter != len(bestPath):
                 command3 += 'wait\n'
@@ -1036,7 +1012,7 @@ wait
         '''
         numSamples = self.getNumberofSamples()
         sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
-        experimentSamples = [FCountsSample(n, self.inputPath, maxCPU=sampCpuMax)
+        experimentSamples = [FCountsSample(n, self.inputPath, maxCPU=sampCpuMax, blacklist=self.Blacklist)
                             for n in range(1,numSamples + 1)]
         return experimentSamples
 
@@ -1053,7 +1029,7 @@ wait
                 and subject > 0 
                 and subject <= self.getNumberofSamples()
                 ), 'Need an int argument as a subject to create'
-        experimentSample = FCountsSample(subject, self.inputPath, maxCPU=self.Procs)
+        experimentSample = FCountsSample(subject, self.inputPath, maxCPU=self.Procs, blacklist=self.Blacklist)
         return experimentSample
 
     ################################################################
@@ -1103,8 +1079,8 @@ wait
 #@@
 class StringtieExperiment(Experiment):
 
-    def __init__(self,inputFile,maxCPU=None):
-        Experiment.__init__(self,inputFile,maxCPU)
+    def __init__(self,inputFile,maxCPU=None,blacklist=None):
+        Experiment.__init__(self,inputFile,maxCPU,blacklist)
 
     def __repr__(self):
         ''' Arguments:
@@ -1218,14 +1194,14 @@ wait
                 Pstep = bestPath[path]['Procs']
                 Sstep = bestPath[path]['Samps']
                 for S in range(sampleNum,sampleNum + Sstep):
-                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe string --noconfirm{2} --maxcpu {0} -e 3 -r {1} --phase {3} "${{inputFile}}" &\n'.format(Pstep,S,ref,phase)
+                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe string --noconfirm{2} --use-blacklist {4} --maxcpu {0} -e 3 -r {1} --phase {3} "${{inputFile}}" &\n'.format(Pstep,S,ref,phase,self.Blacklist)
                     command3 += com
                 if counter != len(bestPath):
                     command3 += 'wait\n'
                 counter += 1
                 sampleNum += Sstep
             return command3
-        command3b = 'srun -N1 -c{1} -n1 --exclusive runPipe string --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 3 --phase b "${{inputFile}}"'.format(ref, max(cluster))
+        command3b = 'srun -N1 -c{1} -n1 --exclusive runPipe string --noconfirm{0} --use-blacklist {2} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 3 --phase b "${{inputFile}}"'.format(ref, max(cluster), self.Blacklist)
         command4 = 'srun -N1 -c1 -n1 runPipe string --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
         command5 = 'srun -N1 -c{1} -n1 --exclusive runPipe string --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 5 "${{inputFile}}"'.format(ref, max(cluster))
         Context = {
@@ -1257,7 +1233,7 @@ wait
         '''
         numSamples = self.getNumberofSamples()
         sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
-        experimentSamples = [StringtieSample(n, self.inputPath, maxCPU=sampCpuMax)
+        experimentSamples = [StringtieSample(n, self.inputPath, maxCPU=sampCpuMax, blacklist=self.Blacklist)
                             for n in range(1,numSamples + 1)]
         return experimentSamples
 
@@ -1274,7 +1250,7 @@ wait
                 and subject > 0 
                 and subject <= self.getNumberofSamples()
                 ), 'Need an int argument as a subject to create'
-        experimentSample = StringtieSample(subject, self.inputPath, maxCPU=self.Procs)
+        experimentSample = StringtieSample(subject, self.inputPath, maxCPU=self.Procs, blacklist=self.Blacklist)
         return experimentSample
 
     ############################################################
@@ -1561,8 +1537,8 @@ wait
 #@@@
 class KallistoExperiment(Experiment):
 
-    def __init__(self,inputFile,maxCPU=None):
-        Experiment.__init__(self,inputFile,maxCPU)
+    def __init__(self,inputFile,maxCPU=None,blacklist=None):
+        Experiment.__init__(self,inputFile,maxCPU,blacklist)
 
     def __repr__(self):
         ''' Arguments:
@@ -1656,7 +1632,7 @@ wait
                 Pstep = bestPath[path]['Procs']
                 Sstep = bestPath[path]['Samps']
                 for S in range(sampleNum,sampleNum + Sstep):
-                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe kall --noconfirm{2} --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref)
+                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe kall --noconfirm{2} --use-blacklist {3} --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref,self.Blacklist)
                     command3 += com
                 if counter != len(bestPath):
                     command3 += 'wait\n'
@@ -1692,7 +1668,7 @@ wait
         '''
         numSamples = self.getNumberofSamples()
         sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
-        experimentSamples = [KallistoSample(n, self.inputPath, maxCPU=sampCpuMax)
+        experimentSamples = [KallistoSample(n, self.inputPath, maxCPU=sampCpuMax, blacklist=self.Blacklist)
                             for n in range(1,numSamples + 1)]
         return experimentSamples
 
@@ -1709,7 +1685,7 @@ wait
                 and subject > 0 
                 and subject <= self.getNumberofSamples()
                 ), 'Need an int argument as a subject to create'
-        experimentSample = KallistoSample(subject, self.inputPath, maxCPU=self.Procs)
+        experimentSample = KallistoSample(subject, self.inputPath, maxCPU=self.Procs, blacklist=self.Blacklist)
         return experimentSample
 
     ################################################################
@@ -1872,7 +1848,7 @@ class Sample:
     Inherits from Experiment Parent Class
     '''
 
-    def __init__(self,sampleNumber,inputFile, maxCPU=None):
+    def __init__(self,sampleNumber,inputFile, maxCPU=None, blacklist=None):
         ''' Arguments:
                 sampleNumber = int; sample number used for naming
                 inputFile = str; path to inputFile
@@ -1883,7 +1859,7 @@ class Sample:
             Initializes class variables from Parent class and also
             initializes some sample specific variables
         '''
-        Experiment.__init__(self,inputFile)
+        Experiment.__init__(self,inputFile,blacklist=blacklist)
         assert sampleNumber <= Experiment.getNumberofSamples(self)
         assert sampleNumber > 0
         self.sampleNumber = sampleNumber
@@ -2171,13 +2147,14 @@ class Sample:
         Phred = self.getPhred()
         Reads = self.getReadNames()
         # Making Command
-        command = r'java -jar $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar PE -threads {procs} -phred{phred} {Read1} {Read2} read1.P.trim.{fastq}.gz read1.U.trim.{fastq}.gz read2.P.trim.{fastq}.gz read2.U.trim.{fastq}.gz ILLUMINACLIP:$RNASEQDIR/Trimmomatic/adapters/TruSeq3-PE.fa:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:5 MINLEN:35'
+        command = r'java -jar $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar PE -threads {procs} -phred{phred} {Read1} {Read2} read1.P.trim.{fastq}.gz read1.U.trim.{fastq}.gz read2.P.trim.{fastq}.gz read2.U.trim.{fastq}.gz ILLUMINACLIP:{black}:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:5 MINLEN:35'
         Context = {
                 "procs": self.Procs,
                 "phred": Phred,
                 "Read1": read1,
                 "Read2": read2,
-                "fastq": self.Fastq
+                "fastq": self.Fastq,
+                "black": self.Blacklist
                 }
         commandWithContext = command.format(**Context)
         goodCommand = self.formatCommand(commandWithContext)
@@ -2316,8 +2293,8 @@ class Sample:
 
 class FCountsSample(Sample):
 
-    def __init__(self,sampleNumber,inputFile,maxCPU=None):
-        Sample.__init__(self, sampleNumber, inputFile, maxCPU=maxCPU)
+    def __init__(self,sampleNumber,inputFile,maxCPU=None,blacklist=None):
+        Sample.__init__(self, sampleNumber, inputFile, maxCPU=maxCPU, blacklist=blacklist)
 
     def __repr__(self):
         ''' Arguments:
@@ -2520,8 +2497,8 @@ class FCountsSample(Sample):
     ########################################################
 class StringtieSample(Sample):
 
-    def __init__(self,sampleNumber,inputFile,maxCPU=None):
-        Sample.__init__(self, sampleNumber, inputFile, maxCPU=maxCPU)
+    def __init__(self,sampleNumber,inputFile,maxCPU=None,blacklist=None):
+        Sample.__init__(self, sampleNumber, inputFile, maxCPU=maxCPU,blacklist=blacklist)
 
     def __repr__(self):
         ''' Arguments:
@@ -2756,8 +2733,8 @@ class StringtieSample(Sample):
 
 class KallistoSample(Sample):
 
-    def __init__(self,sampleNumber,inputFile,maxCPU=None):
-        Sample.__init__(self, sampleNumber, inputFile, maxCPU=maxCPU)
+    def __init__(self,sampleNumber,inputFile,maxCPU=None,blacklist=None):
+        Sample.__init__(self, sampleNumber, inputFile, maxCPU=maxCPU, blacklist=blacklist)
 
     def __repr__(self):
         ''' Arguments:
