@@ -64,6 +64,10 @@ function cleanSample {
                     fi
                 done
             fi
+            pattern3="${Data}/${sample}/.done"
+            if [ -f "${pattern3}" ]; then
+                rm "${pattern3}"
+            fi
             cd "${Data}/${sample}"
             if [ "${numero}" -eq 2 ]; then
                 :
