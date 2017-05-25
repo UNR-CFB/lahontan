@@ -151,9 +151,28 @@ def ppRef(referenceDir, cdna, basename, gtf, genome, cpulimit=None):
                             executable="/bin/bash",
                             stdout=PPlog,
                             stderr=subprocess.STDOUT)
-    with open(os.path.join(self.Project, '.init'), 'a') as F:
-        F.write('P')
 
+def createKallistoIndex(referenceDir, cdna, basename):
+    indexCheck = os.path.join(referenceDir, 'KaliIndexBuilt')
+    if not os.path.exists(indexCheck):
+        logFile = os.path.join(referenceDir, 'KallistoRuntime.log')        
+        # Making Command                                                     
+        command = r"{{ time -p kallisto index -i {basename}.kali.dna.fa.idx {cdna}; }} >> {log} 2>&1"
+        context = {"cdna": cdna,
+                   "basename": basename,
+                   "log": logFile}
+        goodCommand = command.format(**context)
+        # Executing                                                          
+        print('Building kallisto index...')                                  
+        os.chdir(referenceDir)
+        subprocess.run(goodCommand,
+                       shell=True,                                      
+                       check=True,
+                       executable="/bin/bash")
+        with open(indexCheck,'w') as F:
+                F.write('True')
+    else:
+        print('Error: Cannot build Kallisto index; already exists')
 
 def clean(arguments):
     # Handling Cleaning Arguments
@@ -679,8 +698,8 @@ Mandatory Arguments:
     else: #both
         pipeClasses.pipeUtils.qcReference(arguments['<pathtoReferenceDir>'],Genome)
         ppRef(arguments['<pathtoReferenceDir>'], Cdna, Basename, Gtf, Genome, cpuLimit)
-    if arguments['--kallisto'] and pipeClasses.needToBuildKaliIndex():
-        pipeClasses.buildKallistoIndex()
+    if arguments['--kallisto']:
+        createKallistoIndex(arguments['<pathtoReferenceDir>'], Cdna, Basename)
 
 def otherStuff(arguments):
     if any(arguments.values()):
