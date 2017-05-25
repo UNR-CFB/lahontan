@@ -19,6 +19,7 @@ import json
 import re
 import makeBallgownScript
 import makeSleuthScript
+import optPath
 
 ################################################################
 # Utilities
@@ -285,12 +286,10 @@ class Experiment:
             finished = False
         return finished
 
-    def getOptimal(self, cluster, behavior='default', jsonPath=False, getBiggestCPU=False):
+    def getOptimal(self, cluster, jsonPath=None):
         ''' Arguments:
                 cluster = list; a list of integers that describes number of
                             CPUs on each machine in a cluster
-                *behavior = 'default' or other str; non-default scrapes
-                            an existing path
                 *jsonPath = boolean; if there already exists a json with
                             desired path
             Returns:
@@ -298,103 +297,23 @@ class Experiment:
 
             Figures out best way to run your samples
         '''
-        if getBiggestCPU:
-            return max(cluster)
-        numSamples = self.getNumberofSamples()
-        def atatime(cpuPerSample,limits=cluster):
-            return sum([x//cpuPerSample for x in limits])
-        def iterationsTilFinish(cpuPerSample, numSamp=numSamples, limits=cluster):
-            return ceiling(numSamp/atatime(cpuPerSample,limits))
-        def timePerSample(cpuPerSample):
-            return 2221.85*cpuPerSample**-0.831626
-        def totalTime(cpuPerSample, numSamp=numSamples, limits=cluster):
-            ''' If your cpuPerSample is held constant for all iterations required'''
-            return iterationsTilFinish(cpuPerSample,numSamp,limits)*timePerSample(cpuPerSample)
-        def oneIteration(cpuPerSample, numSamp=numSamples, limits=cluster):
-            return [numSamp-atatime(cpuPerSample,limits),[cpuPerSample,timePerSample(cpuPerSample)]]
-        def chokePoints(limits=cluster):
-            chokes,final = [],[]
-            for amount in [(n,atatime(n,limits)) for n in range(1,max(limits)+1)]:
-                if amount[1] not in chokes:
-                    chokes.append(amount[1])
-                    final.append(amount)
-                else:
-                    final.pop(-1)
-                    final.append(amount)
-            return [a[0] for a in final]
-        def smart(numSamp=numSamples,limits=cluster):
-            Paths,Finished,Best,counter = [],[1],9E9,0
-            available = chokePoints(limits)
-            while True:
-                if counter == 0:
-                    for M in available:
-                        ITER = oneIteration(M,numSamp,limits)
-                        if ITER[0] <= 0:
-                            test = [sum(i) for i in zip(*ITER[1:])][1]
-                            if test < Best:
-                                Best = test
-                                del Finished[0]
-                                Finished.append(ITER[1:])
-                        else: Paths.append(ITER)
-                    counter += 1
-                else:
-                    for path in Paths:
-                        for n in available:
-                            ITER = path[:]
-                            ITER[0] = ITER[0] - atatime(n)
-                            ITER.append(oneIteration(n,numSamp,limits)[1])
-                            if ITER[0] <= 0:
-                                test = [sum(i) for i in zip(*ITER[1:])][1]
-                                if test < Best:
-                                    Best = test
-                                    del Finished[0]
-                                    Finished.append(ITER[1:])
-                            else:
-                                Paths.append(ITER)
-                        Paths.remove(path)
-                    counter += 1
-                if len(Paths) == 0:
-                    break
-            return Best,Finished
-        def scrapeResults(Best,numSamps=numSamples,limits=cluster):
-            resultDict,counter,totalSamps = {},0,numSamps
-            while True:
-                S = atatime(Best[1][0][counter][0],limits)
-                if S > totalSamps:
-                    S = totalSamps
-                else:
-                    totalSamps -= S
-                resultDict['Step {}'.format(counter+1)] = {}
-                resultDict['Step {}'.format(counter+1)]['Procs'] = Best[1][0][counter][0]
-                resultDict['Step {}'.format(counter+1)]['Samps'] = S
-                counter += 1
-                if counter+1 > len(Best[1][0]):
-                    break
-            return resultDict
-        def regularResults(numSamps=numSamples,limits=cluster):
-            iteration = atatime(self.Procs,limits)
-            numItes = iterationsTilFinish(self.Procs, numSamples, limits)
-            resultDict,counter,totalSamps = {},0,0
-            for i in range(1,numItes+1):
-                if totalSamps+iteration > numSamps:
-                    iteration = numSamps - totalSamps
-                totalSamps += iteration
-                resultDict['Step {}'.format(counter+1)] = {}
-                resultDict['Step {}'.format(counter+1)]['Procs'] = self.Procs
-                resultDict['Step {}'.format(counter+1)]['Samps'] = iteration
-                counter += 1
-            return resultDict
-        #TODO Fix --makebatch with no --batchfile
-        if jsonPath != str(False):
+        Arguments = {
+                "--maxcpu": str(self.Procs),
+                "<numsamples>": str(self.getNumberofSamples()),
+                "<cluster>": ','.join(str(node) for node in cluster),
+                "--customize": False,
+                "--tofile": "GeneratedOptimalPath.dat"
+                }
+        if jsonPath:
             with open(jsonPath) as JF:
                 jsonData = json.load(JF,object_pairs_hook=pipeUtils.makeCols.OrderedDict)
             return jsonData
         else:
-            if behavior == 'default':
-                return scrapeResults(smart())
-            else:
-                return regularResults(numSamples,cluster)
-
+            optPath.main(Arguments)
+            with open("GeneratedOptimalPath.dat", "r") as JF:
+                jsonData = json.load(JF,object_pairs_hook=pipeUtils.makeCols.OrderedDict)
+            return jsonData
+            
     @funTime
     def createJsonMetadata(self):
         ''' Arguments:
@@ -747,7 +666,7 @@ class FCountsExperiment(Experiment):
                 experimentSample = self.createSampleClassNumber(subject)
                 self.runSample(experimentSample)
 
-    def makeBatch(self, cluster, jsonFile=False):
+    def makeBatch(self, cluster, jsonFile=None):
         ''' Arguments:
                 cluster = list; list of integers that describe number
                             of CPUs in each node of your cluster
@@ -795,6 +714,8 @@ wait
 scontrol show job $SLURM_JOB_ID
 wait
 """
+        if JSFI == None:
+            raise SystemExit('Need to specify a Metadata file with "--jsonfile"\nCan use "runPipe mj" to create a metadata file')
         numSamps = self.getNumberofSamples()
         if not IS_REFERENCE_PREPARED:
             ref = ''
@@ -802,7 +723,7 @@ wait
             ref = ' --use-reference'
         command1 = 'srun -N1 -c1 -n1 runPipe fcounts --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1 "${{inputFile}}"'.format(ref)
         command2 = 'srun -N1 -c{1} -n1 runPipe fcounts --noconfirm{0} --jsonfile "${{jsonFile}}" --maxcpu {1} --execute 2 "${{inputFile}}"'.format(ref,max(cluster))
-        bestPath = self.getOptimal(cluster,behavior='non-default',jsonPath=jsonFile)
+        bestPath = self.getOptimal(cluster,jsonPath=jsonFile)
         command3,counter,sampleNum = '',1,1
         for path in sorted(bestPath):
             Pstep = bestPath[path]['Procs']
@@ -1131,7 +1052,7 @@ class StringtieExperiment(Experiment):
                             experimentSample = self.createSampleClassNumber(subject)
                             self.runSample(experimentSample,stPhase=nextPhase)
 
-    def makeStringtieBatch(self, cluster, jsonFile=False):
+    def makeStringtieBatch(self, cluster, jsonFile=None):
         ''' Arguments:
                 cluster = list; list of integers that describe number
                             of CPUs in each node of your cluster
@@ -1182,6 +1103,8 @@ wait
 scontrol show job $SLURM_JOB_ID
 wait
 """
+        if JSFI == None:
+            raise SystemExit('Need to specify a Metadata file with "--jsonfile"\nCan use "runPipe mj" to create a metadata file')
         numSamps = self.getNumberofSamples()
         if not IS_REFERENCE_PREPARED:
             ref = ''
@@ -1189,7 +1112,7 @@ wait
             ref = ' --use-reference'
         command1 = 'srun -N1 -c1 -n1 runPipe string --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1 "${{inputFile}}"'.format(ref)
         command2 = 'srun -N1 -c{1} -n1 runPipe string --noconfirm{0} --jsonfile "${{jsonFile}}" --maxcpu {1} --execute 2 "${{inputFile}}"'.format(ref,max(cluster))
-        bestPath = self.getOptimal(cluster,behavior='non-default',jsonPath=jsonFile)
+        bestPath = self.getOptimal(cluster,jsonPath=jsonFile)
         def getStage3(phase):
             # For Phase a and c
             command3,counter,sampleNum = '',1,1
@@ -1576,7 +1499,7 @@ class KallistoExperiment(Experiment):
                 experimentSample = self.createSampleClassNumber(subject)
                 self.runSample(experimentSample)
 
-    def makeKallistoBatch(self, cluster, jsonFile=False):
+    def makeKallistoBatch(self, cluster, jsonFile=None):
         ''' Arguments:
                 cluster = list; list of integers that describe number
                             of CPUs in each node of your cluster
@@ -1621,6 +1544,8 @@ wait
 scontrol show job $SLURM_JOB_ID
 wait
 """
+        if JSFI == None:
+            raise SystemExit('Need to specify a Metadata file with "--jsonfile"\nCan use "runPipe mj" to create a metadata file')
         numSamps = self.getNumberofSamples()
         if not IS_REFERENCE_PREPARED:
             ref = ''
@@ -1628,7 +1553,7 @@ wait
             ref = ' --use-reference'
         command1 = 'srun -N1 -c1 -n1 runPipe kall --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1 "${{inputFile}}"'.format(ref)
         command2 = 'srun -N1 -c{1} -n1 runPipe kall --noconfirm{0} --jsonfile "${{jsonFile}}" --maxcpu {1} --execute 2 "${{inputFile}}"'.format(ref,max(cluster))
-        bestPath = self.getOptimal(cluster,behavior='non-default',jsonPath=jsonFile)
+        bestPath = self.getOptimal(cluster,jsonPath=jsonFile)
         def getStage3():
             command3,counter,sampleNum = '',1,1
             for path in sorted(bestPath):

@@ -38,9 +38,6 @@ from functools import partial
 
 ################################################################
 
-#numSamples = int(sys.argv[1])
-#procs = int(sys.argv[2])
-#cluster = [int(a) for a in sys.argv[3].split(',')]
 def ceiling(a,b):
     return -(-a//b)
 def atatime(cpuPerSample,limits):
@@ -142,28 +139,6 @@ def checkMaxCPU(arguments):
                         arguments['--maxcpu']))
     else:
         return multiprocessing.cpu_count()
-
-#def singleProcessorPath(numberSamples, cluster, processors):
-#    totalAvailableCPU = sum(cluster)
-#    optimalPath = {}
-#    sampsPerRun = totalAvailableCPU
-#    numberOfRuns = ceiling(numberSamples,sampsPerRun)
-#    leftoverSamps = numberSamples % sampsPerRun
-#    for i in range(1,numberOfRuns+1):
-#        optimalPath["Step {}".format(i)] = {}
-#        optimalPath["Step {}".format(i)]["Procs"] = 1
-#        if i == numberOfRuns and leftoverSamps > 0:
-#            optimalPath["Step {}".format(i)]["Samps"] = leftoverSamps
-#        else:
-#            optimalPath["Step {}".format(i)]["Samps"] = sampsPerRun
-#    return optimalPath
-#
-#def optimize(numberSamples, cluster, processors):
-#    totalAvailableCPU = sum(cluster)
-#    optimalPath = {}
-#    if numberSamples >= totalAvailableCPU and numberSamples%totalAvailableCPU==0:
-#        optimalPath = singleProcessorPath(numberSamples, cluster, processors)
-#    return optimalPath
 
 def customizePath(numSamples, limits, filename):
     optimalPath = {}
