@@ -9,37 +9,39 @@ This pipeline also provides some automated R scripts to begin a gene expression
 analysis. The pipeline is also compatible with SLURM scheduled clusters for
 parallel execution.
 
-Table of Contents
-=================
-
-   * [Table of Contents](#table-of-contents)
-      * [Installation](#installation)
-      * [Built With](#built-with)
-   * [Pipeline Specifications](#pipeline-specifications)
-      * [Usage: runPipe [options] [command] [args...]](#usage-runpipe-options-command-args)
-         * [Available Commands:](#available-commands)
-         * [Command Options:](#command-options)
-            * [fcounts](#fcounts)
-            * [string](#string)
-            * [kall](#kall)
-            * [mj](#mj)
-            * [mb](#mb)
-            * [clean](#clean)
-            * [fo](#fo)
-            * [help](#help)
-      * [Project Structure](#project-structure)
+Table of Contents                                                                               
+=================                                                                               
+                                                                                                
+   * [Table of Contents](#table-of-contents)                                                    
+   * [Installation](#installation)                                                              
+   * [Built With](#built-with)                                                                  
+   * [Pipeline Specifications](#pipeline-specifications)                                        
+      * [Project Stages](#project-stages)                                                       
+      * [Project Structure](#project-structure)                                                 
+      * [Usage: runPipe [options] [command] [args...]](#usage-runpipe-options-command-args)     
+         * [Available Commands](#available-commands)                                            
+         * [Command Options](#command-options)                                                  
+            * [fcounts](#fcounts)                                                               
+            * [string](#string)                                                                 
+            * [kall](#kall)                                                                     
+            * [mj](#mj)                                                                         
+            * [mb](#mb)                                                                         
+            * [clean](#clean)                                                                   
+            * [fo](#fo)                                                                         
+            * [prepref](#prepref)                                                               
+            * [help](#help)                                                                     
    * [Creating a Project and Running the Pipeline](#creating-a-project-and-running-the-pipeline)
-      * [Requirements](#requirements)
-      * [Setup](#setup)
-      * [Quick Start](#quick-start)
-   * [Authors](#authors)
+      * [Requirements](#requirements)                                                           
+      * [Setup](#setup)                                                                         
+      * [Quick Start](#quick-start)                                                             
+   * [Authors](#authors)                                                                        
 
-## Installation
+# Installation
 
 To install, please see the [Wiki](https://github.com/UNR-CFB/rna-seq/wiki) for
 detailed build instructions.
 
-## Built With
+# Built With
 
 * [Python](https://www.python.org/) (>=3.5)
 * [Bash](https://www.gnu.org/software/bash/)
@@ -54,6 +56,108 @@ detailed build instructions.
 
 # Pipeline Specifications
 
+## Project Stages
+
+**Stage 1**
+
+Will create the [project structure](#project-structure) and will link the
+original data files, the reference files, and a Metadata file if it has been
+prepared. This stage is identical for all pipelines.
+
+**Stage 2**
+
+Will run a quality check on the reference data and preprocess the reference
+data. This entails building a BLAST database, finding the splice sites, finding
+the exons, building a hisat2 database, and building a genome index with
+samtools. This stage can be identically run with `runPipe prepref` outside of a
+Project structure and before running a pipeline. Stringtie and featureCounts
+will have an identical Stage 2, but Kallisto requires the construction of its
+own index. If preparing the references beforehand for Kallisto, make sure to
+add the `--kallisto` flag to the `runPipe prepref` command.
+
+**Stage 3**
+
+The first step for all pipelines in Stage 3 is to run a quality check on the
+data. This includes using fastQC to create statistics on the quality of the
+data as well as to search for overrepresented sequences. Trimming of the reads
+is done by trimmomatic which trims poor reads as well as any reads in a
+blacklist file. A custom blacklist file can be created by `runPipe mb`, which
+can be fed to a pipeline with the `--use-blacklist` option. After trimming, an
+additional round of fastQC will be performed to check the results of the
+trimming. These quality control steps are identical for all pipelines. Once the
+quality control is finished, the strandedness of the reads is checked with
+BLAST.
+
+After quality control is done, depending on which pipeline is being ran, the
+next steps will vary. For featureCounts, hisat2 will be used to align the reads
+to the references, then featureCounts will quantify the gene expression. The
+pipeline will then gather the data to create tables which can be used in
+further analysis.
+
+If Stringtie is being used, then hisat2 will be used to align the reads to the 
+references. After the alignment, Stringtie will build a new reference transcripts
+file which will then be used in estimating the transcript abundances.
+
+If Kallisto is being used, then Kallisto will perform its probabilistic
+quantification on the raw data using the index it built.
+
+**Stage 4**
+
+In Stage 4, the resulting data from whichever pipeline was ran is tabulated and
+prepared for statistical analysis with some automatically generated R scripts.
+The automatically generated R scripts are built with deseq2 and edgeR for
+featureCounts, ballgown for Stringtie, and sleuth for Kallisto.
+
+**Stage 5**
+
+In Stage 5, the automatically generated R scripts from Stage 4 are executed.
+
+## Project Structure
+
+Stage 1 of the Pipeline will create a consistent directory structure between
+Projects that includes a *Data*, *Original*, *Postprocessing*, and *Reference*
+directory which looks like:
+```
+ProjectName/
+    Data/
+        sample_01/
+            sample_01-read_1
+            sample_01-read_2
+        sample_02/
+            sample_02-read_1
+            sample_02-read_2
+        sample_03/
+            sample_03-read_1
+            sample_03-read_2
+        .
+        .
+        .
+        (Other sample directories)
+    Original/
+        sample_01-read_1
+        sample_01-read_2
+        sample_02-read_1
+        sample_02-read_2
+        sample_03-read_1
+        sample_03-read_2
+        .
+        .
+        .
+        (Other sample files)
+    Postprocessing/
+        (Metadata.json if already created, which I recommend you do)
+    Reference/
+        Genome.fa
+        cDNA.fa
+        .gtf
+        (Other files if reference files have already been processed and prepared)
+```
+* *Data* = directory where Stage 3 will propogate. Contains a directory for each
+respective sample which contains its respective raw data files
+* *Original* = directory containing symbolic links pointing to original raw data files
+* *Postprocessing* = directory where differential expression analysis and other analyses will be saved to
+* *Reference* = directory containing symbolic links pointing to original reference files
+
 ## Usage: runPipe [options] [command] [args...]
 
 The pipeline is designed as a series of scripts built around a central
@@ -62,7 +166,7 @@ If it is fed a command, that activates the options available for that command,
 and can subsequently be added after the command. The available commands which
 can be given to `runPipe` are shown below.
 
-### Available Commands:
+### Available Commands
 
 ```
 fcounts     For running featureCounts pipeline  
@@ -72,6 +176,7 @@ mj          Provoke questionnaire to make a Metadata file
 mb          Create trimmomatic blacklist  
 clean       Clean any project directories  
 fo          Finds optimal execution path for batch execution  
+prepref     Pre-processes reference data
 help        Show extra information
 ```
 
@@ -95,40 +200,27 @@ of the pipeline. Shown below are the available options for `runPipe`.
     Show this screen and exit
 --version
     Show version and exit
---reference-qc <pathtoReferences>
-    Runs Quality Control check on Reference files
---reference-pp <pathtoReferences>
-    Pre processes Reference data
 --noconfirm
     Ignore all user prompts except JSON file creation
 ```
 
 The syntax for the options displayed is based on the conventional CLI
 interface.  The list of options describe whether an option has short/long forms
-(`-h, --help`), whether an option has an argument (`--reference-qc
-<pathtoReferences>`), and whether the argument has a default value. If an
-option has both a short and long form, then either form may be used for the
-same functionality. The default values will be denoted in the description of
-the option by, `[default: foo]`.
+(`-h, --help`), whether an option has an argument, and whether the argument has
+a default value. If an option has both a short and long form, then either form
+may be used for the same functionality. The default values will be denoted in
+the description of the option by, `[default: foo]`.
 
 **More information about options:**
 
 --version
 > Will show the version of `runPipe` currently installed
 
---reference-qc *\<pathtoReferences\>*
-> Runs Quality Control check on Reference files i.e. First part of Stage 2  
-> Used to prepare reference data outside of the project structure  
-
---reference-pp *\<pathtoReferences\>*
-> Pre-processes Reference data i.e. Second part of Stage 2  
-> Used to prepare reference data outside of the project structure  
-
 --noconfirm
 > Used to avoid any interactive prompts that may be shown which would require
 user intervention
 
-### Command Options:
+### Command Options
 
 The commands available to `runPipe` will be described in more detail below.
 
@@ -340,7 +432,7 @@ ballgown in Stage 5.
 **More information about options:**
 
 The `string` command only adds the `--phase` option from the `fcounts` command.
-If you wish to see more information, see the `fcounts` documentation.
+If you wish to see more information, see the [fcounts](#fcounts) documentation.
 
 -p *\<phase>\*, --phase *\<phase>\*
 > Modifies pipeline to incorporate stringtie and ballgown. Stringtie replaces
@@ -408,7 +500,7 @@ for quantifying gene expression.
 **More information about options:**
 
 The `kall` command does not add any options compared to the `fcounts` command.
-If you wish to see more information, see the `fcounts` documentation.
+If you wish to see more information, see the [fcounts](#fcounts) documentation.
 
 #### mj
 **Usage: runPipe mj [options]**
@@ -696,6 +788,63 @@ CLUSTER
 > If the calculation is too slow, can use this option to specify the path
 > yourself  
 
+#### prepref
+**Usage: runPipe prepref [options] REFERENCEDIR**
+
+This command is equivalent to Stage 2 of the pipeline, however the difference
+is that this command is occurring outside of a structured Project environment.
+It is useful to prepare the reference information before running the pipeline
+as there may be unforeseen difficulties with the reference information which
+can't be caught by the pipeline.
+
+**Options**
+
+```
+-h, --help
+    Show this screen and exit
+-q, --qualitycheck
+    Only run quality check on references. Default behavior
+    is to run both quality control and preprocessing
+-p, --preprocess
+    Only run preprocessing on references. Default behavior
+    is to run both quality control and preprocessing
+-k, --kallisto
+    Additionally build kallisto index
+    Note: index required if kallisto pipeline to be used
+--maxcpu <CPUs>
+    Limit the number of CPU that get used to preprocess
+    reference data.
+    Note: default is to use all available
+```
+
+**Mandatory Arguments**
+
+REFERENCEDIR
+> The path to a directory that contains a GTF, cDNA, and reference genome
+
+**More information about options:**
+
+-q, --qualitycheck
+> Check the quality of the references by comparing the chromosome names in the
+> genome and gtf, comparing the gene names in the cDNA and gtf, and comparing
+> the number of unique gene names in the cDNA and gtf.  
+> This option is given if you only want to check the quality without actually
+> preprocessing the references  
+
+-p, --preprocess
+> Preprocesses the references by building a BLAST database, finding the splice
+> sites, finding the exons, building a hisat2 database, and building a genome
+> index with samtools  
+> This option is given if you only want to preprocess the references without
+> actually running a quality check  
+
+-k, --kallisto
+> Build an index for kallisto analysis  
+
+--maxcpu <CPUs>
+> Limit the number of CPU that get used to preprocess reference data.  
+> Note: default is to use all available
+
 #### help
 **Usage: runPipe help COMMAND**
 
@@ -713,52 +862,6 @@ mb          Create trimmomatic blacklist
 clean       Clean any project directories  
 fo          Finds optimal execution path for batch execution  
 ```
-
-## Project Structure
-
-Stage 1 of the Pipeline will create a consistent directory structure between
-Projects that includes a *Data*, *Original*, *Postprocessing*, and *Reference*
-directory which looks like:
-```
-ProjectName/
-    Data/
-        sample_01/
-            sample_01-read_1
-            sample_01-read_2
-        sample_02/
-            sample_02-read_1
-            sample_02-read_2
-        sample_03/
-            sample_03-read_1
-            sample_03-read_2
-        .
-        .
-        .
-        (Other sample directories)
-    Original/
-        sample_01-read_1
-        sample_01-read_2
-        sample_02-read_1
-        sample_02-read_2
-        sample_03-read_1
-        sample_03-read_2
-        .
-        .
-        .
-        (Other sample files)
-    Postprocessing/
-        (Metadata.json if already created, which I recommend you do)
-    Reference/
-        Genome.fa
-        cDNA.fa
-        .gtf
-        (Other files if reference files have already been processed and prepared)
-```
-* *Data* = directory where Stage 3 will propogate. Contains a directory for each
-respective sample which contains its respective raw data files
-* *Original* = directory containing symbolic links pointing to original raw data files
-* *Postprocessing* = directory where differential expression analysis and other analyses will be saved to
-* *Reference* = directory containing symbolic links pointing to original reference files
 
 # Creating a Project and Running the Pipeline
 
@@ -782,6 +885,20 @@ $ source $HOME/.bashrc
 
 ## Setup
 
+It is important that the Input file that you feed into the pipeline follow the
+format specified. There must only be the three variables, `Project`,
+`Reference`, and `Original`, in the file. They must be spelled correctly. Your
+`Project` variable should be defined by a path to a directory that may or may
+not exist, but it must be empty. An example Input file can be seen below:
+
+```
+ExampleInputFile
+-------------------------------------------------------------------------------
+Project="/home/user/ProjectName"
+Reference="/home/user/Reference/ProjectName-Reference"
+Original="/home/user/Data/ProjectName-Data"
+```
+
 Often times your data will be organized in a way that isn't accepted by
 runPipe.  In order to continue, your `Original` directory must be arranged such
 that each sample read is alphanumerically sorted in a single directory (Note:
@@ -789,7 +906,7 @@ sorted by sample and by read)
 
 Example Original Directory:
 ```
-SpeciesName-RawData/
+/home/user/Data/ProjectName-Data/
     SpeciesName.treament1_group1.read1.fq.gz
     SpeciesName.treament1_group1.read2.fq.gz
     SpeciesName.treament1_group2.read1.fq.gz
@@ -816,7 +933,7 @@ using letters, numbers, periods, hyphens, and underscores:
 
 Example Reference Directory:
 ```
-SpeciesName-Reference/
+/home/user/Reference/ProjectName-Reference/
     SpeciesName.cdna.all.fa.gz
     SpeciesName.dna.toplevel.fa.gz
     SpeciesName.gtf
@@ -824,17 +941,18 @@ SpeciesName-Reference/
 
 ## Quick Start
 
-1. Make sure data and references are following format specified in Setup
-2. Prepare reference data with `runPipe prepref`
-3. Run `runPipe mj` to make a metadata file
-4. Run `runPipe mb` to make a blacklist file
-5. Decide if you will be running the pipeline with SLURM or not
+1. Create an Input file
+2. Make sure data and references are following format specified in Setup
+3. Prepare reference data with `runPipe prepref`
+4. Run `runPipe mj` to make a metadata file
+5. Run `runPipe mb` to make a blacklist file
+6. Decide if you will be running the pipeline with SLURM or not
     * If yes, then run `runPipe fo` with proper arguments to make optimal path
       file
     * If no, then you can skip this step
     * The following steps will be denoted with a (s) if the step is for SLURM or
       a (w) if the step is without SLURM
-6. (s) Make a batch file by adding the `--makebatch` option to any of the three
+7. (s) Make a batch file by adding the `--makebatch` option to any of the three
    pipeline commands. You should also add the `--batchjson` option with the
 file you made with `runPipe fo`; the `--jsonfile` option with the file you made
 with  `runPipe mj`; the `--use-blacklist` option with the file you made with
@@ -845,7 +963,7 @@ $ runPipe fcounts --makebatch 48,48,32 --batchjson /path/to/OptimalPath.dat \
 --jsonfile /path/to/Metadata.json --use-blacklist /path/to/CustomBlacklist.fa \
 --use-reference /path/to/INPUT
 ```
-6. (w) You can execute the entire pipeline with one command, but it's important
+7. (w) You can execute the entire pipeline with one command, but it's important
    that the `--jsonfile`, `--use-blacklist`, and `--use-reference` options are
 added to the command. An example command may look like:
 ```
@@ -853,7 +971,10 @@ $ runPipe fcounts --jsonfile /path/to/Metadata.json \
 --use-blacklist /path/to/CustomBlacklist.fa --use-reference --maxcpu 24 \
 /path/to/INPUT
 ```
-7. (s) Execute the batch file with `sbatch pipeBatch`
+8. (s) Execute the batch file with `sbatch pipeBatch`
+
+Note: It may be a good idea to hold your input file, metadata file, blacklist
+file, batch file, and optimal path file in the same directory for easy tracking
 
 # Authors
 
