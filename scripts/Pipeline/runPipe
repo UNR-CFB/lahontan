@@ -27,7 +27,7 @@ Available runPipe commands:
 
 See 'runPipe help <command>' for more information on a specific 
 command'''
-VERSION = 'runPipe experimental version\nAuthor: Alberto Nava'
+VERSION = 'runPipe version 1.1\n'
 
 ################################################################
 # Importations
