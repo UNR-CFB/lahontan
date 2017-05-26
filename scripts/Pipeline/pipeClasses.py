@@ -683,7 +683,7 @@ class FCountsExperiment(Experiment):
 #SBATCH --cpus-per-task={CPT}
 #SBATCH --ntasks={NTASKS}
 #SBATCH --job-name="featureCounts Pipeline"
-#SBATCH --export=PATH,RNASEQDIR,HOME,LC_ALL="en_us.UTF-8"
+#SBATCH --export=PATH,RNASEQDIR,HOME,LC_ALL="en_US.UTF-8"
 
 inputFile='{INPUT}'
 jsonFile='{JSON}'
@@ -1069,7 +1069,7 @@ class StringtieExperiment(Experiment):
 #SBATCH --cpus-per-task={CPT}
 #SBATCH --ntasks={NTASKS}
 #SBATCH --job-name="Stringtie Pipeline"
-#SBATCH --export=PATH,RNASEQDIR,HOME,LC_ALL="en_us.UTF-8"
+#SBATCH --export=PATH,RNASEQDIR,HOME,LC_ALL="en_US.UTF-8"
 
 inputFile='{INPUT}'
 jsonFile='{JSON}'
@@ -1094,7 +1094,7 @@ wait
 
 # Stage 4
 {STAGE4}
-wait
+kait
 
 # Stage 5
 {STAGE5}
@@ -1516,7 +1516,7 @@ class KallistoExperiment(Experiment):
 #SBATCH --cpus-per-task={CPT}
 #SBATCH --ntasks={NTASKS}
 #SBATCH --job-name="Kallisto Pipeline"
-#SBATCH --export=PATH,RNASEQDIR,HOME,LC_ALL="en_us.UTF-8"
+#SBATCH --export=PATH,RNASEQDIR,HOME,LC_ALL="en_US.UTF-8"
 
 inputFile='{INPUT}'
 jsonFile='{JSON}'
