@@ -49,6 +49,8 @@ def exportVariablesforClass(pathtoInput,maxCPU=None):
         Gtf, Cdna, Genome = readInit()
     else:
         Gtf, Cdna, Genome = pipeUtils.getReferenceVariables(Reference)
+        with open(os.path.join(Reference, '.init'),'w') as f:
+            f.write('\n'.join([Gtf, Cdna, Genome]))
     Basename = pipeUtils.getBasename(Genome)
     Fastq = pipeUtils.getFastq(Original)
     Procs = pipeUtils.countCPU(maxCPU)
@@ -469,17 +471,11 @@ class Experiment:
 
             Calls pipeUtils.createStructure to make Directory Structure
         '''
-        if NOCONFIRM:
+        if not self.isStructurePrepared():
             print("Creating Structure...")
             pipeUtils.createStructure(self.Project,
                                         self.ogOriginal)
             makeTimeFile(RUNTIMELOG)
-        else:
-            if not self.isStructurePrepared():
-                print("Creating Structure...")
-                pipeUtils.createStructure(self.Project,
-                                            self.ogOriginal)
-                makeTimeFile(RUNTIMELOG)
 
     @funTime
     def makeSyms(self):
@@ -995,6 +991,9 @@ wait
         if not IS_REFERENCE_PREPARED:
             self.qcRef()
             self.ppRef()
+        else:
+            with open(os.path.join(self.Project, '.init'), 'a') as F:
+                F.write('P')
 
     def runStage3(self):
         print("Pipeline is running...")
@@ -1491,6 +1490,9 @@ wait
         if not IS_REFERENCE_PREPARED:
             self.qcRef()
             self.ppRef()
+        else:
+            with open(os.path.join(self.Project, '.init'), 'a') as F:
+                F.write('P')
 
     def runStage3(self, phases):
         print("Pipeline is running...")
@@ -1838,6 +1840,9 @@ wait
         if not IS_REFERENCE_PREPARED:
             self.qcRef()
             self.ppRef()
+        else:
+            with open(os.path.join(self.Project, '.init'), 'a') as F:
+                F.write('P')
 
     def runStage3(self):
         print("Pipeline is running...")
@@ -2341,13 +2346,13 @@ class Sample:
                 if 'read2 plus percent' in line:
                     R2 = float(re.findall(r'\d+\.\d+', line)[0])
             if R1 > R2:
-                print('Going to use "--rna-strandness FR" for hisat and "-s 1" for FC or --fr-stranded for kallisto quant')
+                self.writeToLog('! Going to use "--rna-strandness FR" for hisat and "-s 1" for FC or --fr-stranded for kallisto quant')
                 return 1
             else:
-                print('Going to use "--rna-strandness RF" for hisat and "-s 2" for FC or --rf-stranded for kallisto quant')
+                self.writeToLog('! Going to use "--rna-strandness RF" for hisat and "-s 2" for FC or --rf-stranded for kallisto quant')
                 return 2
         elif strandedBool == 0:
-            print('Reads not stranded')
+            self.writeToLog('! Reads not stranded')
             return 0
         else:
             print('There was an error with findStranded')
