@@ -68,6 +68,14 @@ def testDir(dirPath):
         raise SystemExit('Error: {} does not exist\n\n{}'.format(dirPath,__doc__))
 
 def makeGlobalVars(arguments):
+    ''' Arguments:
+            arguments : dictionary; CLI arguments from docopt
+        Returns:
+            None
+
+        Creates global variables NOCONFIRM, JSFI, and IS_REFERENCE_PREPARED
+        for runPipe, pipeClasses.py, and pipeUtils.py
+    '''
     # Global Variables to be used in scripts
     global NOCONFIRM
     NOCONFIRM = arguments['--noconfirm']
@@ -92,11 +100,17 @@ def makeGlobalVars(arguments):
 
 def ppRef(referenceDir, cdna, basename, gtf, genome, cpulimit=None):
     ''' Arguments:
-            None
+            referenceDir : location of a reference directory
+            cdna : location of a CDNA file with a '.cdna.' in the name
+            basename : basename of files; typically species name
+            gtf : location of gtf file with '.gtf' ending in name
+            genome : location of genome file with '.dna.' in name
+            *cpulimit : multiprocessing cpu limit, default is to use
+                        all available CPUs
         Returns:
             None
 
-        Handles preprocessing without class structure
+        Handles preprocessing without a class structure
     '''
     if cpulimit == None:
         cpulimit = os.cpu_count()
@@ -153,6 +167,15 @@ def ppRef(referenceDir, cdna, basename, gtf, genome, cpulimit=None):
                             stderr=subprocess.STDOUT)
 
 def createKallistoIndex(referenceDir, cdna, basename):
+    """ Arguments:
+            referenceDir : location of a reference directory
+            cdna : location of a CDNA file with a '.cdna.' in the name
+            basename : basename of files; typically species name
+        Returns:
+            None
+
+        Handles creating a kallisto index without a class structure
+    """
     indexCheck = os.path.join(referenceDir, 'KaliIndexBuilt')
     if not os.path.exists(indexCheck):
         logFile = os.path.join(referenceDir, 'KallistoRuntime.log')        
@@ -175,6 +198,13 @@ def createKallistoIndex(referenceDir, cdna, basename):
         print('Error: Cannot build Kallisto index; already exists')
 
 def clean(arguments):
+    """ Arguments:
+            arguments : dictionary; CLI arguments from docopt
+        Returns:
+            None
+
+        Handles runPipe clean command
+    """
     # Handling Cleaning Arguments
     possibleCleanArguments = ['All','Reference','Data','Postprocessing']
     if arguments['--clean']:
@@ -240,6 +270,7 @@ def clean(arguments):
 def makeBatch(ExperimentClass, arguments):
     ''' Arguments:
             ExperimentClass = class; experiment to run analysis on
+            arguments : dictionary; CLI arguments from docopt
         Returns:
             None
 
@@ -265,6 +296,14 @@ def makeBatch(ExperimentClass, arguments):
         raise SystemExit('Batch file successfully created:\n\t{}/pipeBatch'.format(os.getcwd()))
 
 def checkMaxCPU(arguments):
+    """ Arguments:
+            arguments : dictionary; CLI arguments from docopt
+        Returns:
+            int or None; the max number of CPU to use, if None
+                         then there is no limit
+        Checks --maxcpu option from CLI, if option not given
+        then default is to use all available CPU
+    """
     # Returning a maximum CPU value if given
     if arguments['--maxcpu']:
         if arguments['--maxcpu'].isdigit():
@@ -280,12 +319,28 @@ def checkMaxCPU(arguments):
         return None
 
 def setGlobalLog(ExperimentClass):
+    """ Arguments:
+            ExperimentClass : Experiment; instance of a class
+        Returns:
+            None
+
+        Creates a global variable, RUNTIMELOG, that specifies
+        location of execution log
+    """
     # Inititiating a Runtime Log global location
     global RUNTIMELOG
     RUNTIMELOG = str(ExperimentClass.Project + '/Runtime.log')
     pipeClasses.RUNTIMELOG = RUNTIMELOG
 
 def checkdashr(ExperimentClass, arguments):
+    """ Arguments:
+            ExperimentClass : Experiment; instance of a class
+            arguments : dictionary; CLI arguments from docopt
+        Returns:
+            samples : list; list of samples to execute
+
+        Checks --runsample argument from CLI
+    """
     # Running a specific sample
     if arguments['--runsample']:
         samples = arguments['--runsample'].split(',')
@@ -300,6 +355,13 @@ def checkdashr(ExperimentClass, arguments):
         return samples
 
 def checkdashe(arguments):
+    """ Arguments:
+            arguments : dictionary; CLI arguments from docopt
+        Returns:
+            executionStages : list; list of stages to execute
+
+        Checks --execute argument from CLI
+    """
     # Determining what stages to run of Pipeline
     if arguments['--execute'] == 'A':
         executionStages = ["1","2","3","4","5"]
@@ -316,6 +378,14 @@ def checkdashe(arguments):
     return executionStages
 
 def checkdashp(arguments):
+    """ Arguments:
+            arguments : dictionary; CLI arguments from docopt
+        Returns:
+            executionPhases : list; list of phases to execute for
+                              Stringtie
+
+        Checks --phase argument from CLI for runPipe string command
+    """
     # Handling string --phase
     possiblePhases = ['a','b','c','ab','bc','abc']
     stringtieUsage = ('Invalid argument to --phase: {}'.format(arguments['--phase']) + 
@@ -329,7 +399,7 @@ def stage1ReadyToExecute(ExperimentClass):
     """ Arguments:
             ExperimentClass : Experiment; instance of a class
         Returns:
-            None
+            boolean : if stage is ready to execute
     """
     testFile(ExperimentClass.inputPath)
     return True
@@ -338,7 +408,7 @@ def stage2ReadyToExecute(ExperimentClass):
     """ Arguments:
             ExperimentClass : Experiment; instance of a class
         Returns:
-            None
+            boolean : if stage is ready to execute
     """
     projectPath = ExperimentClass.Project
     dataPath = ExperimentClass.Data
@@ -355,31 +425,74 @@ def stage2ReadyToExecute(ExperimentClass):
         testFile(ref)
     return True
 
-def stage3FCReadyToExecute(ExperimentClass):
+def stage3FCReadyToExecute(FCountsClass):
+    """ Arguments:
+            FCountsClass : featureCounts Experiment; instance of a class
+        Returns:
+            boolean : if stage is ready to execute
+    """
+    if FCountsClass.isReferencePrepared():
+        return True
+    return False
+
+def stage3STReadyToExecute(STClass):
+    """ Arguments:
+            STClass : Stringtie Experiment; instance of a class
+        Returns:
+            boolean : if stage is ready to execute
+            None
+    """
+    if STClass.isReferencePrepared():
+        return True
+    return False
+
+def stage3KAReadyToExecute(KAClass):
+    """ Arguments:
+            KAClass : Kallisto Experiment; instance of a class
+        Returns:
+            boolean : if stage is ready to execute
+    """
+    if KAClass.isReferencePrepared() and not KAClass.needToBuildKaliIndex():
+        return True
+    return False
+
+def stage4ReadyToExecute(ExperimentClass):
+    """ Arguments:
+            ExperimentClass : Experiment; instance of a class
+        Returns:
+            None
+    """
+    return ExperimentClass.is3Finished()
+
+def stage5FCReadyToExecute(FCountsClass):
+    """ Arguments:
+            FCountsClass : featureCounts Experiment; instance of a class
+        Returns:
+            None
+    """
+    if (not os.path.exists(os.path.join(FCountsClass.Postprocessing, 'makeEdge.r')) or 
+        not os.path.exists(os.path.join(FCountsClass.Postprocessing, 'makeReport.r'))):
+        return False
     return True
 
-def stage4FCReadyToExecute(ExperimentClass):
+def stage5STReadyToExecute(STClass):
+    """ Arguments:
+            STClass : Stringtie Experiment; instance of a class
+        Returns:
+            boolean : if stage is ready to execute
+    """
+    if not os.path.exists(os.path.join(STClass.Postprocessing, 'runBallgown.r')):
+        return False
     return True
 
-def stage5FCReadyToExecute(ExperimentClass):
-    return True
-
-def stage3STReadyToExecute(ExperimentClass):
-    return True
-
-def stage4STReadyToExecute(ExperimentClass):
-    return True
-
-def stage5STReadyToExecute(ExperimentClass):
-    return True
-
-def stage3KAReadyToExecute(ExperimentClass):
-    return True
-
-def stage4KAReadyToExecute(ExperimentClass):
-    return True
-
-def stage5KAReadyToExecute(ExperimentClass):
+def stage5KAReadyToExecute(KAClass):
+    """ Arguments:
+            KAClass : Kallisto Experiment; instance of a class
+        Returns:
+            boolean : if stage is ready to execute
+    """
+    if not os.path.exists(os.path.join(KAClass.Postprocessing, 'runSleuth.r')):
+        return False
     return True
 
 ################################################################
@@ -459,7 +572,7 @@ Options:
             for sample in samplesToExecute:
                 FCClass.executeSample(sample)
     # Run Stage 4 if necessary
-    if '4' in stagesToExecute and stage4FCReadyToExecute(FCClass):
+    if '4' in stagesToExecute and stage4ReadyToExecute(FCClass):
         FCClass.runStage4()
     # Run Stage 5 if necessary
     if '5' in stagesToExecute and stage5FCReadyToExecute(FCClass):
@@ -549,7 +662,7 @@ Options:
             for sample in samplesToExecute:
                 StringtieClass.executeSample(sample, phasesToExecute)
     # Run Stage 4 if necessary
-    if '4' in stagesToExecute and stage4STReadyToExecute(StringtieClass):
+    if '4' in stagesToExecute and stage4ReadyToExecute(StringtieClass):
         StringtieClass.runStage4()
     # Run Stage 5 if necessary
     if '5' in stagesToExecute and stage5STReadyToExecute(StringtieClass):
@@ -624,7 +737,7 @@ Options:
             for sample in samplesToExecute:
                 KallistoClass.executeSample(sample)
     # Run Stage 4 if necessary
-    if '4' in stagesToExecute and stage4KAReadyToExecute(KallistoClass):
+    if '4' in stagesToExecute and stage4ReadyToExecute(KallistoClass):
         KallistoClass.runStage4()
     # Run Stage 5 if necessary
     if '5' in stagesToExecute and stage5KAReadyToExecute(KallistoClass):
@@ -702,12 +815,27 @@ Mandatory Arguments:
         createKallistoIndex(arguments['<pathtoReferenceDir>'], Cdna, Basename)
 
 def otherStuff(arguments):
+    ''' Arguments:
+            arguments : dictionary; CLI arguments from docopt
+        Returns:
+            None
+
+        Handles what happens when a sub-command is given that
+        isn't real
+    '''
     if any(arguments.values()):
         raise SystemExit(__doc__)
     else:
         raise SystemExit(__doc__)
 
 def moreHelp(arguments):
+    ''' Arguments:
+            arguments : dictionary; CLI arguments from docopt
+        Returns:
+            None
+
+        Handles the help subcommand
+    '''
     try:
         helpCommand = arguments['<args>'][0]
     except IndexError:
