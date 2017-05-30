@@ -114,15 +114,21 @@ def makeTimeFile(logPath):
         R.write('runPipe Runtime File\n-----------------------------------------\n\n')
 
 def unwrap_self_runSample_fc(arg, **kwarg):
-    ''' Magic for multiprocessing '''
+    ''' Magic for multiprocessing
+        i.e. Multiprocessing needs to occur in top level functions.
+             -> multiprocessing won't work if called from a class method'''
     return FCountsExperiment.runSample(*arg, **kwarg)
 
 def unwrap_self_runSample_st(arg, **kwarg):
-    ''' Magic for multiprocessing '''
+    ''' Magic for multiprocessing
+        i.e. Multiprocessing needs to occur in top level functions.
+             -> multiprocessing won't work if called from a class method'''
     return StringtieExperiment.runSample(*arg, **kwarg)
 
 def unwrap_self_runSample_ka(arg, **kwarg):
-    ''' Magic for multiprocessing '''
+    ''' Magic for multiprocessing
+        i.e. Multiprocessing needs to occur in top level functions.
+             -> multiprocessing won't work if called from a class method'''
     return KallistoExperiment.runSample(*arg, **kwarg)
 
 ################################################################
@@ -138,6 +144,7 @@ class Experiment:
         ''' Arguments:
                 inputPath = string; path to INPUT file
                 *maxCPU = int; maximum number of CPUs to be used
+                *blacklist = str; path to a trimmomatic blacklist
             Returns:
                 None
 
@@ -227,7 +234,8 @@ class Experiment:
 
             Checks to see if reference data has been processed by checking
             if there is a 'P' in '.init' which is in the Project folder.
-            The 'P' is added after pipeUtils.preProcessingReference has completed
+            The 'P' is added after pipeUtils.preProcessingReference has
+            completed
         '''
 
         if os.path.exists(self.Project + '/.init'):
@@ -251,7 +259,8 @@ class Experiment:
         notifyFolder = os.path.join(self.Project, 'runPipeNotify')
         while True:
             if os.path.isdir(notifyFolder):
-                if len(os.listdir(notifyFolder)) == numSamples or len(glob.glob(doneGlob)) == numSamples:
+                if (len(os.listdir(notifyFolder)) == numSamples or 
+                    len(glob.glob(doneGlob)) == numSamples):
                     shutil.rmtree(notifyFolder)
                     break
                 else:
@@ -276,7 +285,8 @@ class Experiment:
         notifyFolder = os.path.join(self.Project, 'runPipeNotify')
         finished = False
         if os.path.isdir(notifyFolder):
-            if len(os.listdir(notifyFolder)) == numSamples or len(glob.glob(doneGlob)) == numSamples: 
+            if (len(os.listdir(notifyFolder)) == numSamples or 
+                len(glob.glob(doneGlob)) == numSamples):
                 finished = True
             else:
                 finished = False
@@ -293,7 +303,7 @@ class Experiment:
                 *jsonPath = boolean; if there already exists a json with
                             desired path
             Returns:
-                dict; what you need to run
+                dict; optimal path for slurm batch file
 
             Figures out best way to run your samples
         '''
@@ -313,7 +323,7 @@ class Experiment:
             with open("GeneratedOptimalPath.dat", "r") as JF:
                 jsonData = json.load(JF,object_pairs_hook=pipeUtils.makeCols.OrderedDict)
             return jsonData
-            
+
     @funTime
     def createJsonMetadata(self):
         ''' Arguments:
@@ -370,11 +380,12 @@ class Experiment:
             Pipeline has finished running
             'runPipeNotify/' in self.Project
         '''
-        if not os.path.isdir(self.Project + '/runPipeNotify'):
-            os.mkdir(self.Project + '/runPipeNotify')
+        runPipeNotify = os.path.join(self.Project, 'runPipeNotify')
+        if not os.path.isdir(runPipeNotify):
+            os.mkdir(runPipeNotify)
         else:
-            shutil.rmtree(self.Project + '/runPipeNotify')
-            os.mkdir(self.Project + '/runPipeNotify')
+            shutil.rmtree(runPipeNotify)
+            os.mkdir(runPipeNotify)
 
     def makeNotifyFolder2(self):
         ''' Arguments:
@@ -386,9 +397,10 @@ class Experiment:
             Pipeline has finished running
             'runPipeNotify/' in self.Project
         '''
-        if not os.path.isdir(self.Project + '/runPipeNotify'):
+        runPipeNotify = os.path.join(self.Project, 'runPipeNotify')
+        if not os.path.isdir(runPipeNotify):
             try:
-                os.mkdir(self.Project + '/runPipeNotify')
+                os.mkdir(runPipeNotify)
             except:
                 pass
 
@@ -479,15 +491,10 @@ class Experiment:
             Calls pipeUtils.createSymLinks to make Symbolic Links for
             Original Data, Reference Data; and Metadata if available
         '''
-        if NOCONFIRM:
+        if not self.isStructurePrepared():
             pipeUtils.createSymLinks(self.Project,
-                                        self.ogOriginal,
-                                        self.ogReference)
-        else:
-            if not self.isStructurePrepared():
-                pipeUtils.createSymLinks(self.Project,
-                                            self.ogOriginal,
-                                            self.ogReference)
+                                     self.ogOriginal,
+                                     self.ogReference)
 
     @funTime
     def qcRef(self):
@@ -496,12 +503,12 @@ class Experiment:
             Returns:
                 None
 
-            Calls pipeUtils.qcReference to make Reference_Report.txt in Reference
-            Folder
+            Calls pipeUtils.qcReference to make
+            Reference_Report.txt in Reference Folder
         '''
         if not self.isReferencePrepared():
             pipeUtils.qcReference(self.Reference,
-                                    self.Genome)
+                                  self.Genome)
 
     @funTime
     def ppRef(self):
@@ -510,7 +517,7 @@ class Experiment:
             Returns:
                 None
 
-            Calls pipeUtils.preProcessingReference to Pre-Process Reference Data
+            Pre-Process Reference Data using blast, hisat2, and samtools
         '''
         if not self.isReferencePrepared():
             print("Preprocessing Data...")
@@ -631,6 +638,11 @@ class Experiment:
 
 #@
 class FCountsExperiment(Experiment):
+    '''
+        Inherit from general experiment class. Can
+        apply featureCounts specific methods
+    '''
+
     def __init__(self,inputFile,maxCPU=None,blacklist=None):
         Experiment.__init__(self,inputFile,maxCPU,blacklist)
 
@@ -651,18 +663,35 @@ class FCountsExperiment(Experiment):
     ###############################################################
 
     def runSample(self, sample):
+        ''' Arguments:
+                sample =  class instance; a sample to execute
+            Returns:
+                None
+
+            Executes a sample by calling its runParts() method
+        '''
         if not sample.isFinished():
             sample.runParts()
 
     def GO(self, subject=0):
+        ''' Arguments:
+                subject = int; if is 0, then run all available samples;
+                            if any other number, execute it individually
+            Returns:
+                None
+
+            Execute Stage 3 for either a single sample or all samples
+        '''
         if subject == 0:
             self.makeNotifyFolder()
+            # Initialize all samples
             Samples = self.createAllSampleClasses()
             with multiprocessing.Pool(self.Procs) as p:
                 p.map(unwrap_self_runSample_fc, zip([self]*len(Samples), Samples))
         else:
             name = 'sample_{:02g}'.format(subject)
             if os.path.exists(os.path.join(self.Data, name)):
+                # Initialize only one sample
                 experimentSample = self.createSampleClassNumber(subject)
                 self.runSample(experimentSample)
 
@@ -810,7 +839,8 @@ wait
                 unsortedData = F.readlines()
             Header = unsortedData[0]
             sortedData = sorted(unsortedData[1:],key=lambda x: x.split('\t')[0])
-            newHeader = ['\t'.join(['Geneid','gene_name','gene_biotype','Chr']+Header.split('\t'))]
+            newHeader = ['\t'.join(['Geneid','gene_name','gene_biotype','Chr'] +
+                                   Header.split('\t'))]
             newHeader[0] = newHeader[0].strip()
             checkStuff = newHeader + ['\t'.join([a.strip(),b.strip()])
                                         for a,b in zip(leftSide,sortedData)]
@@ -929,12 +959,13 @@ wait
         ''' Arguments:
                 None
             Returns:
-                Samples = list; list contains Sample Classes
+                experimentSamples = list; list contains Sample Classes
 
             Creates all Sample Classes and returns them in a list
             Number of samples is based on self.getNumberofSamples() function
         '''
         numSamples = self.getNumberofSamples()
+        # Don't want to oversubscribe computer with multiprocessing
         sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
         experimentSamples = [FCountsSample(n, self.inputPath, maxCPU=sampCpuMax, blacklist=self.Blacklist)
                             for n in range(1,numSamples + 1)]
@@ -999,9 +1030,12 @@ wait
         self.runRProgram()
         self.findRFinish()
 
-
 #@@
 class StringtieExperiment(Experiment):
+    '''
+        Inherit from general experiment class. Can
+        apply Stringtie specific methods
+    '''
 
     def __init__(self,inputFile,maxCPU=None,blacklist=None):
         Experiment.__init__(self,inputFile,maxCPU,blacklist)
@@ -1023,10 +1057,28 @@ class StringtieExperiment(Experiment):
     ###############################################################
 
     def runSample(self, sample, stPhase):
+        ''' Arguments:
+                sample = class instance; a sample to execute
+                stPhase = str; phase of Stringtie to run
+            Returns:
+                None
+
+            Executes a sample by calling its runParts() method
+        '''
         if not sample.isFinished():
             sample.runParts(stPhase)
 
     def GO(self, phases, subject=0):
+        ''' Arguments:
+                phases = list; list of phases given on command line
+                subject = int; if is 0, then run all available samples;
+                            if any other number, execute it individually
+                            Note: phase 'b' must be ran with subject=0
+            Returns:
+                None
+
+            Execute Stage 3 for either a single sample or all samples
+        '''
         for phase in phases:
             nextPhase = self.runStringtiePhase(phases)
             if nextPhase == 'DONE':
@@ -1152,14 +1204,16 @@ wait
         ''' Arguments:
                 None
             Returns:
-                Samples = list; list contains Sample Classes
+                experimentSamples = list; list contains Sample Classes
 
             Creates all Sample Classes and returns them in a list
             Number of samples is based on self.getNumberofSamples() function
         '''
         numSamples = self.getNumberofSamples()
+        # Don't want to oversubscribe computer with multiprocessing
         sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
-        experimentSamples = [StringtieSample(n, self.inputPath, maxCPU=sampCpuMax, blacklist=self.Blacklist)
+        experimentSamples = [StringtieSample(n, self.inputPath, maxCPU=sampCpuMax,
+                                             blacklist=self.Blacklist)
                             for n in range(1,numSamples + 1)]
         return experimentSamples
 
@@ -1176,7 +1230,8 @@ wait
                 and subject > 0 
                 and subject <= self.getNumberofSamples()
                 ), 'Need an int argument as a subject to create'
-        experimentSample = StringtieSample(subject, self.inputPath, maxCPU=self.Procs, blacklist=self.Blacklist)
+        experimentSample = StringtieSample(subject, self.inputPath, maxCPU=self.Procs,
+                                           blacklist=self.Blacklist)
         return experimentSample
 
     ############################################################
@@ -1313,6 +1368,9 @@ wait
                 None
             Returns:
                 None
+
+            Compares stringtie phases needing to be ran with phases
+            given on command line
         '''
         runPhase = ''
         nextPhase = self.nextStringtiePhase()
@@ -1332,8 +1390,13 @@ wait
 
     @funTime
     def stringtiePart2b(self):
-        '''
-            To be run in between sample stringtie part 2a and 2c
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            To be run in between sample stringtie part 2a and 2c.
+            Requires results from phase a for each sample.
         '''
         self.makeStringtieMergelist()
         self.stringtieMerge()
@@ -1348,6 +1411,8 @@ wait
                 None
             Returns:
                 None
+
+            Gathers stringtie results into Postprocessing
         '''
         resultsDirectory = os.path.join(self.Postprocessing, 'StringtieResults')
         if not os.path.isdir(resultsDirectory):
@@ -1368,7 +1433,8 @@ wait
                 except FileExistsError:
                     print('Symbolic link failed since' + 
                             ' {} already exists in StringtieResults'.format(ctab))
-            goodSampleGtf = os.path.join(sample, '{}.good.st.gtf'.format(os.path.basename(sample)))
+            goodSampleGtf = os.path.join(sample, '{}.good.st.gtf'.format(
+                                                os.path.basename(sample)))
             if os.path.exists(goodSampleGtf):
                 try:
                     os.symlink(goodSampleGtf,
@@ -1382,6 +1448,8 @@ wait
                 None
             Returns:
                 None
+
+            Creates table for ballgown analysis
         '''
         jsonFile = os.path.join(self.Postprocessing, jsonName)
         colFile = os.path.join(self.Postprocessing, columnName)
@@ -1392,10 +1460,13 @@ wait
                 None
             Returns:
                 None
+
+            Creates Ballgown R script
         '''
         jsonFile = os.path.join(self.Postprocessing, jsonName)
         programFile = os.path.join(self.Postprocessing, programName)
-        makeBallgownScript.createRBallgownScript(pipeUtils.makeCols.readJSON(jsonFile), programFile) 
+        makeBallgownScript.createRBallgownScript(pipeUtils.makeCols.readJSON(jsonFile),
+                                                 programFile)
 
     @funTime
     def runBallgownAnalysis(self):
@@ -1403,6 +1474,8 @@ wait
                 None
             Returns:
                 None
+
+            Executes Ballgown R script
         '''
         os.chdir(self.Postprocessing)
         ballgownCommand = r'''{ time -p Rscript "runBallgown.r"; } > runBallgownTime.log 2>&1'''
@@ -1430,6 +1503,8 @@ wait
     def executeSample(self, number, phases):
         ''' Arguments:
                 number = int; sample number
+                phases = list; list of Stringtie phases to be executed
+                               given on command line
             Returns:
                 None
 
@@ -1459,9 +1534,12 @@ wait
     def runStage5(self):
         self.runBallgownAnalysis()
 
-
 #@@@
 class KallistoExperiment(Experiment):
+    '''
+        Inherit from general experiment class. Can
+        apply Kallisto specific methods
+    '''
 
     def __init__(self,inputFile,maxCPU=None,blacklist=None):
         Experiment.__init__(self,inputFile,maxCPU,blacklist)
@@ -1483,10 +1561,25 @@ class KallistoExperiment(Experiment):
     ###############################################################
 
     def runSample(self, sample):
+        ''' Arguments:
+                sample =  class instance; a sample to execute
+            Returns:
+                None
+
+            Executes a sample by calling its runParts() method
+        '''
         if not sample.isFinished():
             sample.runParts()
 
     def GO(self, subject=0):
+        ''' Arguments:
+                subject = int; if is 0, then run all available samples;
+                            if any other number, execute it individually
+            Returns:
+                None
+
+            Execute Stage 3 for either a single sample or all samples
+        '''
         if subject == 0:
             self.makeNotifyFolder()
             Samples = self.createAllSampleClasses()
@@ -1595,8 +1688,10 @@ wait
             Number of samples is based on self.getNumberofSamples() function
         '''
         numSamples = self.getNumberofSamples()
+        # Don't want to oversubscribe computer with multiprocessing
         sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
-        experimentSamples = [KallistoSample(n, self.inputPath, maxCPU=sampCpuMax, blacklist=self.Blacklist)
+        experimentSamples = [KallistoSample(n, self.inputPath, maxCPU=sampCpuMax,
+                                            blacklist=self.Blacklist)
                             for n in range(1,numSamples + 1)]
         return experimentSamples
 
@@ -1613,7 +1708,8 @@ wait
                 and subject > 0 
                 and subject <= self.getNumberofSamples()
                 ), 'Need an int argument as a subject to create'
-        experimentSample = KallistoSample(subject, self.inputPath, maxCPU=self.Procs, blacklist=self.Blacklist)
+        experimentSample = KallistoSample(subject, self.inputPath, maxCPU=self.Procs,
+                                          blacklist=self.Blacklist)
         return experimentSample
 
     ################################################################
@@ -1625,6 +1721,9 @@ wait
                 None
             Returns:
                 None
+
+            KaliIndexBuilt is a file that gets written right after 
+            Kallisto index gets built
         '''
         if os.path.exists(os.path.join(self.Reference, 'KaliIndexBuilt')):
             return False
@@ -1637,6 +1736,8 @@ wait
                 None
             Returns:
                 None
+
+            Build Kallisto Index and save it in Reference directory
         '''
         # ? What is behavior of kallisto index, will it build failed index? Assume no
         if self.needToBuildKaliIndex():
@@ -1662,6 +1763,9 @@ wait
                 None
             Returns:
                 None
+
+            Gather results of kallisto analysis for each sample into
+            Postprocessing
         '''
         resultsDirectory = os.path.join(self.Postprocessing, 'KallistoResults')
         if not os.path.isdir(resultsDirectory):
@@ -1683,9 +1787,12 @@ wait
 
     def createSleuthCols(self, jsonName='Metadata.json', columnName='Cols.dat'):
         ''' Arguments:
-                None
+                *jsonName = str; name of Metadata file if it exists
+                *columnName = str; name of Sleuth table to create
             Returns:
                 None
+
+            Creates table for Sleuth R analysis
         '''
         jsonFile = os.path.join(self.Postprocessing, jsonName)
         colFile = os.path.join(self.Postprocessing, columnName)
@@ -1693,9 +1800,12 @@ wait
 
     def createSleuthScript(self, jsonName='Metadata.json', programName='runSleuth.r'):
         ''' Arguments:
-                None
+                *jsonName = str; name of Metadata file if it exists
+                *programName = str; name of Sleuth R script to create
             Returns:
                 None
+
+            Creates Sleuth R script
         '''
         jsonFile = os.path.join(self.Postprocessing, jsonName)
         programFile = os.path.join(self.Postprocessing, programName)
@@ -1707,6 +1817,8 @@ wait
                 None
             Returns:
                 None
+
+            Execute Sleuth script
         '''
         os.chdir(self.Postprocessing)
         sleuthCommand = r'''{ time -p Rscript "runSleuth.r"; } > runSleuthTime.log 2>&1'''
@@ -1766,7 +1878,6 @@ wait
         self.runSleuthAnalysis()
 
 
-
 ################################################################
 # Defining Sample Class
 ################################################################
@@ -1781,6 +1892,7 @@ class Sample:
                 sampleNumber = int; sample number used for naming
                 inputFile = str; path to inputFile
                 *maxCPU = int; maximum number of CPUs to be used
+                *blacklist = str; name of trimmomatic blacklist
             Returns:
                 None
 
@@ -1809,9 +1921,13 @@ class Sample:
             Returns:
                 correctCommand = string; the command to be subprocessed
             Example:
-                Command = r'fastqc -t 48 -o /home/alberton/Version1.1_test2/Data/sample_01/fastqc.sample_01 *.fastq.gz'
+                Command = r'fastqc -t 48 \
+                -o /home/alberton/Version1.1_test2/Data/sample_01/fastqc.sample_01 \
+                *.fastq.gz'
                 returns:
-                    '{ time fastqc -t 48 -o /home/alberton/Version1.1_test2/Data/sample_01/fastqc.sample_01 *.fastq.gz; } >> /home/alberton/Version1.1_test2/Data/sample_01/Runtime.sample_01.log 2>&1'
+                '{ time fastqc -t 48 \
+                -o /home/alberton/Version1.1_test2/Data/sample_01/fastqc.sample_01 *.fastq.gz; } \
+                >> /home/alberton/Version1.1_test2/Data/sample_01/Runtime.sample_01.log 2>&1'
         '''
         correctCommand = r'{{ time -p {0}; }} >> {1} 2>&1'.format(Command, self.logPath)
         return correctCommand
@@ -2209,9 +2325,30 @@ class Sample:
                                     stderr=subprocess.STDOUT)
         strandedBool = int(proc.communicate()[0])
         if strandedBool == 1:
-            return True
+            Data = []
+            with open('Runtime.{}.log'.format(self.sampleName),'r') as F:
+                copy = False
+                for line in F:
+                    if line.strip() == 'findStranded started':
+                        copy = True
+                    elif line.strip() == 'findStranded done':
+                        copy = False
+                    elif copy:
+                        Data.append(line)
+            for line in Data:
+                if 'read1 plus percent' in line:
+                    R1 = float(re.findall(r'\d+\.\d+', line)[0])
+                if 'read2 plus percent' in line:
+                    R2 = float(re.findall(r'\d+\.\d+', line)[0])
+            if R1 > R2:
+                print('Going to use "--rna-strandness FR" for hisat and "-s 1" for FC or --fr-stranded for kallisto quant')
+                return 1
+            else:
+                print('Going to use "--rna-strandness RF" for hisat and "-s 2" for FC or --rf-stranded for kallisto quant')
+                return 2
         elif strandedBool == 0:
-            return False
+            print('Reads not stranded')
+            return 0
         else:
             print('There was an error with findStranded')
 
@@ -2250,10 +2387,12 @@ class FCountsSample(Sample):
         '''
         self.writeFunctionHeader('runHisat')
         strandedVar = self.findStranded()
-        if strandedVar:
+        if strandedVar == 0:
+            FR = ''
+        elif strandedVar == 1:
             FR = ' --rna-strandness FR'
         else:
-            FR = ''
+            FR = ' --rna-strandness RF'
         # Making Command
         command = r"""hisat2 -k 5 -p {numProcs}{FRoRF} --dta --phred{phred} --known-splicesite-infile {ref}/splice_sites.txt -x {ref}/{basename} -1 read1.P.trim.{fastq}.gz -2 read2.P.trim.{fastq}.gz -S aligned.{sample}.sam"""
         Phred = self.getPhred()
@@ -2316,13 +2455,15 @@ class FCountsSample(Sample):
             Collects counts from data with featureCounts
         '''
         self.writeFunctionHeader('runFeatureCounts')
+        strandedVar = self.findStranded()
         # Making Command
-        command = r"featureCounts -T {procs} -p -C --primary --ignoreDup -t exon -g gene_id -a {ref}/{gtf} -o aligned.{sample}.counts aligned.{sample}.bam"
+        command = r"featureCounts -T {procs} -s {stranded} -p -C --primary --ignoreDup -t exon -g gene_id -a {ref}/{gtf} -o aligned.{sample}.counts aligned.{sample}.bam"
         context = {
                 "procs": self.Procs,
                 "ref": self.Reference,
                 "gtf": self.Gtf,
                 "sample": self.sampleName,
+                "stranded": str(strandedVar)
                 }
         goodCommand = self.formatCommand(command.format(**context))
         # Executing
@@ -2692,13 +2833,22 @@ class KallistoSample(Sample):
         self.writeFunctionHeader('runKallisto')
         kallistoOutputDir = os.path.join(self.samplePath, 'KallistoOutput.{}'.format(
                                                             self.sampleName))
+        strandedVar = self.findStranded()
+        if strandedVar == 0:
+            FR = ''
+        elif strandedVar == 1:
+            FR = ' --fr-stranded'
+        else:
+            FR = ' --rf-stranded'
         # Making Command
-        command = r"kallisto quant -i {transcriptindex} -o {outputdir} -b 100 <( zcat read1.P.trim.{fastq}.gz ) <( zcat read2.P.trim.{fastq}.gz )" 
+        command = r"kallisto quant -i {transcriptindex} -o {outputdir} --threads {procs}{FRoRF} -b 100 <( zcat read1.P.trim.{fastq}.gz ) <( zcat read2.P.trim.{fastq}.gz )" 
         context = {
                 "transcriptindex": os.path.join(self.Reference, '{}.kali.dna.fa.idx'.format(
                                                                             self.Basename)),
                 "outputdir": kallistoOutputDir,
-                "fastq": self.Fastq
+                "fastq": self.Fastq,
+                "FRoRF": FR,
+                "procs": self.Procs
                 }
         goodCommand = self.formatCommand(command.format(**context))
         # Executing
