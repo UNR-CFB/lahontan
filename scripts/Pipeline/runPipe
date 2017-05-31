@@ -784,6 +784,8 @@ Options:
     -k, --kallisto
         Additionally build kallisto index
         Note: index required if kallisto pipeline to be used
+    --onlykallisto
+        Build only the kallisto index
     --maxcpu <CPUs>
         Limit the number of CPU that get used to preprocess
         reference data.
@@ -810,6 +812,9 @@ Mandatory Arguments:
         Cdna = Stuff[1].rstrip('\n')
         Genome = Stuff[2].rstrip('\n')
     Basename = pipeClasses.pipeUtils.getBasename(Genome)
+    if arguments['--onlykallisto']:
+        createKallistoIndex(referencePath, Cdna, Basename)
+        raise SystemExit('Completed Kallisto index; exiting...')
     if arguments['--qualitycheck'] and not arguments['--preprocess']: # only q
         pipeClasses.pipeUtils.qcReference(referencePath,Genome)
     elif not arguments['--qualitycheck'] and arguments['--preprocess']: # only p
