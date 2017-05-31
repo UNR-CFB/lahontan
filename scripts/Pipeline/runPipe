@@ -180,7 +180,7 @@ def createKallistoIndex(referenceDir, cdna, basename):
     if not os.path.exists(indexCheck):
         logFile = os.path.join(referenceDir, 'KallistoRuntime.log')        
         # Making Command                                                     
-        command = r"{{ time -p kallisto index -i {basename}.kali.dna.fa.idx {cdna}; }} >> {log} 2>&1"
+        command = r"{{ time -p kallisto index -i {basename}.kali.cdna.fa.idx {cdna}; }} >> {log} 2>&1"
         context = {"cdna": cdna,
                    "basename": basename,
                    "log": logFile}

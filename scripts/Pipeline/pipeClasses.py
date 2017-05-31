@@ -1858,7 +1858,7 @@ wait
         if self.needToBuildKaliIndex():
             logFile = os.path.join(self.Reference, 'KallistoRuntime.log')
             # Making Command
-            command = r"kallisto index -i {basename}.kali.dna.fa.idx {cdna}"
+            command = r"kallisto index -i {basename}.kali.cdna.fa.idx {cdna}"
             context = {
                     "cdna": self.Cdna,
                     "basename": self.Basename
@@ -2962,7 +2962,7 @@ class KallistoSample(Sample):
         # Making Command
         command = r"kallisto quant -i {transcriptindex} -o {outputdir} --threads {procs}{FRoRF} -b 100 <( zcat read1.P.trim.{fastq}.gz ) <( zcat read2.P.trim.{fastq}.gz )" 
         context = {
-                "transcriptindex": os.path.join(self.Reference, '{}.kali.dna.fa.idx'.format(
+                "transcriptindex": os.path.join(self.Reference, '{}.kali.cdna.fa.idx'.format(
                                                                             self.Basename)),
                 "outputdir": kallistoOutputDir,
                 "fastq": self.Fastq,
