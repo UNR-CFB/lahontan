@@ -458,6 +458,26 @@ class Experiment:
         correctCommand = r'{{ time -p {0}; }} >> {1} 2>&1'.format(command, logfile)
         return correctCommand
 
+    def quickTrimStats(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Scrapes trimmomatic stats from Runtime logs into one file
+        '''
+        command = """grep 'Input Read Pairs: ' {runtimelogglob} > {trimlog}"""
+        Context = {
+                "runtimelogglob": os.path.join(self.Data,
+                                    'sample_*/Runtime.sample_*.log'),
+                "trimlog": os.path.join(self.Postprocessing, 'trim.summary.log')
+                }
+        goodCommand = command.format(**Context)
+        subprocess.run(goodCommand,
+                            shell=True,
+                            check=True,
+                            executable="/bin/bash")
+
     ###############################################################
     # Stage 1 and 2 Functions
     ###############################################################
@@ -983,6 +1003,73 @@ wait
         experimentSample = FCountsSample(subject, self.inputPath, maxCPU=self.Procs, blacklist=self.Blacklist)
         return experimentSample
 
+    def fullFCStats(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Scrapes featureCounts summary logs into one file
+        '''
+        command = """paste {fcsummaryglob} | cut -sf {cols} > {summarylog}"""
+        Context = {
+                "fcsummaryglob": os.path.join(self.Data,
+                                    'sample_*/aligned.sample_*.counts.summary'),
+                "cols": ','.join(str(i) for i in [1]+[2*sampleNum for sampleNum in range(1, self.getNumberofSamples()+1)]),
+                "summarylog": os.path.join(self.Postprocessing, 'fc.summary.log')
+                }
+        goodCommand = command.format(**Context)
+        subprocess.run(goodCommand,
+                            shell=True,
+                            check=True,
+                            executable="/bin/bash")
+
+    def quickFCStats(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Scrapes quick featureCounts stats into one file
+        '''
+        command = """grep 'fragments :' {runtimelogglob} > {quicklog}"""
+        fixFormat = """paste <(awk -F '| |' '{{print $1}}' {quicklog} | awk -F '/' '{{print $NF}}') <(awk -F ' ' '{{for (i=2; i<=NF; i++) printf $i " "; print $NF}}' {quicklog}) > {quicklog}"""
+        Context = {
+                "runtimelogglob": os.path.join(self.Data,
+                                    'sample_*/Runtime.sample_*.log'),
+                "quicklog": os.path.join(self.Postprocessing, 'fc.quickstats.log')
+                }
+        goodCommand = command.format(**Context)
+        goodFixFormat = fixFormat.format(**Context)
+        subprocess.run(goodCommand,
+                            shell=True,
+                            check=True,
+                            executable="/bin/bash")
+        #subprocess.run(goodFixFormat,
+        #                    shell=True,
+        #                    check=True,
+        #                    executable="/bin/bash")
+
+    def fullH2Stats(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Scrapes hisat2 stats from Runtime logs into one file
+        '''
+        command = """grep -A 14 'reads; of these:' {runtimelogglob} > {h2log}"""
+        Context = {
+                "runtimelogglob": os.path.join(self.Data,
+                                    'sample_*/Runtime.sample_*.log'),
+                "h2log": os.path.join(self.Postprocessing, 'h2.summary.log')
+                }
+        goodCommand = command.format(**Context)
+        subprocess.run(goodCommand,
+                            shell=True,
+                            check=True,
+                            executable="/bin/bash")
+
     ################################################################
     # Stage Run Functions
     ################################################################
@@ -1015,6 +1102,10 @@ wait
                     shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
                 self.gatherAllSampleOverrep(1)
                 self.gatherAllSampleOverrep(2)
+                self.fullFCStats()
+                self.quickFCStats()
+                self.fullH2Stats()
+                self.quickTrimStats()
                 self.createJsonMetadata()
                 self.createNiceCounts()
                 self.createRCounts()
@@ -1232,6 +1323,26 @@ wait
         experimentSample = StringtieSample(subject, self.inputPath, maxCPU=self.Procs,
                                            blacklist=self.Blacklist)
         return experimentSample
+
+    def fullH2Stats(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Scrapes hisat2 stats from Runtime logs into one file
+        '''
+        command = """grep -A 14 'reads; of these:' {runtimelogglob} > {h2log}"""
+        Context = {
+                "runtimelogglob": os.path.join(self.Data,
+                                    'sample_*/Runtime.sample_*.log'),
+                "h2log": os.path.join(self.Postprocessing, 'h2.summary.log')
+                }
+        goodCommand = command.format(**Context)
+        subprocess.run(goodCommand,
+                            shell=True,
+                            check=True,
+                            executable="/bin/bash")
 
     ############################################################
     # Stringtie Utilities
@@ -1525,6 +1636,8 @@ wait
                     shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
                 self.gatherAllSampleOverrep(1)
                 self.gatherAllSampleOverrep(2)
+                self.fullH2Stats()
+                self.quickTrimStats()
                 self.createJsonMetadata()
                 self.organizeStringtieOutput()
                 self.createBallgownCols()
@@ -1871,6 +1984,7 @@ wait
                     shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
                 self.gatherAllSampleOverrep(1)
                 self.gatherAllSampleOverrep(2)
+                self.quickTrimStats()
                 self.createJsonMetadata()
                 self.organizeKallistoOutput()
                 self.createSleuthCols()
