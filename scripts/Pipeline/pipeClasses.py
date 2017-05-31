@@ -774,7 +774,7 @@ wait
             Pstep = bestPath[path]['Procs']
             Sstep = bestPath[path]['Samps']
             for S in range(sampleNum,sampleNum + Sstep):
-                com = 'srun -N1 -c{0} -n1 --exclusive runPipe fcounts --noconfirm{2} --use-blacklist {3} --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref,self.Blacklist)
+                com = 'srun -N1 -c{0} -n1 --exclusive runPipe fcounts --noconfirm{2} --use-blacklist {3} --jsonfile "${{jsonFile}}" --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref,self.Blacklist)
                 command3 += com
             if counter != len(bestPath):
                 command3 += 'wait\n'
@@ -1262,7 +1262,7 @@ wait
                 Pstep = bestPath[path]['Procs']
                 Sstep = bestPath[path]['Samps']
                 for S in range(sampleNum,sampleNum + Sstep):
-                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe string --noconfirm{2} --use-blacklist {4} --maxcpu {0} -e 3 -r {1} --phase {3} "${{inputFile}}" &\n'.format(Pstep,S,ref,phase,self.Blacklist)
+                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe string --noconfirm{2} --use-blacklist {4} --jsonfile "${{jsonFile}}" --maxcpu {0} -e 3 -r {1} --phase {3} "${{inputFile}}" &\n'.format(Pstep,S,ref,phase,self.Blacklist)
                     command3 += com
                 if counter != len(bestPath):
                     command3 += 'wait\n'
@@ -1768,7 +1768,7 @@ wait
                 Pstep = bestPath[path]['Procs']
                 Sstep = bestPath[path]['Samps']
                 for S in range(sampleNum,sampleNum + Sstep):
-                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe kall --noconfirm{2} --use-blacklist {3} --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref,self.Blacklist)
+                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe kall --noconfirm{2} --use-blacklist {3} --jsonfile "${{jsonFile}}" --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref,self.Blacklist)
                     command3 += com
                 if counter != len(bestPath):
                     command3 += 'wait\n'
