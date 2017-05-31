@@ -238,10 +238,6 @@ def createSymLinks(projectPath,originalPath,referencePath):
             print('There are not an even number of files in {}!'.format(originalPath))
         else:
             numSamp = int(getNumberofFiles(originalPath)/2)
-        if not IS_REFERENCE_PREPARED:
-            if len(os.listdir(projectPath + '/Reference')) != 3:
-                raise SystemExit("There are not an appropriate amount of Symlinks in {}".format(
-                                projectPath + '/Reference'))
         if len(os.listdir(projectPath + '/Data')) != numSamp:
             raise SystemExit("There are not an appropriate number of Samples in {}".format(
                                 projectPath + '/Data'))
@@ -250,7 +246,6 @@ def createSymLinks(projectPath,originalPath,referencePath):
                                 projectPath + '/Original'))
     with open('{}/.init'.format(projectPath),'w') as f:
         f.write('S')
-
 
 ################################################################
 # Quality Control of Reference Data
