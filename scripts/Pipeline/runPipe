@@ -81,7 +81,7 @@ def makeGlobalVars(arguments):
     NOCONFIRM = arguments['--noconfirm']
     global JSFI # Metadata JSON file
     if '--jsonfile' in arguments.keys():
-        JSFI = arguments['--jsonfile']
+        JSFI = os.path.abspath(os.path.expandvars(arguments['--jsonfile']))
         if JSFI:
             testFile(JSFI)
     else:
@@ -209,7 +209,7 @@ def clean(arguments):
     possibleCleanArguments = ['All','Reference','Data','Postprocessing']
     if arguments['--clean']:
         assert arguments['--clean'] in possibleCleanArguments, 'Invalid Cleaning Argument: Run runPipe.py -h for available arguments'
-        PROJ = pipeClasses.Experiment(arguments['<input>'])
+        PROJ = pipeClasses.Experiment(os.path.abspath(os.path.expandvars(arguments['<input>'])))
         if arguments['--clean'] != 'All':
             if arguments['--clean'] == 'Data':
                 if not os.path.isdir(PROJ.Data):
@@ -234,7 +234,7 @@ def clean(arguments):
                 else:
                     print('Please answer y or n')
     elif arguments['--sampleclean']:
-        PROJ = pipeClasses.Experiment(arguments['<input>'])
+        PROJ = pipeClasses.Experiment(os.path.abspath(os.path.expandvars(arguments['<input>'])))
         if not os.path.isdir(str(PROJ.Data + '/' + arguments['--sampleclean'])):
             raise SystemExit('{} does not exist'.format(str(PROJ.Data + '/' +
                                                         arguments['--sampleclean'])))
@@ -279,7 +279,9 @@ def makeBatch(ExperimentClass, arguments):
     '''
     # Making slurm batch files if necessary
     if arguments['--batchjson']:
-        pipeClasses.checkJSON(arguments['--batchjson'])
+        testFile(os.path.abspath(os.path.expandvars(arguments['--batchjson'])))
+    if arguments['--batchjson']:
+        pipeClasses.checkJSON(os.path.abspath(os.path.expandvars(arguments['--batchjson'])))
     if arguments['--makebatch']:
         preNodes,Nodes = arguments['--makebatch'].split(','),[]
         for node in preNodes:
@@ -288,11 +290,14 @@ def makeBatch(ExperimentClass, arguments):
                                         arguments['--makebatch']))
             Nodes.append(int(node))
         if arguments['<command>'] == 'string':
-            ExperimentClass.makeStringtieBatch(cluster=Nodes,jsonFile=arguments['--batchjson'])
+            ExperimentClass.makeStringtieBatch(cluster=Nodes,
+                    jsonFile=os.path.abspath(os.path.expandvars(arguments['--batchjson'])))
         elif arguments['<command>'] == 'kall':
-            ExperimentClass.makeKallistoBatch(cluster=Nodes,jsonFile=arguments['--batchjson'])
+            ExperimentClass.makeKallistoBatch(cluster=Nodes,
+                    jsonFile=os.path.abspath(os.path.expandvars(arguments['--batchjson'])))
         else:
-            ExperimentClass.makeBatch(cluster=Nodes,jsonFile=arguments['--batchjson'])
+            ExperimentClass.makeBatch(cluster=Nodes,
+                    jsonFile=os.path.abspath(os.path.expandvars(arguments['--batchjson'])))
         raise SystemExit('Batch file successfully created:\n\t{}/pipeBatch'.format(os.getcwd()))
 
 def checkMaxCPU(arguments):
@@ -548,9 +553,9 @@ Options:
         "--makebatch" argument'''
     makeGlobalVars(arguments)
     cpuLimit = checkMaxCPU(arguments)
-    testFile(arguments['<input>'])
+    testFile(os.path.abspath(os.path.expandvars(arguments['<input>'])))
     testFile(os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
-    FCClass = pipeClasses.FCountsExperiment(arguments['<input>'],
+    FCClass = pipeClasses.FCountsExperiment(os.path.abspath(os.path.expandvars(arguments['<input>'])),
                                             maxCPU=cpuLimit,
                                             blacklist=os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
     # Make batch file if necessary
@@ -637,9 +642,9 @@ Options:
         Uses json file already created to make batch file'''
     makeGlobalVars(arguments)
     cpuLimit = checkMaxCPU(arguments)
-    testFile(arguments['<input>'])
+    testFile(os.path.abspath(os.path.expandvars(arguments['<input>'])))
     testFile(os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
-    StringtieClass = pipeClasses.StringtieExperiment(arguments['<input>'], 
+    StringtieClass = pipeClasses.StringtieExperiment(os.path.abspath(os.path.expandvars(arguments['<input>'])), 
                                                      maxCPU=cpuLimit, 
                                                      blacklist=os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
     # Make batch file if necessary
@@ -713,9 +718,9 @@ Options:
         Uses json file already created to make batch file'''
     makeGlobalVars(arguments)
     cpuLimit = checkMaxCPU(arguments)
-    testFile(arguments['<input>'])
+    testFile(os.path.abspath(os.path.expandvars(arguments['<input>'])))
     testFile(os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
-    KallistoClass = pipeClasses.KallistoExperiment(arguments['<input>'], 
+    KallistoClass = pipeClasses.KallistoExperiment(os.path.abspath(os.path.expandvars(arguments['<input>'])), 
                                                    maxCPU=cpuLimit, 
                                                    blacklist=os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
     # Make batch file if necessary
@@ -760,6 +765,7 @@ Options:
         Similar to --clean; but instead just cleans a
         single sample directory, <sampleName>'''
     makeGlobalVars(arguments)
+    testFile(os.path.abspath(os.path.expandvars(arguments['<input>'])))
     clean(arguments)
 
 def referenceProcessing(arguments):
@@ -789,12 +795,12 @@ Mandatory Arguments:
         reference genome'''
     makeGlobalVars(arguments)
     cpuLimit = checkMaxCPU(arguments)
-    if not os.path.isdir(arguments['<pathtoReferenceDir>']):
-        raise SystemExit('Reference directory does not exist: {}'.format(arguments['<pathtoReferenceDir>']))
-    Init = os.path.join(arguments['<pathtoReferenceDir>'],'.init')
+    referencePath = os.path.abspath(os.path.expandvars(arguments['<pathtoReferenceDir>']))
+    if not os.path.isdir(referencePath):
+        raise SystemExit('Reference directory does not exist: {}'.format(referencePath))
+    Init = os.path.join(referencePath,'.init')
     if not os.path.exists(Init):
-        Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(
-                                                arguments['<pathtoReferenceDir>'])
+        Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(referencePath)
         with open(Init,'w') as f:
             f.write('\n'.join([Gtf,Cdna,Genome]))
     else:
@@ -805,14 +811,14 @@ Mandatory Arguments:
         Genome = Stuff[2].rstrip('\n')
     Basename = pipeClasses.pipeUtils.getBasename(Genome)
     if arguments['--qualitycheck'] and not arguments['--preprocess']: # only q
-        pipeClasses.pipeUtils.qcReference(arguments['<pathtoReferenceDir>'],Genome)
+        pipeClasses.pipeUtils.qcReference(referencePath,Genome)
     elif not arguments['--qualitycheck'] and arguments['--preprocess']: # only p
-        ppRef(arguments['<pathtoReferenceDir>'], Cdna, Basename, Gtf, Genome, cpuLimit)
+        ppRef(referencePath, Cdna, Basename, Gtf, Genome, cpuLimit)
     else: #both
-        pipeClasses.pipeUtils.qcReference(arguments['<pathtoReferenceDir>'],Genome)
-        ppRef(arguments['<pathtoReferenceDir>'], Cdna, Basename, Gtf, Genome, cpuLimit)
+        pipeClasses.pipeUtils.qcReference(referencePath,Genome)
+        ppRef(referencePath, Cdna, Basename, Gtf, Genome, cpuLimit)
     if arguments['--kallisto']:
-        createKallistoIndex(arguments['<pathtoReferenceDir>'], Cdna, Basename)
+        createKallistoIndex(referencePath, Cdna, Basename)
 
 def otherStuff(arguments):
     ''' Arguments:
