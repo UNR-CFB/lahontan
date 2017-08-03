@@ -2433,7 +2433,7 @@ class Sample:
                                             self.sampleName), 'a') as LOG:
             LOG.write('\nfindStranded done\n\n')
         # Scraping stranded_classifier.py output
-        command2 = r"awk '/findStranded started/,/findStranded done/' Runtime.{}.log | grep -q True && stranded=1 || stranded=0 && echo $stranded".format(self.sampleName)
+        command2 = r"awk '/read1 plus percent/,/findStranded done/' Runtime.{}.log | grep -q True && stranded=1 || stranded=0 && echo $stranded".format(self.sampleName)
         # Executing
         os.chdir(self.samplePath)
         self.writeFunctionCommand(command2)
@@ -2448,16 +2448,17 @@ class Sample:
             with open('Runtime.{}.log'.format(self.sampleName),'r') as F:
                 copy = False
                 for line in F:
-                    if line.strip() == 'findStranded started':
+                    if 'read1 plus percent' in line.strip():
                         copy = True
+                        Data.append(line)
                     elif line.strip() == 'findStranded done':
                         copy = False
                     elif copy:
                         Data.append(line)
             for line in Data:
-                if 'read1 plus percent' in line:
+                if line.startswith('read1 plus percent'):
                     R1 = float(re.findall(r'\d+\.\d+', line)[0])
-                if 'read2 plus percent' in line:
+                if line.startswith('read2 plus percent'):
                     R2 = float(re.findall(r'\d+\.\d+', line)[0])
             if R1 > R2:
                 self.writeToLog('! Going to use "--rna-strandness FR" for hisat and "-s 1" for FC or --fr-stranded for kallisto quant')
