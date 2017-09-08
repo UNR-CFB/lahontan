@@ -397,7 +397,7 @@ def checkdashp(arguments):
                         'Possible arguments: {}'.format(str(possiblePhases)))
     if arguments['--phase'] not in possiblePhases:
         raise SystemExit(stringtieUsage)
-    executionPhases = list(arguments['--phase'])
+    executionPhases = arguments['--phase']
     return executionPhases
 
 def stage1ReadyToExecute(ExperimentClass):
