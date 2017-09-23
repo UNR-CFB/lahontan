@@ -24,6 +24,8 @@ Available runPipe commands:
     clean       Clean any project directories
     fo          Finds optimal execution path for batch execution
     prepref     Pre-processes reference data
+    gendef      Generate a default input file
+    readin      Test
 
 See 'runPipe help <command>' for more information on a specific 
 command'''
@@ -35,11 +37,13 @@ VERSION = 'runPipe version 1.1\n'
 
 from docopt import docopt
 from timeit import default_timer as timer
+from collections import OrderedDict as OD
 import time
 import pipeClasses
 import os
 import glob
 import subprocess
+import configparser
 
 ################################################################
 # Utilities
@@ -67,6 +71,14 @@ def testDir(dirPath):
     if not os.path.isdir(dirPath):
         raise SystemExit('Error: {} does not exist\n\n{}'.format(dirPath,__doc__))
 
+def expandPath(path):
+    """ Arguments:
+            path : str; any path
+        Returns:
+            expandedPath : str; path with expanded variables and path
+    """
+    return os.path.abspath(os.path.expandvars(path))
+
 def makeGlobalVars(arguments):
     ''' Arguments:
             arguments : dictionary; CLI arguments from docopt
@@ -81,7 +93,7 @@ def makeGlobalVars(arguments):
     NOCONFIRM = arguments['--noconfirm']
     global JSFI # Metadata JSON file
     if '--jsonfile' in arguments.keys():
-        JSFI = os.path.abspath(os.path.expandvars(arguments['--jsonfile']))
+        JSFI = expandPath(arguments['--jsonfile'])
         if JSFI:
             testFile(JSFI)
     else:
@@ -209,7 +221,7 @@ def clean(arguments):
     possibleCleanArguments = ['All','Reference','Data','Postprocessing']
     if arguments['--clean']:
         assert arguments['--clean'] in possibleCleanArguments, 'Invalid Cleaning Argument: Run runPipe.py -h for available arguments'
-        PROJ = pipeClasses.Experiment(os.path.abspath(os.path.expandvars(arguments['<input>'])))
+        PROJ = pipeClasses.Experiment(expandPath(arguments['<input>']))
         if arguments['--clean'] != 'All':
             if arguments['--clean'] == 'Data':
                 if not os.path.isdir(PROJ.Data):
@@ -234,7 +246,7 @@ def clean(arguments):
                 else:
                     print('Please answer y or n')
     elif arguments['--sampleclean']:
-        PROJ = pipeClasses.Experiment(os.path.abspath(os.path.expandvars(arguments['<input>'])))
+        PROJ = pipeClasses.Experiment(expandPath(arguments['<input>']))
         if not os.path.isdir(str(PROJ.Data + '/' + arguments['--sampleclean'])):
             raise SystemExit('{} does not exist'.format(str(PROJ.Data + '/' +
                                                         arguments['--sampleclean'])))
@@ -279,9 +291,9 @@ def makeBatch(ExperimentClass, arguments):
     '''
     # Making slurm batch files if necessary
     if arguments['--batchjson']:
-        testFile(os.path.abspath(os.path.expandvars(arguments['--batchjson'])))
+        testFile(expandPath(arguments['--batchjson']))
     if arguments['--batchjson']:
-        pipeClasses.checkJSON(os.path.abspath(os.path.expandvars(arguments['--batchjson'])))
+        pipeClasses.checkJSON(expandPath(arguments['--batchjson']))
     if arguments['--makebatch']:
         preNodes,Nodes = arguments['--makebatch'].split(','),[]
         for node in preNodes:
@@ -291,13 +303,13 @@ def makeBatch(ExperimentClass, arguments):
             Nodes.append(int(node))
         if arguments['<command>'] == 'string':
             ExperimentClass.makeStringtieBatch(cluster=Nodes,
-                    jsonFile=os.path.abspath(os.path.expandvars(arguments['--batchjson'])))
+                    jsonFile=expandPath(arguments['--batchjson']))
         elif arguments['<command>'] == 'kall':
             ExperimentClass.makeKallistoBatch(cluster=Nodes,
-                    jsonFile=os.path.abspath(os.path.expandvars(arguments['--batchjson'])))
+                    jsonFile=expandPath(arguments['--batchjson']))
         else:
             ExperimentClass.makeBatch(cluster=Nodes,
-                    jsonFile=os.path.abspath(os.path.expandvars(arguments['--batchjson'])))
+                    jsonFile=expandPath(arguments['--batchjson']))
         raise SystemExit('Batch file successfully created:\n\t{}/pipeBatch'.format(os.getcwd()))
 
 def checkMaxCPU(arguments):
@@ -500,6 +512,75 @@ def stage5KAReadyToExecute(KAClass):
         return False
     return True
 
+def readInputFile(arguments):
+    """ Arguments:
+            arguments : dictionary; CLI arguments from docopt
+        Returns:
+            config : dict; arguments from input manifest
+        
+        Reads input manifest and stores into a dictionary
+    """
+    inputFile = expandPath(arguments['<input>'])
+    testFile(inputFile)
+    config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation(),
+            dict_type=OD)
+    config.optionxform = str
+    config.BOOLEAN_STATES = {'True': True, 
+            'False': False,
+            'true': True,
+            'false': False,
+            'None': False,
+            'none': False}
+    config.read(arguments['<input>'])
+    return config
+
+def updateArgs(arguments):
+    """ Arguments:
+            arguments : dictionary; CLI arguments from docopt
+        Returns:
+            updatedArgs : dict; containing necessary adjustments from manifest
+        
+        Combines command line arguments and manifest arguments
+        Note: command line arguments take precedence i.e. if command line argument
+        specified, use command line argument, else default to manifest
+    """
+    # Special default values
+    DEFAULTS = {
+            '--use-blacklist': expandPath('$RNASEQDIR/Trimmomatic/adapters/TruSeq3-PE.fa'),
+            '--execute': 'A',
+            '--phase': 'abc'
+            }
+    updatedArgs = {}
+    Manifest = readInputFile(arguments)
+    defaultArgs = Manifest[arguments['<command>']]
+    for option in arguments:
+        # For T/F options (option is either True or False) which aren't specified on command line
+        if arguments[option] == False:
+            # If option not specified on command line, check to see if specified in manifest as True, otherwise
+            # just define option as False
+            updatedArgs[option] = defaultArgs.getboolean(option, fallback=False)
+        # For None/Value options (option either has a value or None) which aren't specified on command line
+        elif arguments[option] == None:
+            # If option not specified on command line, check to see if specified in manifest as string type 'None'
+            # or if it's not specified in manifest either
+            if defaultArgs.get(option, fallback='None') == 'None':
+                # If option has a special default, use special default
+                if option in DEFAULTS.keys():
+                    updatedArgs[option] = DEFAULTS[option]
+                # If option has no special default, use None
+                else:
+                    updatedArgs[option] = None
+            # Otherwise if not specified on command line AND it is specified in manifest, then use specified
+            # manifest value
+            else:
+                updatedArgs[option] = defaultArgs.get(option)
+        # For all options that are specified on command line -> use command line option
+        else:
+            updatedArgs[option] = arguments[option]
+    # Add all other manifest options
+    #TODO look at options and figure out T/F and None/Value options, also figure out special defaults
+    return updatedArgs
+
 ################################################################
 # Usage Functions
 ################################################################
@@ -520,7 +601,6 @@ Options:
             4: Preparing for R analysis
             5: Running R analysis
             A: (1,2,3,4,5); A=all i.e. runs entire pipeline
-        [default: A]
     -r <integer>, --runsample <integer>
         Runs Stage 3 of the pipeline on the sample specified
         by the integer
@@ -544,7 +624,6 @@ Options:
         Ignore all user prompts except JSON file creation
     --use-blacklist <blacklist>
         Trimmomatic blacklist used for quality control
-        [default: $RNASEQDIR/Trimmomatic/adapters/TruSeq3-PE.fa]
     --use-reference
         Use Reference data that has already been prepared.
         Put path to already prepared reference data in 
@@ -553,11 +632,11 @@ Options:
         "--makebatch" argument'''
     makeGlobalVars(arguments)
     cpuLimit = checkMaxCPU(arguments)
-    testFile(os.path.abspath(os.path.expandvars(arguments['<input>'])))
-    testFile(os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
-    FCClass = pipeClasses.FCountsExperiment(os.path.abspath(os.path.expandvars(arguments['<input>'])),
+    testFile(expandPath(arguments['<input>']))
+    testFile(expandPath(arguments['--use-blacklist']))
+    FCClass = pipeClasses.FCountsExperiment(expandPath(arguments['<input>']),
                                             maxCPU=cpuLimit,
-                                            blacklist=os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
+                                            blacklist=expandPath(arguments['--use-blacklist']))
     # Make batch file if necessary
     makeBatch(FCClass, arguments)
     setGlobalLog(FCClass)
@@ -605,7 +684,6 @@ Options:
             4: Preparing for R analysis
             5: Running R analysis
             A: (1,2,3,4,5); A=all i.e. runs entire pipeline
-        [default: A]
     -r <integer>, --runsample <integer>
         Runs Stage 3 of the pipeline on the sample specified
         by the integer
@@ -616,7 +694,6 @@ Options:
         options in which case use: "--execute 4 --stringtie abc"
         Note: If you will be running phase b, you cannot specify
         a sample to run with --runsample
-        [default: abc]
     -j <jsonFile>, --jsonfile <jsonFile>
         Ignores JSON Metadata file creation and uses specified
         path to JSON Metadata
@@ -627,7 +704,6 @@ Options:
         Ignore all user prompts except JSON file creation
     --use-blacklist <blacklist>
         Trimmomatic blacklist used for quality control
-        [default: $RNASEQDIR/Trimmomatic/adapters/TruSeq3-PE.fa]
     --use-reference
         Use Reference data that has already been prepared.
         Put path to already prepared reference data in 
@@ -642,11 +718,11 @@ Options:
         Uses json file already created to make batch file'''
     makeGlobalVars(arguments)
     cpuLimit = checkMaxCPU(arguments)
-    testFile(os.path.abspath(os.path.expandvars(arguments['<input>'])))
-    testFile(os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
-    StringtieClass = pipeClasses.StringtieExperiment(os.path.abspath(os.path.expandvars(arguments['<input>'])), 
+    testFile(expandPath(arguments['<input>']))
+    testFile(expandPath(arguments['--use-blacklist']))
+    StringtieClass = pipeClasses.StringtieExperiment(expandPath(arguments['<input>']),
                                                      maxCPU=cpuLimit, 
-                                                     blacklist=os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
+                                                     blacklist=expandPath(arguments['--use-blacklist']))
     # Make batch file if necessary
     makeBatch(StringtieClass, arguments)
     setGlobalLog(StringtieClass)
@@ -689,7 +765,6 @@ Options:
             4: Preparing for R analysis
             5: Running R analysis
             A: (1,2,3,4,5); A=all i.e. runs entire pipeline
-        [default: A]
     -r <integer>, --runsample <integer>
         Runs Stage 3 of the pipeline on the sample specified
         by the integer
@@ -703,7 +778,6 @@ Options:
         Ignore all user prompts except JSON file creation
     --use-blacklist <blacklist>
         Trimmomatic blacklist used for quality control
-        [default: $RNASEQDIR/Trimmomatic/adapters/TruSeq3-PE.fa]
     --use-reference
         Use Reference data that has already been prepared.
         Put path to already prepared reference data in 
@@ -718,11 +792,11 @@ Options:
         Uses json file already created to make batch file'''
     makeGlobalVars(arguments)
     cpuLimit = checkMaxCPU(arguments)
-    testFile(os.path.abspath(os.path.expandvars(arguments['<input>'])))
-    testFile(os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
-    KallistoClass = pipeClasses.KallistoExperiment(os.path.abspath(os.path.expandvars(arguments['<input>'])), 
+    testFile(expandPath(arguments['<input>']))
+    testFile(expandPath(arguments['--use-blacklist']))
+    KallistoClass = pipeClasses.KallistoExperiment(expandPath(arguments['<input>']),
                                                    maxCPU=cpuLimit, 
-                                                   blacklist=os.path.abspath(os.path.expandvars(arguments['--use-blacklist'])))
+                                                   blacklist=expandPath(arguments['--use-blacklist']))
     # Make batch file if necessary
     makeBatch(KallistoClass, arguments)
     setGlobalLog(KallistoClass)
@@ -765,7 +839,7 @@ Options:
         Similar to --clean; but instead just cleans a
         single sample directory, <sampleName>'''
     makeGlobalVars(arguments)
-    testFile(os.path.abspath(os.path.expandvars(arguments['<input>'])))
+    testFile(expandPath(arguments['<input>']))
     clean(arguments)
 
 def referenceProcessing(arguments):
@@ -797,7 +871,7 @@ Mandatory Arguments:
         reference genome'''
     makeGlobalVars(arguments)
     cpuLimit = checkMaxCPU(arguments)
-    referencePath = os.path.abspath(os.path.expandvars(arguments['<pathtoReferenceDir>']))
+    referencePath = expandPath(arguments['<pathtoReferenceDir>'])
     if not os.path.isdir(referencePath):
         raise SystemExit('Reference directory does not exist: {}'.format(referencePath))
     Init = os.path.join(referencePath,'.init')
@@ -824,6 +898,482 @@ Mandatory Arguments:
         ppRef(referencePath, Cdna, Basename, Gtf, Genome, cpuLimit)
     if arguments['--kallisto']:
         createKallistoIndex(referencePath, Cdna, Basename)
+
+def generateDefaultInputFile(arguments):
+    '''Usage:
+    runPipe gendef [options]
+
+Options:
+    -h, --help
+        Show this screen and exit
+    -f <filename>, --filename <filename>
+        Name of input file to create
+        [default: default_input.ini]
+    -m <mode>, --mode <mode>
+        Type of execution mode, can be:
+            fcounts
+            string
+            kall
+        [default: fcounts]
+
+Note: Any options given on command-line will override those in
+input file'''
+    config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation(),
+            dict_type=OD)
+    config.optionxform = str
+    config.BOOLEAN_STATES = {'True': True, 
+            'False': False,
+            'true': True,
+            'false': False,
+            'None': False,
+            'none': False}
+    # LOCATIONS
+    pwd = os.path.abspath(os.curdir)
+    config['locations'] = OD((
+            ('Project', pwd),
+            ('Reference', pwd),
+            ('Original', pwd),
+            ))
+    # MODE
+    if arguments['--mode'] not in ['fcounts', 'string', 'kall']:
+        raise SystemExit('--mode argument is not valid: {}'.format(arguments['--mode']))
+    config['mode'] = OD((
+            ('fcounts', 'True' if arguments['--mode'] == 'fcounts' else 'False'),
+            ('kall', 'True' if arguments['--mode'] == 'kall' else 'False'),
+            ('string', 'True' if arguments['--mode'] == 'string' else 'False'),
+            ))
+    RNASEQDIR = os.path.expandvars('$RNASEQDIR')
+    # GENERAL
+    if arguments['--mode'] == 'fcounts':
+        config['fcounts'] = OD((
+                ('--execute', 'A'),
+                ('--runsample', 'None'),
+                ('--jsonfile', 'None'),
+                ('--maxcpu', 'None'),
+                ('--noconfirm', 'False'),
+                ('--makebatch', 'None'),
+                ('--batchjson', 'None'),
+                ('--edger', 'False'),
+                ('--deseq', 'False'),
+                ('--use-blacklist', RNASEQDIR+'/Trimmomatic/adapters/TruSeq3-PE.fa'),
+                ('--use-reference', 'False'),
+                ))
+    elif arguments['--mode'] == 'string':
+        config['string'] = OD((
+                ('--execute', 'A'),
+                ('--runsample', 'None'),
+                ('--phase', 'abc'),
+                ('--jsonfile', 'None'),
+                ('--maxcpu', 'None'),
+                ('--noconfirm', 'False'),
+                ('--use-blacklist', RNASEQDIR+'/Trimmomatic/adapters/TruSeq3-PE.fa'),
+                ('--use-reference', 'False'),
+                ('--makebatch', 'None'),
+                ('--batchjson', 'None'),
+                ))
+    elif arguments['--mode'] == 'kall':
+        config['kall'] = OD((
+                ('--execute', 'A'),
+                ('--runsample', 'None'),
+                ('--jsonfile', 'None'),
+                ('--maxcpu', 'None'),
+                ('--noconfirm', 'False'),
+                ('--use-blacklist', RNASEQDIR+'/Trimmomatic/adapters/TruSeq3-PE.fa'),
+                ('--use-reference', 'False'),
+                ('--makebatch', 'None'),
+                ('--batchjson', 'None'),
+                ))
+    # EXECUTABLES
+    config['EXECUTABLES'] = OD((
+            ('Rscript', '/usr/local/bin/Rscript'),
+            ('java', '/usr/bin/java'),
+            ('rnaseqdir', RNASEQDIR),
+            ('fastqc', '${rnaseqdir}/fastqc'),
+            ('extract_exons.py', '${rnaseqdir}/hisat2/extract_exons.py'),
+            ('extract_splice_sites.py', '${rnaseqdir}/hisat2/extract_splice_sites.py'),
+            ('hisat2', '${rnaseqdir}/hisat2/hisat2'),
+            ('hisat2-build', '${rnaseqdir}/hisat2/hisat2-build'),
+            ('samtools', '${rnaseqdir}/samtools/bin/samtools'),
+            ('makeblastdb', '${rnaseqdir}/ncbi-blast/bin/makeblastdb'),
+            ('blastn', '${rnaseqdir}/ncbi-blast/bin/blastn'),
+            ('seqtk', '${rnaseqdir}/seqtk'),
+            ('gffcompare', '${rnaseqdir}/gffcompare'),
+            ('stranded_classifier.py', '${rnaseqdir}/stranded_classifier.py'),
+            ('featureCounts', '${rnaseqdir}/subread/bin/featureCounts'),
+            ('stringtie', '${rnaseqdir}/stringtie'),
+            ('kallisto', '${rnaseqdir}/kallisto'),
+            ))
+
+    ############################################################
+    # FCOUNTS
+    ############################################################
+    if arguments['--mode'] == 'fcounts':
+        config['fcounts/main'] = OD((
+                ('fcounts/runQCheck', 'True'),
+                ('fcounts/runTrimmomatic', 'True'),
+                ('fcounts/runSeqtk', 'True'),
+                ('fcounts/runBlastn', 'True'),
+                ('fcounts/runHisat', 'True'),
+                ('fcounts/runCompression', 'True'),
+                ('fcounts/runFeatureCounts', 'True'),
+                ('fcounts/getNiceColumns', 'True'),
+                ('fcounts/getAlignedColumn', 'True'),
+                ))
+        # fcounts/runQCheck
+        # fastqc -t {procs} -o {fastqfolder} {other} {read1} {read2}
+        config['fcounts/runQCheck'] = OD((
+                ('fastqc', '${EXECUTABLES:fastqc}'),
+                ('-t', 'None'),
+                ('-o', 'None'),
+                ('read1', 'None'),
+                ('read2', 'None'),
+                ('other', 'None'),
+                ))
+        # fcounts/runTrimmomatic
+        # java -jar $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar PE -threads {procs} -phred{phred} \
+        #       {Read1} {Read2} \
+        #       read1.P.trim.{fastq}.gz read1.U.trim.{fastq}.gz \
+        #       read2.P.trim.{fastq}.gz read2.U.trim.{fastq}.gz \
+        #       ILLUMINACLIP:{blacklist}:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:5 MINLEN:35
+        config['fcounts/runTrimmomatic'] = OD((
+                ('java', '${EXECUTABLES:java}'),
+                ('-jar', 'None'),
+                ('-threads', 'None'),
+                ('-phred', 'None'),
+                ('read1', 'None'),
+                ('read2', 'None'),
+                ('read1pout', 'None'),
+                ('read2pout', 'None'),
+                ('read1uout', 'None'),
+                ('read2uout', 'None'),
+                ('blacklist', 'None'),
+                ('LEADING', 'None'),
+                ('TRAILING', 'None'),
+                ('SLIDINGWINDOW', 'None'),
+                ('MINLEN', 'None'),
+                ('other', 'None'),
+                ))
+        # fcounts/runSeqtk
+        # seqtk sample -s100 read1.P.trim.{0}.gz 10000 | seqtk seq -A {other} - > sampled.read1.fa
+        # seqtk sample -s100 read2.P.trim.{0}.gz 10000 | seqtk seq -A {other} - > sampled.read2.fa
+        config['fcounts/runSeqtk'] = OD((
+                ('seqtk', '${EXECUTABLES:seqtk}'),
+                ('-s', 'None'),
+                ('read1', 'None'),
+                ('read2', 'None'),
+                ('samples', 'None'),
+                ('-A', 'None'),
+                ('other', 'None'),
+                ))
+        # fcounts/runBlastn
+        # blastn -query sampled.read1.fa -db {0} -out sampled.read1_vscdna.out -task blastn-short \
+        #       -outfmt "6 std sstrand" -max_target_seqs 1 -num_threads {1} {other}
+        # blastn -query sampled.read2.fa -db {0} -out sampled.read2_vscdna.out -task blastn-short \
+        #       -outfmt "6 std sstrand" -max_target_seqs 1 -num_threads {1} {other}
+        config['fcounts/runBlastn'] = OD((
+                ('blastn', '${EXECUTABLES:blastn}'),
+                ('read1', 'None'),
+                ('read2', 'None'),
+                ('out1', 'None'),
+                ('out2', 'None'),
+                ('-db', 'None'),
+                ('-task', 'None'),
+                ('-outfmt', 'None'),
+                ('-max_target_seqs', 'None'),
+                ('num_threads', 'None'),
+                ('other', 'None'),
+                ))
+        # fcounts/runHisat
+        # hisat2 -k 5 -p {numProcs}{FRoRF} --dta --phred{phred} {other}\
+        #       --known-splicesite-infile {ref}/splice_sites.txt -x {ref}/{basename} \
+        #       -1 read1.P.trim.{fastq}.gz -2 read2.P.trim.{fastq}.gz -S aligned.{sample}.sam
+        config['fcounts/runHisat'] = OD((
+                ('hisat2', '${EXECUTABLES:hisat2}'),
+                ('-k', 'None'),
+                ('-p', 'None'),
+                ('--rna-strandedness', 'None'),
+                ('--dta', 'None'),
+                ('--phred', 'None'),
+                ('--known-splicesite-infile', 'None'),
+                ('-x', 'None'),
+                ('-1', 'None'),
+                ('-2', 'None'),
+                ('-S', 'None'),
+                ('other', 'None'),
+                ))
+        # fcounts/runCompression
+        # samtools view -bT {ref}/{genome} -@{procs} {other} aligned.{sample}.sam -o aligned.{sample}.bam
+        config['fcounts/runCompression'] = OD((
+                ('samtools', '${EXECUTABLES:samtools}'),
+                ('-b', 'None'),
+                ('-T', 'None'),
+                ('-@', 'None'),
+                ('-o', 'None'),
+                ('in', 'None'),
+                ('other', 'None'),
+                ))
+        # fcounts/runFeatureCounts
+        # featureCounts -T {procs} -s {stranded} -p -C --primary --ignoreDup -t exon -g gene_id \
+        #       -a {ref}/{gtf} -o aligned.{sample}.counts {other} aligned.{sample}.bam
+        config['fcounts/runCompression'] = OD((
+                ('featureCounts', '${EXECUTABLES:featureCounts}'),
+                ('-T', 'None'),
+                ('-s', 'None'),
+                ('-p', 'None'),
+                ('-C', 'None'),
+                ('--primary', 'None'),
+                ('--ignoreDup', 'None'),
+                ('-t', 'None'),
+                ('-g', 'None'),
+                ('-a', 'None'),
+                ('-o', 'None'),
+                ('in', 'None'),
+                ('other', 'None'),
+                ))
+
+    ############################################################
+    # STRING
+    ############################################################
+    elif arguments['--mode'] == 'string':
+        config['string/main'] = OD((
+                ('string/runQCheck', 'True'),
+                ('string/runTrimmomatic', 'True'),
+                ('string/runSeqtk', 'True'),
+                ('string/runBlastn', 'True'),
+                ('string/runHisat', 'True'),
+                ('string/runAltCompression', 'True'),
+                ('string/assembleTranscripts', 'True'),
+                ('string/stringtieMerge', 'True'),
+                ('string/compareTranscripts', 'True'),
+                ('string/estimateTranscriptAbundances', 'True'),
+                ))
+        # string/runQCheck
+        # fastqc -t {procs} -o {fastqfolder} {other} {read1} {read2}
+        config['string/runQCheck'] = OD((
+                ('fastqc', '${EXECUTABLES:fastqc}'),
+                ('-t', 'None'),
+                ('-o', 'None'),
+                ('read1', 'None'),
+                ('read2', 'None'),
+                ('other', 'None'),
+                ))
+        # string/runTrimmomatic
+        # java -jar $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar PE -threads {procs} -phred{phred} \
+        #       {Read1} {Read2} \
+        #       read1.P.trim.{fastq}.gz read1.U.trim.{fastq}.gz \
+        #       read2.P.trim.{fastq}.gz read2.U.trim.{fastq}.gz \
+        #       ILLUMINACLIP:{blacklist}:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:5 MINLEN:35
+        config['string/runTrimmomatic'] = OD((
+                ('java', '${EXECUTABLES:java}'),
+                ('-jar', 'None'),
+                ('-threads', 'None'),
+                ('-phred', 'None'),
+                ('read1', 'None'),
+                ('read2', 'None'),
+                ('read1pout', 'None'),
+                ('read2pout', 'None'),
+                ('read1uout', 'None'),
+                ('read2uout', 'None'),
+                ('blacklist', 'None'),
+                ('LEADING', 'None'),
+                ('TRAILING', 'None'),
+                ('SLIDINGWINDOW', 'None'),
+                ('MINLEN', 'None'),
+                ('other', 'None'),
+                ))
+        # string/runSeqtk
+        # seqtk sample -s100 read1.P.trim.{0}.gz 10000 | seqtk seq -A {other} - > sampled.read1.fa
+        # seqtk sample -s100 read2.P.trim.{0}.gz 10000 | seqtk seq -A {other} - > sampled.read2.fa
+        config['string/runSeqtk'] = OD((
+                ('seqtk', '${EXECUTABLES:seqtk}'),
+                ('-s', 'None'),
+                ('read1', 'None'),
+                ('read2', 'None'),
+                ('samples', 'None'),
+                ('-A', 'None'),
+                ('other', 'None'),
+                ))
+        # string/runBlastn
+        # blastn -query sampled.read1.fa -db {0} -out sampled.read1_vscdna.out -task blastn-short \
+        #       -outfmt "6 std sstrand" -max_target_seqs 1 -num_threads {1} {other}
+        # blastn -query sampled.read2.fa -db {0} -out sampled.read2_vscdna.out -task blastn-short \
+        #       -outfmt "6 std sstrand" -max_target_seqs 1 -num_threads {1} {other}
+        config['string/runBlastn'] = OD((
+                ('blastn', '${EXECUTABLES:blastn}'),
+                ('read1', 'None'),
+                ('read2', 'None'),
+                ('out1', 'None'),
+                ('out2', 'None'),
+                ('-db', 'None'),
+                ('-task', 'None'),
+                ('-outfmt', 'None'),
+                ('-max_target_seqs', 'None'),
+                ('num_threads', 'None'),
+                ('other', 'None'),
+                ))
+        # string/runHisat
+        # hisat2 -k 5 -p {numProcs}{FRoRF} --dta --phred{phred} {other}\
+        #       --known-splicesite-infile {ref}/splice_sites.txt -x {ref}/{basename} \
+        #       -1 read1.P.trim.{fastq}.gz -2 read2.P.trim.{fastq}.gz -S aligned.{sample}.sam
+        config['string/runHisat'] = OD((
+                ('hisat2', '${EXECUTABLES:hisat2}'),
+                ('-k', 'None'),
+                ('-p', 'None'),
+                ('--rna-strandedness', 'None'),
+                ('--dta', 'None'),
+                ('--phred', 'None'),
+                ('--known-splicesite-infile', 'None'),
+                ('-x', 'None'),
+                ('-1', 'None'),
+                ('-2', 'None'),
+                ('-S', 'None'),
+                ('other', 'None'),
+                ))
+        # string/runAltCompression
+        # samtools sort -@ {procs} -o aligned.{sample}.bam {other} aligned.{sample}.sam
+        config['string/runAltCompression'] = OD((
+                ('samtools', '${EXECUTABLES:samtools}'),
+                ('-@', 'None'),
+                ('-o', 'None'),
+                ('in', 'None'),
+                ('other', 'None'),
+                ))
+        # string/assembleTranscripts
+        # stringtie -p {procs} -o {sample}.st.gtf -l {sample} {other} aligned.{sample}.bam
+        config['string/assembleTranscripts'] = OD((
+                ('stringtie', '${EXECUTABLES:stringtie}'),
+                ('-p', 'None'),
+                ('-o', 'None'),
+                ('-l', 'None'),
+                ('in', 'None'),
+                ('other', 'None'),
+                ))
+        # string/stringtieMerge
+        # stringtie --merge -p {procs} -o {mergedir}/{projectname}.stmerged.gtf {other} {mergelist}
+        config['string/makeStringtieMergelist'] = OD((
+                ('stringtie', '${EXECUTABLES:stringtie}'),
+                ('-p', 'None'),
+                ('-o', 'None'),
+                ('in', 'None'),
+                ('other', 'None'),
+                ))
+        # string/compareTranscripts
+        # gffcompare -r {ref}/{gtf} -G -o {projectname}.merged {other} {stmerged}
+        config['string/compareTranscripts'] = OD((
+                ('gffcompare', '${EXECUTABLES:gffcompare}'),
+                ('-r', 'None'),
+                ('-G', 'None'),
+                ('-o', 'None'),
+                ('in', 'None'),
+                ('other', 'None'),
+                ))
+        # string/estimateTranscriptAbundances
+        # stringtie -e -B -p {procs} -G {stmerged} -o {sample}.good.st.gtf {other} aligned.{sample}.bam
+        config['string/estimateTranscriptAbundances'] = OD((
+                ('stringtie', '${EXECUTABLES:stringtie}'),
+                ('-e', 'None'),
+                ('-B', 'None'),
+                ('-p', 'None'),
+                ('-G', 'None'),
+                ('-o', 'None'),
+                ('in', 'None'),
+                ('other', 'None'),
+                ))
+
+    ############################################################
+    # KALL
+    ############################################################
+    elif arguments['--mode'] == 'kall':
+        config['kall/main'] = OD((
+                ('kall/runQCheck', 'True'),
+                ('kall/runTrimmomatic', 'True'),
+                ('kall/runSeqtk', 'True'),
+                ('kall/runBlastn', 'True'),
+                ('kall/runKallisto', 'True'),
+                ))
+        # kall/runQCheck
+        # fastqc -t {procs} -o {fastqfolder} {other} {read1} {read2}
+        config['kall/runQCheck'] = OD((
+                ('fastqc', '${EXECUTABLES:fastqc}'),
+                ('-t', 'None'),
+                ('-o', 'None'),
+                ('read1', 'None'),
+                ('read2', 'None'),
+                ('other', 'None'),
+                ))
+        # kall/runTrimmomatic
+        # java -jar $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar PE -threads {procs} -phred{phred} \
+        #       {Read1} {Read2} \
+        #       read1.P.trim.{fastq}.gz read1.U.trim.{fastq}.gz \
+        #       read2.P.trim.{fastq}.gz read2.U.trim.{fastq}.gz \
+        #       ILLUMINACLIP:{blacklist}:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:5 MINLEN:35
+        config['kall/runTrimmomatic'] = OD((
+                ('java', '${EXECUTABLES:java}'),
+                ('-jar', 'None'),
+                ('-threads', 'None'),
+                ('-phred', 'None'),
+                ('read1', 'None'),
+                ('read2', 'None'),
+                ('read1pout', 'None'),
+                ('read2pout', 'None'),
+                ('read1uout', 'None'),
+                ('read2uout', 'None'),
+                ('blacklist', 'None'),
+                ('LEADING', 'None'),
+                ('TRAILING', 'None'),
+                ('SLIDINGWINDOW', 'None'),
+                ('MINLEN', 'None'),
+                ('other', 'None'),
+                ))
+        # kall/runSeqtk
+        # seqtk sample -s100 read1.P.trim.{0}.gz 10000 | seqtk seq -A {other} - > sampled.read1.fa
+        # seqtk sample -s100 read2.P.trim.{0}.gz 10000 | seqtk seq -A {other} - > sampled.read2.fa
+        config['kall/runSeqtk'] = OD((
+                ('seqtk', '${EXECUTABLES:seqtk}'),
+                ('-s', 'None'),
+                ('read1', 'None'),
+                ('read2', 'None'),
+                ('samples', 'None'),
+                ('-A', 'None'),
+                ('other', 'None'),
+                ))
+        # kall/runBlastn
+        # blastn -query sampled.read1.fa -db {0} -out sampled.read1_vscdna.out -task blastn-short \
+        #       -outfmt "6 std sstrand" -max_target_seqs 1 -num_threads {1} {other}
+        # blastn -query sampled.read2.fa -db {0} -out sampled.read2_vscdna.out -task blastn-short \
+        #       -outfmt "6 std sstrand" -max_target_seqs 1 -num_threads {1} {other}
+        config['kall/runBlastn'] = OD((
+                ('blastn', '${EXECUTABLES:blastn}'),
+                ('read1', 'None'),
+                ('read2', 'None'),
+                ('out1', 'None'),
+                ('out2', 'None'),
+                ('-db', 'None'),
+                ('-task', 'None'),
+                ('-outfmt', 'None'),
+                ('-max_target_seqs', 'None'),
+                ('num_threads', 'None'),
+                ('other', 'None'),
+                ))
+        # kall/runKallisto
+        # kallisto quant -i {transcriptindex} -o {outputdir} --threads {procs}{FRoRF} -b 100 \
+        #       <( zcat read1.P.trim.{fastq}.gz ) <( zcat read2.P.trim.{fastq}.gz )
+        config['kall/runKallisto'] = OD((
+                ('kallisto', '${EXECUTABLES:kallisto}'),
+                ('-i', 'None'),
+                ('-o', 'None'),
+                ('--threads', 'None'),
+                ('stranded', 'None'),
+                ('-b', 'None'),
+                ('read1', 'None'),
+                ('read2', 'None'),
+                ('other', 'None'),
+                ))
+
+    ############################################################
+    with open(arguments['--filename'], 'w') as configfile:
+        config.write(configfile)
+    ############################################################
 
 def otherStuff(arguments):
     ''' Arguments:
@@ -894,13 +1444,21 @@ if __name__ == '__main__':
     argv = [args['<command>']] + args['<args>']
     if args['<command>'] == 'fcounts':
         args.update(docopt(featureCounts.__doc__, argv=argv))
-        featureCounts(args)
+        print(args)
+        updatedArgs = updateArgs(args)
+        print(updatedArgs)
+        exit()
+        featureCounts(updatedArgs)
     elif args['<command>'] == 'string':
         args.update(docopt(stringtie.__doc__, argv=argv))
-        stringtie(args)
+        print(args)
+        updatedArgs = updateArgs(args)
+        exit()
+        stringtie(updatedArgs)
     elif args['<command>'] == 'kall':
         args.update(docopt(kallisto.__doc__, argv=argv))
-        kallisto(args)
+        updatedArgs = updateArgs(args)
+        kallisto(updatedArgs)
     elif args['<command>'] == 'mj':
         import makeJSON
         args.update(docopt(makeJSON.__doc__, argv=argv))
@@ -919,6 +1477,12 @@ if __name__ == '__main__':
     elif args['<command>'] == 'prepref':
         args.update(docopt(referenceProcessing.__doc__, argv=argv))
         referenceProcessing(args)
+    elif args['<command>'] == 'gendef':
+        args.update(docopt(generateDefaultInputFile.__doc__, argv=argv))
+        generateDefaultInputFile(args)
+    elif args['<command>'] == 'readin':
+        args.update(docopt(readInputFile.__doc__, argv=argv))
+        readInputFile(args)
     elif args['<command>'] == 'help':
         moreHelp(args)
     elif args['<command>'] == None:
