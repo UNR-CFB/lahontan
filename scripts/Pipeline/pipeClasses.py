@@ -1108,10 +1108,10 @@ wait
                 self.quickTrimStats()
                 self.createJsonMetadata()
                 self.createNiceCounts()
+                self.makeGoodCounts()
                 self.createRCounts()
                 self.createRCols()
                 self.createRProgram()
-                self.makeGoodCounts()
                 break
             else:
                 time.sleep(1)
