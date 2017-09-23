@@ -1106,10 +1106,10 @@ wait
                 self.quickFCStats()
                 self.fullH2Stats()
                 self.quickTrimStats()
-                self.createJsonMetadata()
                 self.createNiceCounts()
                 self.makeGoodCounts()
                 self.createRCounts()
+                self.createJsonMetadata()
                 self.createRCols()
                 self.createRProgram()
                 break
