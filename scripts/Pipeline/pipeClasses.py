@@ -10,7 +10,6 @@ from math import ceil as ceiling
 from functools import partial
 import multiprocessing
 import time
-import pipeUtils
 import os
 import subprocess
 import shutil
@@ -20,40 +19,131 @@ import re
 import makeBallgownScript
 import makeSleuthScript
 import optPath
+import makeJSON
+import makeCols
+import makeReportr
+import makeEdgeReport
 
 ################################################################
 # Utilities
 ################################################################
 
-def exportVariablesforClass(pathtoInput,maxCPU=None):
+def testFileExistence(filePath):
+    if not os.path.exists(filePath):
+        raise SystemExit("File does not exist: {}".format(filePath))
+
+def testDirExistence(dirPath):
+    if not os.path.isdir(dirPath):
+        raise SystemExit("Directory does not exist: {}".format(dirPath))
+
+def expandPath(path):
+    """ Arguments:
+            path : str; any path
+        Returns:
+            expandedPath : str; path with expanded variables and path
+    """
+    return os.path.abspath(os.path.expandvars(path))
+
+def getFastq(originalPath):
     ''' Arguments:
-            pathtoInput = string; path to INPUT file
-            *maxCPU = int; maximum CPUs to be used
+            originalPath = string; path to ogOriginal
+        Returns:
+            fastq = str; either 'fastq' or 'fq'
+
+        Scrapes Original Data to figure out whether
+        fastq notation or fq notation is used
+        ex: thingsample1.read1.fastq.gz
+            fastq = 'fastq'
+            thingsample1.read1.fq.gz
+            fastq = 'fq'
+    '''
+    allFastq = []
+    for filename in os.listdir(originalPath):
+        allFastq.append(filename.split(".")[-2])
+
+    uniqueFastq = set(allFastq)
+    if len(uniqueFastq) != 1:
+        raise NameError('File Endings in ogOriginal are not consistent')
+    else:
+        fastq = list(uniqueFastq)[0]
+
+    if fastq != 'fastq' and fastq != 'fq':
+        print('Unknown fastq extension: {}\nSetting default to "fastq"')
+        fastq = 'fastq'
+    return fastq
+
+def getReferenceVariables(referencePath):
+    ''' Arguments:
+            referencePath = string; path to Reference files
+        Returns:
+            gtf, cdna, genome filenames
+
+        Scrapes Reference directory to determine name of GTF, cdna, and
+        genome files
+    '''
+    ls = os.listdir(referencePath)
+    if len(ls) != 3:
+        raise SystemExit(
+                "There are an incorrect number of files in:\n" +
+                "{}\n".format(referencePath) + "Need only: a gtf file with " +
+                "'gtf' in filename, a cdna with 'cdna' in filename', and a " +
+                "genome file")
+
+    for filename in ls:
+        if "gtf" in filename.split("."):
+            gtf = str(filename)
+        elif "cdna" in filename:
+            cdna = str(filename)
+        else:
+            genome = str(filename)
+    return gtf,cdna,genome
+
+def readInit(referencePath):
+    ''' Arguments:
+            referencePath = string; path to Reference files
+        Returns:
+            gtf, cdna, genome filenames
+
+        Scrapes .init file inside of Reference directory to determine name of
+        GTF, cdna, and genome files
+    '''
+    Init = os.path.join(referencePath, '.init')
+    with open(Init,'r') as f:
+        Stuff = f.readlines()
+    Gtf = Stuff[0].rstrip('\n')
+    Cdna = Stuff[1].rstrip('\n')
+    Genome = Stuff[2].rstrip('\n')
+    return Gtf, Cdna, Genome
+
+def exportVariablesforClass(globalArgs):
+    ''' Arguments:
+            globalArgs = dict; contains manifest combined with CLI options
         Returns:
             Variables = dict; Experiment parameters
 
         Gathers instance variables for Experiment Class
     '''
-    Project, Reference, Original = pipeUtils.sourceInput(pathtoInput)
-    def readInit():
-        Init = Reference + '/.init'
-        with open(Init,'r') as f:
-            Stuff = f.readlines()
-        Gtf = Stuff[0].rstrip('\n')
-        Cdna = Stuff[1].rstrip('\n')
-        Genome = Stuff[2].rstrip('\n')
-        return Gtf, Cdna, Genome
+    Project = expandPath(globalArgs["locations"]["Project"])
+    Reference = expandPath(globalArgs["locations"]["Reference"])
+    Original = expandPath(globalArgs["locations"]["Original"])
+    testDirExistence(Reference)
+    testDirExistence(Original)
     if IS_REFERENCE_PREPARED:
-        Gtf, Cdna, Genome = readInit()
+        Gtf, Cdna, Genome = readInit(Reference)
     elif os.path.exists(os.path.join(Reference, '.init')):
-        Gtf, Cdna, Genome = readInit()
+        Gtf, Cdna, Genome = readInit(Reference)
     else:
-        Gtf, Cdna, Genome = pipeUtils.getReferenceVariables(Reference)
+        Gtf, Cdna, Genome = getReferenceVariables(Reference)
         with open(os.path.join(Reference, '.init'),'w') as f:
             f.write('\n'.join([Gtf, Cdna, Genome]))
-    Basename = pipeUtils.getBasename(Genome)
-    Fastq = pipeUtils.getFastq(Original)
-    Procs = pipeUtils.countCPU(maxCPU)
+    Basename = str(Genome.split(".")[0])
+    Fastq = getFastq(Original)
+    maxCPU = globalArgs['--maxcpu']
+    Procs = os.cpu_count() if maxCPU == None else maxCPU
+    NumSamples = int(len(os.listdir(Original))/2)
+    if len(os.listdir(Original))%2 != 0:
+        raise SystemExit("There are not an even number of files in Original " +
+                "directory meaning that there may be paired-end files missing")
     Variables = {
             "Projectpath": Project,
             "ogReference": Reference,
@@ -63,7 +153,8 @@ def exportVariablesforClass(pathtoInput,maxCPU=None):
             "Genome": Genome,
             "Basename": Basename,
             "Fastq": Fastq,
-            "Procs": Procs
+            "Procs": Procs,
+            "NumSamples": NumSamples
             }
     return Variables
 
@@ -142,33 +233,38 @@ class Experiment:
         This class provides tools to analyze data
     '''
 
-    def __init__(self, inputPath, maxCPU=None, blacklist=None):
+    def __init__(self, globalArgs):
         ''' Arguments:
-                inputPath = string; path to INPUT file
-                *maxCPU = int; maximum number of CPUs to be used
-                *blacklist = str; path to a trimmomatic blacklist
+                globalArgs = dict; contains manifest combined with CLI options
             Returns:
                 None
 
             Initializes variables that get scraped from
             exportVariablesforClass(inputPath)
         '''
-        variables = exportVariablesforClass(inputPath,maxCPU)
+        variables = exportVariablesforClass(globalArgs)
+        # 3 Location Variables
         self.Project = variables["Projectpath"]
         self.ogReference = variables["ogReference"]
         self.ogOriginal = variables["ogOriginal"]
-        self.Reference = str(variables["Projectpath"] + '/Reference')
-        self.Original = str(variables["Projectpath"] + '/Original')
-        self.Data = str(variables["Projectpath"] + '/Data')
-        self.Postprocessing = str(variables["Projectpath"] + '/Postprocessing')
+        # 4 Project Directories
+        self.Reference = os.path.join(variables["Projectpath"], 'Reference')
+        self.Original = os.path.join(variables["Projectpath"], 'Original')
+        self.Data = os.path.join(variables["Projectpath"], 'Data')
+        self.Postprocessing = os.path.join(variables["Projectpath"], 'Postprocessing')
+        # 3 Reference Files
         self.Gtf = str(variables["Gtf"])
         self.Cdna = str(variables["Cdna"])
         self.Genome = str(variables["Genome"])
+        # Miscellaneous
         self.Basename = str(variables["Basename"])
         self.Fastq = str(variables["Fastq"])
         self.Procs = int(variables["Procs"])
-        self.inputPath = str(inputPath)
-        self.Blacklist = str(blacklist)
+        self.inputPath = str(expandPath(globalArgs['<input>']))
+        self.Blacklist = str(expandPath(globalArgs['--use-blacklist']))
+        self.Numsamples = int(variables["NumSamples"])
+        # Global Args
+        self.GlobalArgs = globalArgs
 
     def __repr__(self):
         ''' Arguments:
@@ -186,23 +282,6 @@ class Experiment:
     # Utilities
     ###############################################################
 
-    def getNumberofSamples(self):
-        ''' Arguments:
-                None
-            Returns:
-                numSamp = int; The number of samples in experiment
-
-            Finds number of samples in Experiment by counting number
-            of files in the Original Data folder and dividing by 2
-            because there are 2 reads to a sample
-        '''
-        if pipeUtils.getNumberofFiles(self.ogOriginal)%2 != 0:
-            print('There are not an even number of files in {}'.format(
-                                                    self.ogOriginal))
-        else:
-            numSamp = pipeUtils.getNumberofFiles(self.ogOriginal)/2
-        return int(numSamp)
-
     def isStructurePrepared(self):
         ''' Arguments:
                 None
@@ -215,10 +294,10 @@ class Experiment:
 
             Checks to see if directory structure has been made by checking
             if there is an 'S' in '.init' which is in the Project folder.
-            The 'S' is added after pipeUtils.createSymLinks has completed
+            The 'S' is added after createSymLinks has completed
         '''
-        if os.path.exists(self.Project + '/.init'):
-            with open(self.Project + '/.init', 'r') as f:
+        if os.path.exists(os.path.join(self.Project,'.init')):
+            with open(os.path.join(self.Project, '.init'), 'r') as f:
                 G = f.read()
             if 'S' in G:
                 return True
@@ -236,12 +315,12 @@ class Experiment:
 
             Checks to see if reference data has been processed by checking
             if there is a 'P' in '.init' which is in the Project folder.
-            The 'P' is added after pipeUtils.preProcessingReference has
+            The 'P' is added after preProcessingReference has
             completed
         '''
 
-        if os.path.exists(self.Project + '/.init'):
-            with open(self.Project + '/.init', 'r') as f:
+        if os.path.exists(os.path.join(self.Project, '.init')):
+            with open(os.path.join(self.Project, '.init'), 'r') as f:
                 G = f.read()
             if 'P' in G:
                 return True
@@ -253,21 +332,20 @@ class Experiment:
             Returns:
                 None
 
-            Calls pipeUtils.findFinish() to figure out when self.GO()
+            Figure out when self.GO()
             function has finished analysis on all samples
         '''
-        numSamples = self.getNumberofSamples()
         doneGlob = os.path.join(self.Data, 'sample*/.done')
         notifyFolder = os.path.join(self.Project, 'runPipeNotify')
         while True:
             if os.path.isdir(notifyFolder):
-                if (len(os.listdir(notifyFolder)) == numSamples or 
-                    len(glob.glob(doneGlob)) == numSamples):
+                if (len(os.listdir(notifyFolder)) == self.Numsamples or 
+                    len(glob.glob(doneGlob)) == self.Numsamples):
                     shutil.rmtree(notifyFolder)
                     break
                 else:
                     pass
-            elif len(glob.glob(doneGlob)) == numSamples:
+            elif len(glob.glob(doneGlob)) == self.Numsamples:
                 break
             else:
                 pass
@@ -279,20 +357,19 @@ class Experiment:
             Returns:
                 boolean = True if finished, False if not finished
 
-            Calls pipeUtils.findFinish() to figure out when self.GO()
+            Figures out when self.GO()
             function has finished analysis on all samples
         '''
-        numSamples = self.getNumberofSamples()
         doneGlob = os.path.join(self.Data, 'sample*/.done')
         notifyFolder = os.path.join(self.Project, 'runPipeNotify')
         finished = False
         if os.path.isdir(notifyFolder):
-            if (len(os.listdir(notifyFolder)) == numSamples or 
-                len(glob.glob(doneGlob)) == numSamples):
+            if (len(os.listdir(notifyFolder)) == self.Numsamples or 
+                len(glob.glob(doneGlob)) == self.Numsamples):
                 finished = True
             else:
                 finished = False
-        elif len(glob.glob(doneGlob)) == numSamples:
+        elif len(glob.glob(doneGlob)) == self.Numsamples:
             finished = True
         else:
             finished = False
@@ -311,19 +388,19 @@ class Experiment:
         '''
         Arguments = {
                 "--maxcpu": str(self.Procs),
-                "<numsamples>": str(self.getNumberofSamples()),
+                "<numsamples>": str(self.Numsamples),
                 "<cluster>": ','.join(str(node) for node in cluster),
                 "--customize": False,
                 "--tofile": "GeneratedOptimalPath.dat"
                 }
         if jsonPath:
             with open(jsonPath) as JF:
-                jsonData = json.load(JF,object_pairs_hook=pipeUtils.makeCols.OrderedDict)
+                jsonData = json.load(JF,object_pairs_hook=makeCols.OrderedDict)
             return jsonData
         else:
             optPath.main(Arguments)
-            with open("GeneratedOptimalPath.dat", "r") as JF:
-                jsonData = json.load(JF,object_pairs_hook=pipeUtils.makeCols.OrderedDict)
+            with open(Arguments['--tofile'], "r") as JF:
+                jsonData = json.load(JF,object_pairs_hook=makeCols.OrderedDict)
             return jsonData
 
     @funTime
@@ -333,24 +410,17 @@ class Experiment:
             Returns:
                 None
 
-            Calls pipeUtils.createMetaData() to make JSON file if not already
+            Calls makeJSON.writeJSON() to make JSON file if not already
             provided
         '''
         print('Making Metadata file; require user input...')
-        pipeUtils.createMetaData(self.Postprocessing)
+        if os.path.exists(os.path.join(self.Postprocessing, 'Metadata.json')):
+            pass
+        elif JSFI == None:
+            testDirExistence(self.Postprocessing)
+            os.chdir(self.Postprocessing)
+            makeJSON.writeJSON('Metadata.json')
         print('Waiting for Pipeline to finish...')
-
-    @funTime
-    def getPipeTime(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Calls pipeUtils.makeTotalTime() to scrape Sample times from
-            respective sample Runtime.log files
-        '''
-        pipeUtils.makeTotalTime(self.Postprocessing, self.Data)
 
     def checkX11(self):
         ''' Arguments:
@@ -489,12 +559,16 @@ class Experiment:
             Returns:
                 None
 
-            Calls pipeUtils.createStructure to make Directory Structure
+            Calls makeStructure.sh to make Directory Structure
         '''
         if not self.isStructurePrepared():
             print("Creating Structure...")
-            pipeUtils.createStructure(self.Project,
-                                        self.ogOriginal)
+            command = r'''makeStructure.sh {} {}'''.format(self.Project,
+                    self.ogOriginal)
+            subprocess.run(command,
+                shell=True,
+                check=True,
+                executable="/bin/bash")
             makeTimeFile(RUNTIMELOG)
 
     @funTime
@@ -504,13 +578,19 @@ class Experiment:
             Returns:
                 None
 
-            Calls pipeUtils.createSymLinks to make Symbolic Links for
+            Calls makeSyms.sh to make Symbolic Links for
             Original Data, Reference Data; and Metadata if available
         '''
         if not self.isStructurePrepared():
-            pipeUtils.createSymLinks(self.Project,
-                                     self.ogOriginal,
-                                     self.ogReference)
+            command = r'''makeSyms.sh {} {} {} {}'''.format(self.Project,
+                    self.ogOriginal, self.Reference,
+                    'false' if JSFI == None else JSFI)
+            subprocess.run(command,
+                shell=True,
+                check=True,
+                executable="/bin/bash")
+            with open(os.path.join(self.Project), 'w') as F:
+                F.write('S')
 
     @funTime
     def qcRef(self):
@@ -519,12 +599,21 @@ class Experiment:
             Returns:
                 None
 
-            Calls pipeUtils.qcReference to make
+            Calls QCofRef to make
             Reference_Report.txt in Reference Folder
         '''
         if not self.isReferencePrepared():
-            pipeUtils.qcReference(self.Reference,
-                                  self.Genome)
+            command = r'''QCofRef.sh {} {}'''.format(self.Reference,
+                    self.Genome)
+            subprocess.run(command,
+                shell=True,
+                check=True,
+                executable="/bin/bash")
+            if not NOCONFIRM:
+                with open(os.path.join(self.Reference, 'Reference_Report.txt'), 
+                        'r') as Report:
+                    print(Report.read())
+                print('\nSee Reference_Report.txt to view initial Diagnostics')
 
     @funTime
     def ppRef(self):
@@ -659,8 +748,8 @@ class FCountsExperiment(Experiment):
         apply featureCounts specific methods
     '''
 
-    def __init__(self,inputFile,maxCPU=None,blacklist=None):
-        Experiment.__init__(self,inputFile,maxCPU,blacklist)
+    def __init__(self,globalArgs):
+        Experiment.__init__(self,globalArgs)
 
     def __repr__(self):
         ''' Arguments:
@@ -761,7 +850,7 @@ wait
 """
         if JSFI == None:
             raise SystemExit('Need to specify a Metadata file with "--jsonfile"\nCan use "runPipe mj" to create a metadata file')
-        numSamps = self.getNumberofSamples()
+        numSamps = self.Numsamples
         if not IS_REFERENCE_PREPARED:
             ref = ''
         else:
@@ -880,10 +969,16 @@ wait
             Returns:
                 None
 
-            Calls pipeUtils.makeNiceCounts() to make the composite counts file
+            Calls formatFeatures.sh to make the composite counts file
             with length column; Not used for my R analysis
         '''
-        pipeUtils.makeNiceCounts(self.Postprocessing, self.Data)
+        os.chdir(self.Postprocessing)
+        command = r'''formatFeatures.sh {} {}'''.format(self.Postprocessing,
+                self.Data)
+        subprocess.run(command,
+            shell=True,
+            check=True,
+            executable="/bin/bash")
 
     def createRCounts(self):
         ''' Arguments:
@@ -891,11 +986,16 @@ wait
             Returns:
                 None
 
-            Calls pipeUtils.createCountFile() to make the Count file(Counts.dat)
+            Calls makeCounts.sh to make the Count file(Counts.dat)
             that works in my R analysis
         '''
         os.chdir(self.Postprocessing)
-        pipeUtils.createCountFile(self.Postprocessing)
+        command = r'''makeCounts.sh {} {}'''.format(self.Postprocessing,
+                'Counts.dat')
+        subprocess.run(command,
+            shell=True,
+            check=True,
+            executable="/bin/bash")
 
     def createRCols(self):
         ''' Arguments:
@@ -903,11 +1003,11 @@ wait
             Returns:
                 None
 
-            Calls pipeUtils.createColumnFile() to make column file(Cols.dat)
+            Calls makeCols.makeCols to make column file(Cols.dat)
             that describes Experiment. Uses Metadata JSON file for this
         '''
         os.chdir(self.Postprocessing)
-        pipeUtils.createColumnFile(self.Postprocessing)
+        makeCols.makeCols(makeCols.readJSON('Metadata.json'), 'Cols.dat')
 
     def createRProgram(self):
         ''' Arguments:
@@ -915,11 +1015,13 @@ wait
             Returns:
                 None
 
-            Calls pipeUtils.createRScript() and pipeUtils.createEdgeRScript()
+            Calls makeReportr.createRscript and makeEdgeReport.createEdgeR()
             to make DESeq2 R analysis program and edgeR analysis program
         '''
-        pipeUtils.createRScript(self.Postprocessing)
-        pipeUtils.createEdgeRScript(self.Postprocessing)
+        makeReportr.createRscript(makeCols.readJSON('Metadata.json'),
+                'makeReport.r')
+        makeEdgeReport.createEdgeR(makeCols.readJSON('Metadata.json'),
+                'makeEdge.r')
 
     @funTime
     def runRProgram(self):
@@ -928,12 +1030,12 @@ wait
             Returns:
                 None
 
-            Calls pipeUtils.makeEdgeRreport() and pipeUtils.makeRreports()
+            Calls runDESeq() and runEdgeR()
             to create DESeq2 and edgeR reports
         '''
         print("R program is running...")
-        pipeUtils.makeEdgeRreport(self.Postprocessing)
-        pipeUtils.makeRreports(self.Postprocessing)
+        self.runDESeq()
+        self.runEdgeR()
 
     @funTime
     def runDESeq(self):
@@ -944,8 +1046,11 @@ wait
 
             Runs DESeq2
         '''
-        pipeUtils.makeRreports(self.Postprocessing)
-        pipeUtils.notifyEnding(self.Postprocessing,behavior='deseq')
+        deseqCommand = r'''{ time Rscript "makeReport.r"; } > makeEdgeTime.log 2>&1'''
+        subprocess.run(deseqCommand,
+            shell=True,
+            check=True,
+            executable="/bin/bash")
 
     @funTime
     def runEdgeR(self):
@@ -956,20 +1061,11 @@ wait
 
             Runs edgeR
         '''
-        pipeUtils.makeEdgeRreport(self.Postprocessing)
-        pipeUtils.notifyEnding(self.Postprocessing,behavior='edger')
-
-    @funTime
-    def findRFinish(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Calls pipeUtils.notifyEnding() to figure out when self.runRProgram()
-            has finished making reports
-        '''
-        pipeUtils.notifyEnding(self.Postprocessing)
+        edgeCommand = r'''{ time Rscript "makeEdge.r"; } > makeEdgeTime.log 2>&1'''
+        subprocess.run(edgeCommand,
+            shell=True,
+            check=True,
+            executable="/bin/bash")
 
     def createAllSampleClasses(self):
         ''' Arguments:
@@ -978,9 +1074,8 @@ wait
                 experimentSamples = list; list contains Sample Classes
 
             Creates all Sample Classes and returns them in a list
-            Number of samples is based on self.getNumberofSamples() function
         '''
-        numSamples = self.getNumberofSamples()
+        numSamples = self.Numsamples
         # Don't want to oversubscribe computer with multiprocessing
         sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
         experimentSamples = [FCountsSample(n, self.inputPath, maxCPU=sampCpuMax, blacklist=self.Blacklist)
@@ -994,11 +1089,10 @@ wait
                 experimentSample = sample instance
 
             Creates specified sample class
-            Number of samples is based on self.getNumberofSamples() function
         '''
         assert (type(subject) == int 
                 and subject > 0 
-                and subject <= self.getNumberofSamples()
+                and subject <= self.Numsamples
                 ), 'Need an int argument as a subject to create'
         experimentSample = FCountsSample(subject, self.inputPath, maxCPU=self.Procs, blacklist=self.Blacklist)
         return experimentSample
@@ -1015,7 +1109,7 @@ wait
         Context = {
                 "fcsummaryglob": os.path.join(self.Data,
                                     'sample_*/aligned.sample_*.counts.summary'),
-                "cols": ','.join(str(i) for i in [1]+[2*sampleNum for sampleNum in range(1, self.getNumberofSamples()+1)]),
+                "cols": ','.join(str(i) for i in [1]+[2*sampleNum for sampleNum in range(1, self.Numsamples+1)]),
                 "summarylog": os.path.join(self.Postprocessing, 'fc.summary.log')
                 }
         goodCommand = command.format(**Context)
@@ -1118,7 +1212,6 @@ wait
 
     def runStage5(self):
         self.runRProgram()
-        self.findRFinish()
 
 #@@
 class StringtieExperiment(Experiment):
@@ -1127,8 +1220,8 @@ class StringtieExperiment(Experiment):
         apply Stringtie specific methods
     '''
 
-    def __init__(self,inputFile,maxCPU=None,blacklist=None):
-        Experiment.__init__(self,inputFile,maxCPU,blacklist)
+    def __init__(self,globalArgs):
+        Experiment.__init__(self,globalArgs)
 
     def __repr__(self):
         ''' Arguments:
@@ -1247,7 +1340,7 @@ wait
 """
         if JSFI == None:
             raise SystemExit('Need to specify a Metadata file with "--jsonfile"\nCan use "runPipe mj" to create a metadata file')
-        numSamps = self.getNumberofSamples()
+        numSamps = self.Numsamples
         if not IS_REFERENCE_PREPARED:
             ref = ''
         else:
@@ -1297,9 +1390,8 @@ wait
                 experimentSamples = list; list contains Sample Classes
 
             Creates all Sample Classes and returns them in a list
-            Number of samples is based on self.getNumberofSamples() function
         '''
-        numSamples = self.getNumberofSamples()
+        numSamples = self.Numsamples
         # Don't want to oversubscribe computer with multiprocessing
         sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
         experimentSamples = [StringtieSample(n, self.inputPath, maxCPU=sampCpuMax,
@@ -1314,11 +1406,10 @@ wait
                 experimentSample = sample instance
 
             Creates specified sample class
-            Number of samples is based on self.getNumberofSamples() function
         '''
         assert (type(subject) == int 
                 and subject > 0 
-                and subject <= self.getNumberofSamples()
+                and subject <= self.Numsamples
                 ), 'Need an int argument as a subject to create'
         experimentSample = StringtieSample(subject, self.inputPath, maxCPU=self.Procs,
                                            blacklist=self.Blacklist)
@@ -1563,7 +1654,7 @@ wait
         '''
         jsonFile = os.path.join(self.Postprocessing, jsonName)
         colFile = os.path.join(self.Postprocessing, columnName)
-        pipeUtils.makeCols.makeStringtieCols(pipeUtils.makeCols.readJSON(jsonFile), colFile)
+        makeCols.makeStringtieCols(makeCols.readJSON(jsonFile), colFile)
 
     def createBallgownScript(self, jsonName='Metadata.json', programName='runBallgown.r'):
         ''' Arguments:
@@ -1575,7 +1666,7 @@ wait
         '''
         jsonFile = os.path.join(self.Postprocessing, jsonName)
         programFile = os.path.join(self.Postprocessing, programName)
-        makeBallgownScript.createRBallgownScript(pipeUtils.makeCols.readJSON(jsonFile),
+        makeBallgownScript.createRBallgownScript(makeCols.readJSON(jsonFile),
                                                  programFile)
 
     @funTime
@@ -1656,8 +1747,8 @@ class KallistoExperiment(Experiment):
         apply Kallisto specific methods
     '''
 
-    def __init__(self,inputFile,maxCPU=None,blacklist=None):
-        Experiment.__init__(self,inputFile,maxCPU,blacklist)
+    def __init__(self,globalArgs):
+        Experiment.__init__(self,globalArgs)
 
     def __repr__(self):
         ''' Arguments:
@@ -1754,7 +1845,7 @@ wait
 """
         if JSFI == None:
             raise SystemExit('Need to specify a Metadata file with "--jsonfile"\nCan use "runPipe mj" to create a metadata file')
-        numSamps = self.getNumberofSamples()
+        numSamps = self.Numsamples
         if not IS_REFERENCE_PREPARED:
             ref = ''
         else:
@@ -1800,9 +1891,8 @@ wait
                 Samples = list; list contains Sample Classes
 
             Creates all Sample Classes and returns them in a list
-            Number of samples is based on self.getNumberofSamples() function
         '''
-        numSamples = self.getNumberofSamples()
+        numSamples = self.Numsamples
         # Don't want to oversubscribe computer with multiprocessing
         sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
         experimentSamples = [KallistoSample(n, self.inputPath, maxCPU=sampCpuMax,
@@ -1817,11 +1907,10 @@ wait
                 experimentSample = sample instance
 
             Creates specified sample class
-            Number of samples is based on self.getNumberofSamples() function
         '''
         assert (type(subject) == int 
                 and subject > 0 
-                and subject <= self.getNumberofSamples()
+                and subject <= self.Numsamples
                 ), 'Need an int argument as a subject to create'
         experimentSample = KallistoSample(subject, self.inputPath, maxCPU=self.Procs,
                                           blacklist=self.Blacklist)
@@ -1911,7 +2000,7 @@ wait
         '''
         jsonFile = os.path.join(self.Postprocessing, jsonName)
         colFile = os.path.join(self.Postprocessing, columnName)
-        pipeUtils.makeCols.makeKallistoCols(pipeUtils.makeCols.readJSON(jsonFile), colFile)
+        makeCols.makeKallistoCols(makeCols.readJSON(jsonFile), colFile)
 
     def createSleuthScript(self, jsonName='Metadata.json', programName='runSleuth.r'):
         ''' Arguments:
@@ -1924,7 +2013,7 @@ wait
         '''
         jsonFile = os.path.join(self.Postprocessing, jsonName)
         programFile = os.path.join(self.Postprocessing, programName)
-        makeSleuthScript.createRSleuthScript(pipeUtils.makeCols.readJSON(jsonFile), programFile) 
+        makeSleuthScript.createRSleuthScript(makeCols.readJSON(jsonFile), programFile) 
 
     @funTime
     def runSleuthAnalysis(self):
@@ -2019,7 +2108,7 @@ class Sample:
             initializes some sample specific variables
         '''
         Experiment.__init__(self,inputFile,blacklist=blacklist)
-        assert sampleNumber <= Experiment.getNumberofSamples(self)
+        assert sampleNumber <= Experiment.Numsamples
         assert sampleNumber > 0
         self.sampleNumber = sampleNumber
         self.sampleName = 'sample_{}'.format(str(sampleNumber).zfill(2))

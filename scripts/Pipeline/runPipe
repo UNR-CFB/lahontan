@@ -92,23 +92,17 @@ def makeGlobalVars(arguments):
     global NOCONFIRM
     NOCONFIRM = arguments['--noconfirm']
     global JSFI # Metadata JSON file
-    if '--jsonfile' in arguments.keys():
+    if arguments['--jsonfile']:
         JSFI = expandPath(arguments['--jsonfile'])
         if JSFI:
             testFile(JSFI)
     else:
         JSFI = None
     global IS_REFERENCE_PREPARED
-    if '--use-reference' in arguments.keys():
-        IS_REFERENCE_PREPARED = arguments['--use-reference']
-    else:
-        IS_REFERENCE_PREPARED = False
+    IS_REFERENCE_PREPARED = arguments['--use-reference']
     pipeClasses.JSFI = JSFI
     pipeClasses.NOCONFIRM = NOCONFIRM
     pipeClasses.IS_REFERENCE_PREPARED = IS_REFERENCE_PREPARED
-    pipeClasses.pipeUtils.JSFI = JSFI
-    pipeClasses.pipeUtils.NOCONFIRM = NOCONFIRM
-    pipeClasses.pipeUtils.IS_REFERENCE_PREPARED = IS_REFERENCE_PREPARED
 
 def ppRef(referenceDir, cdna, basename, gtf, genome, cpulimit=None):
     ''' Arguments:
@@ -292,7 +286,6 @@ def makeBatch(ExperimentClass, arguments):
     # Making slurm batch files if necessary
     if arguments['--batchjson']:
         testFile(expandPath(arguments['--batchjson']))
-    if arguments['--batchjson']:
         pipeClasses.checkJSON(expandPath(arguments['--batchjson']))
     if arguments['--makebatch']:
         preNodes,Nodes = arguments['--makebatch'].split(','),[]
@@ -628,14 +621,13 @@ Options:
     cpuLimit = checkMaxCPU(arguments)
     testFile(expandPath(arguments['<input>']))
     testFile(expandPath(arguments['--use-blacklist']))
-    FCClass = pipeClasses.FCountsExperiment(expandPath(arguments['<input>']),
-                                            maxCPU=cpuLimit,
-                                            blacklist=expandPath(arguments['--use-blacklist']))
+    FCClass = pipeClasses.FCountsExperiment(arguments)
     # Make batch file if necessary
     makeBatch(FCClass, arguments)
     setGlobalLog(FCClass)
     samplesToExecute = checkdashr(FCClass, arguments)
     stagesToExecute = checkdashe(arguments)
+    exit(1)
     # Run Stage 1 if necessary
     if '1' in stagesToExecute and stage1ReadyToExecute(FCClass):
         FCClass.runStage1()
@@ -1433,17 +1425,14 @@ def moreHelp(arguments):
 
 if __name__ == '__main__':
     beginTime = timer()
+    from pprint import pprint
 
     args = docopt(__doc__, version=VERSION, options_first=True)
     argv = [args['<command>']] + args['<args>']
     if args['<command>'] == 'fcounts':
         args.update(docopt(featureCounts.__doc__, argv=argv))
-        print(args)
         updatedArgs = updateArgs(args)
-        print(updatedArgs)
-        # TODO input args is now  expanded dictionary that also contains locations
-        # fix reading of 'locations'
-        exit()
+        pprint(updatedArgs)
         featureCounts(updatedArgs)
     elif args['<command>'] == 'string':
         args.update(docopt(stringtie.__doc__, argv=argv))
