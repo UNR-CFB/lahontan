@@ -339,7 +339,7 @@ def setGlobalLog(ExperimentClass):
     """
     # Inititiating a Runtime Log global location
     global RUNTIMELOG
-    RUNTIMELOG = str(ExperimentClass.Project + '/Runtime.log')
+    RUNTIMELOG = str(os.path.join(ExperimentClass.Project,'Runtime.log'))
     pipeClasses.RUNTIMELOG = RUNTIMELOG
 
 def checkdashr(ExperimentClass, arguments):
@@ -354,7 +354,7 @@ def checkdashr(ExperimentClass, arguments):
     # Running a specific sample
     if arguments['--runsample']:
         samples = arguments['--runsample'].split(',')
-        possibleSamples = [str(a+1) for a in range(ExperimentClass.getNumberofSamples())]
+        possibleSamples = [str(a+1) for a in range(ExperimentClass.Numsamples)]
         runsampleUsage = ('Invalid argument to --runsample: {}'.format(arguments['--runsample']) + 
                             'Possible arguments: {}'.format(str(possibleSamples)))
         if len(set(samples)) != len(samples):
@@ -378,8 +378,8 @@ def checkdashe(arguments):
     else:
         executionStages = arguments['--execute'].split(',')
     possibleStages = ["1","2","3","4","5","A"]
-    executeUsage = ('Invalid argument to --execute: {}'.format(arguments['--execute']) + 
-                        'Possible arguments: {}'.format(str(possibleStages)))
+    executeUsage = ('Invalid argument to --execute: {}'.format(
+        arguments['--execute']) + 'Possible arguments: {}'.format(str(possibleStages)))
     if len(set(executionStages)) != len(executionStages):
         raise SystemExit(executeUsage)
     for stage in executionStages:
@@ -543,7 +543,10 @@ def updateArgs(arguments):
     mode = arguments['<command>']
     updatedArgs = {}
     Manifest = readInputFile(arguments)
-    manifestArgs = Manifest[mode]
+    try:
+        manifestArgs = Manifest[mode]
+    except KeyError:
+        manifestArgs = FALLBACK[mode]
     # Add mode options i.e. options that can be specified on command line
     for option in arguments:
         if arguments[option] == False:
@@ -556,14 +559,29 @@ def updateArgs(arguments):
         else:
             updatedArgs[option] = arguments[option]
     # Add all other manifest options
-    for section in Manifest.sections():
+    for section in FALLBACK.sections():
         if section != mode:
             updatedArgs[section] = {}
-            for option in Manifest[section]:
-                if Manifest[section].get(option, fallback=FALLBACK[section].get(option)) == 'None':
-                    updatedArgs[section][option] = None
-                else:
-                    updatedArgs[section][option] = Manifest[section].get(option, fallback=FALLBACK[section].get(option))
+            for option in FALLBACK[section]:
+                try:
+                    if Manifest[section].get(option, fallback=FALLBACK[section].get(option)) == 'None':
+                        updatedArgs[section][option] = None
+                    elif Manifest[section].get(option, fallback=FALLBACK[section].get(option)) == 'False':
+                        updatedArgs[section][option] = False
+                    elif Manifest[section].get(option, fallback=FALLBACK[section].get(option)) == 'True':
+                        updatedArgs[section][option] = True
+                    else:
+                        updatedArgs[section][option] = Manifest[section].get(option, fallback=FALLBACK[section].get(option))
+                except KeyError:
+                    if FALLBACK[section].get(option) == 'None':
+                        updatedArgs[section][option] = None
+                    elif FALLBACK[section].get(option) == 'False':
+                        updatedArgs[section][option] = False
+                    elif FALLBACK[section].get(option) == 'True':
+                        updatedArgs[section][option] = True
+                    else:
+                        updatedArgs[section][option] = FALLBACK[section].get(option)
+
     # Remove tmp fallback defaults file
     os.remove('.tmprunPipeDefaults.ini')
     return updatedArgs
@@ -627,7 +645,6 @@ Options:
     setGlobalLog(FCClass)
     samplesToExecute = checkdashr(FCClass, arguments)
     stagesToExecute = checkdashe(arguments)
-    exit(1)
     # Run Stage 1 if necessary
     if '1' in stagesToExecute and stage1ReadyToExecute(FCClass):
         FCClass.runStage1()
@@ -641,6 +658,8 @@ Options:
         else:
             for sample in samplesToExecute:
                 FCClass.executeSample(sample)
+    #TODO do stage 3 reform
+    exit(1)
     # Run Stage 4 if necessary
     if '4' in stagesToExecute and stage4ReadyToExecute(FCClass):
         FCClass.runStage4()
@@ -1016,7 +1035,7 @@ input file'''
                 ('other', 'None'),
                 ))
         # fcounts/runTrimmomatic
-        # java -jar $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar PE -threads {procs} -phred{phred} \
+        # java -jar $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar PE -threads {procs} -phred{phred} {other}\
         #       {Read1} {Read2} \
         #       read1.P.trim.{fastq}.gz read1.U.trim.{fastq}.gz \
         #       read2.P.trim.{fastq}.gz read2.U.trim.{fastq}.gz \

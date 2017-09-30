@@ -322,6 +322,7 @@ class Experiment:
         if os.path.exists(os.path.join(self.Project, '.init')):
             with open(os.path.join(self.Project, '.init'), 'r') as f:
                 G = f.read()
+            print(G)
             if 'P' in G:
                 return True
         return False
@@ -564,7 +565,7 @@ class Experiment:
         if not self.isStructurePrepared():
             print("Creating Structure...")
             command = r'''makeStructure.sh {} {}'''.format(self.Project,
-                    self.ogOriginal)
+                    self.Numsamples)
             subprocess.run(command,
                 shell=True,
                 check=True,
@@ -583,13 +584,13 @@ class Experiment:
         '''
         if not self.isStructurePrepared():
             command = r'''makeSyms.sh {} {} {} {}'''.format(self.Project,
-                    self.ogOriginal, self.Reference,
+                    self.ogOriginal, self.ogReference,
                     'false' if JSFI == None else JSFI)
             subprocess.run(command,
                 shell=True,
                 check=True,
                 executable="/bin/bash")
-            with open(os.path.join(self.Project), 'w') as F:
+            with open(os.path.join(self.Project,'.init'), 'w') as F:
                 F.write('S')
 
     @funTime
@@ -603,6 +604,7 @@ class Experiment:
             Reference_Report.txt in Reference Folder
         '''
         if not self.isReferencePrepared():
+            print("Running Quality Control Check on Reference Data...")
             command = r'''QCofRef.sh {} {}'''.format(self.Reference,
                     self.Genome)
             subprocess.run(command,
@@ -625,7 +627,7 @@ class Experiment:
             Pre-Process Reference Data using blast, hisat2, and samtools
         '''
         if not self.isReferencePrepared():
-            print("Preprocessing Data...")
+            print("Preprocessing Reference Data...")
             ppLog = os.path.join(self.Reference, 'Preprocessing.log')
             Context = {
                     "cdna": self.Cdna,
@@ -1078,7 +1080,7 @@ wait
         numSamples = self.Numsamples
         # Don't want to oversubscribe computer with multiprocessing
         sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
-        experimentSamples = [FCountsSample(n, self.inputPath, maxCPU=sampCpuMax, blacklist=self.Blacklist)
+        experimentSamples = [FCountsSample(n, self.GlobalArgs)
                             for n in range(1,numSamples + 1)]
         return experimentSamples
 
@@ -1094,7 +1096,7 @@ wait
                 and subject > 0 
                 and subject <= self.Numsamples
                 ), 'Need an int argument as a subject to create'
-        experimentSample = FCountsSample(subject, self.inputPath, maxCPU=self.Procs, blacklist=self.Blacklist)
+        experimentSample = FCountsSample(subject, self.GlobalArgs)
         return experimentSample
 
     def fullFCStats(self):
@@ -1394,8 +1396,7 @@ wait
         numSamples = self.Numsamples
         # Don't want to oversubscribe computer with multiprocessing
         sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
-        experimentSamples = [StringtieSample(n, self.inputPath, maxCPU=sampCpuMax,
-                                             blacklist=self.Blacklist)
+        experimentSamples = [StringtieSample(n, self.GlobalArgs)
                             for n in range(1,numSamples + 1)]
         return experimentSamples
 
@@ -1411,8 +1412,7 @@ wait
                 and subject > 0 
                 and subject <= self.Numsamples
                 ), 'Need an int argument as a subject to create'
-        experimentSample = StringtieSample(subject, self.inputPath, maxCPU=self.Procs,
-                                           blacklist=self.Blacklist)
+        experimentSample = StringtieSample(subject, self.GlobalArgs)
         return experimentSample
 
     def fullH2Stats(self):
@@ -1895,8 +1895,7 @@ wait
         numSamples = self.Numsamples
         # Don't want to oversubscribe computer with multiprocessing
         sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
-        experimentSamples = [KallistoSample(n, self.inputPath, maxCPU=sampCpuMax,
-                                            blacklist=self.Blacklist)
+        experimentSamples = [KallistoSample(n, self.GlobalArgs)
                             for n in range(1,numSamples + 1)]
         return experimentSamples
 
@@ -1912,8 +1911,7 @@ wait
                 and subject > 0 
                 and subject <= self.Numsamples
                 ), 'Need an int argument as a subject to create'
-        experimentSample = KallistoSample(subject, self.inputPath, maxCPU=self.Procs,
-                                          blacklist=self.Blacklist)
+        experimentSample = KallistoSample(subject, self.GlobalArgs)
         return experimentSample
 
     ################################################################
@@ -2095,29 +2093,26 @@ class Sample:
     Inherits from Experiment Parent Class
     '''
 
-    def __init__(self,sampleNumber,inputFile, maxCPU=None, blacklist=None):
+    def __init__(self,sampleNumber,globalArgs):
         ''' Arguments:
                 sampleNumber = int; sample number used for naming
-                inputFile = str; path to inputFile
-                *maxCPU = int; maximum number of CPUs to be used
-                *blacklist = str; name of trimmomatic blacklist
+                globalArgs = dict; contains options from cli and manifest
             Returns:
                 None
 
             Initializes class variables from Parent class and also
             initializes some sample specific variables
         '''
-        Experiment.__init__(self,inputFile,blacklist=blacklist)
-        assert sampleNumber <= Experiment.Numsamples
-        assert sampleNumber > 0
+        Experiment.__init__(self,globalArgs)
+        assert sampleNumber <= Experiment.Numsamples and sampleNumber > 0
         self.sampleNumber = sampleNumber
         self.sampleName = 'sample_{}'.format(str(sampleNumber).zfill(2))
         self.samplePath = '{}/{}'.format(self.Data, self.sampleName)
         self.Read1 = self.getReadNames()[0]
         self.Read2 = self.getReadNames()[1]
         self.logPath = '{}/Runtime.{}.log'.format(self.samplePath, self.sampleName)
-        if maxCPU != None:
-            self.Procs = maxCPU
+        if globalArgs['--maxcpu'] != None:
+            self.Procs = globalArgs['--maxcpu']
 
     ########################################################
     # Utilities
@@ -2258,10 +2253,16 @@ class Sample:
                                             self.sampleName)
         if not os.path.exists(fastqcFolder):
             os.makedirs(fastqcFolder)
-        command1 = r'fastqc -t {0} -o {1} {2} {3}'.format(self.Procs,
-                                                            fastqcFolder,
-                                                            read1,
-                                                            read2)
+        command1 = r'''{fastqc} -t {-t} -o {-o} {other} {read1} {read2}'''
+        c1Context = {
+                "fastqc": "fastqc" if self.GlobalArgs['fcounts/runQCheck']['fastqc'] == None else self.GlobalArgs[EXECUTABLES]['fastqc'],
+                "-t": self.Procs if self.GlobalArgs['fcounts/runQCheck']['-t'] == None else self.GlobalArgs['fcounts/runQCheck']['-t'],
+                "-o": fastqcFolder if self.GlobalArgs['fcounts/runQCheck']['-o'] == None else self.GlobalArgs['fcounts/runQCheck']['-o'],
+                "other": '' if self.GlobalArgs['fcounts/runQCheck']['other'] == None else self.GlobalArgs['fcounts/runQCheck']['other'], 
+                "read1": read1 if self.GlobalArgs['fcounts/runQCheck']['read1'] == None else self.GlobalArgs['fcounts/runQCheck']['read1'], 
+                "read2": read2 if self.GlobalArgs['fcounts/runQCheck']['read2'] == None else self.GlobalArgs['fcounts/runQCheck']['read2']
+                }
+        command1.format(**c1Context)
         command2 = r'unzip \*.zip'.format(fastqcFolder)
         goodCommand1 = self.formatCommand(command1)
         goodCommand2 = self.formatCommand(command2)
@@ -2270,12 +2271,14 @@ class Sample:
         self.writeFunctionCommand(goodCommand1)
         subprocess.run(goodCommand1,
                             shell=True,
-                            check=True)
+                            check=True,
+                            executable='/bin/bash')
         os.chdir(fastqcFolder)
         self.writeFunctionCommand(goodCommand2)
         subprocess.run(goodCommand2,
                             shell=True,
-                            check=True)
+                            check=True,
+                            executable='/bin/bash')
 
     def getPhred(self):
         ''' Arguments:
@@ -2400,7 +2403,33 @@ class Sample:
         Reads = self.getReadNames()
         # Making Command
         command = r'java -jar $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar PE -threads {procs} -phred{phred} {Read1} {Read2} read1.P.trim.{fastq}.gz read1.U.trim.{fastq}.gz read2.P.trim.{fastq}.gz read2.U.trim.{fastq}.gz ILLUMINACLIP:{black}:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:5 MINLEN:35'
+
+                "fastqc": "fastqc" if self.GlobalArgs['fcounts/runQCheck']['fastqc'] == None else self.GlobalArgs[EXECUTABLES]['fastqc'],
+        command = (r'''{java} -jar {-jar} PE -threads {-threads}'''+
+            ''' -phred {-phred} {other} {read1} {read2} {read1pout} {read1uout}'''+
+            ''' {read2pout} {read2uout} ILLUMINACLIP:{blacklist}:2:30:10'''+
+            ''' LEADING:{LEADING} TRAILING:{TRAILING}'''+
+            ''' SLIDINGWINDOW:{SLIDINGWINDOW} MINLEN:{MINLEN}''')
+        #TODO Fix Context
         Context = {
+                "java"          : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
+                "-jar"          : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
+                "-threads"      : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
+                "-phred"        : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
+                "other"         : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
+                "read1"         : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
+                "read2"         : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
+                "read1pout"     : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
+                "read1uout"     : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
+                "read2pout"     : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
+                "read2uout"     : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
+                "blacklist"     : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
+                "ILLUMINACLIP"  : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
+                "LEADING"       : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
+                "TRAILING"      : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
+                "SLIDINGWINDOW" : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
+                "MINLEN"        : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
+
                 "procs": self.Procs,
                 "phred": Phred,
                 "Read1": read1,
@@ -2429,10 +2458,13 @@ class Sample:
         with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'w') as LOG:
             LOG.write('\t\tRuntime Log Part 1 for {}\n'.format(self.sampleName))
             LOG.write('----------------------------------------\n\n')
-        self.runQCheck(1, self.Read1, self.Read2)
-        self.runTrimmomatic(self.Read1, self.Read2)
-        self.runQCheck(2, 'read1.P.trim.{}.gz'.format(self.Fastq),
-                            'read2.P.trim.{}.gz'.format(self.Fastq))
+        if self.GlobalArgs['fcounts/main']['fcounts/runQCheck']:
+            self.runQCheck(1, self.Read1, self.Read2)
+        if self.GlobalArgs['fcounts/main']['fcounts/runTrimmomatic']:
+            self.runTrimmomatic(self.Read1, self.Read2)
+        if self.GlobalArgs['fcounts/main']['fcounts/runQCheck']:
+            self.runQCheck(2, 'read1.P.trim.{}.gz'.format(self.Fastq),
+                'read2.P.trim.{}.gz'.format(self.Fastq))
         self.writeFunctionTail('runPart1')
 
     ########################################################
@@ -2567,8 +2599,8 @@ class Sample:
 
 class FCountsSample(Sample):
 
-    def __init__(self,sampleNumber,inputFile,maxCPU=None,blacklist=None):
-        Sample.__init__(self, sampleNumber, inputFile, maxCPU=maxCPU, blacklist=blacklist)
+    def __init__(self,sampleNumber,globalArgs):
+        Sample.__init__(self, sampleNumber, globalArgs)
 
     def __repr__(self):
         ''' Arguments:
@@ -2775,8 +2807,8 @@ class FCountsSample(Sample):
     ########################################################
 class StringtieSample(Sample):
 
-    def __init__(self,sampleNumber,inputFile,maxCPU=None,blacklist=None):
-        Sample.__init__(self, sampleNumber, inputFile, maxCPU=maxCPU,blacklist=blacklist)
+    def __init__(self,sampleNumber,globalArgs):
+        Sample.__init__(self, sampleNumber, globalArgs)
 
     def __repr__(self):
         ''' Arguments:
@@ -3013,8 +3045,8 @@ class StringtieSample(Sample):
 
 class KallistoSample(Sample):
 
-    def __init__(self,sampleNumber,inputFile,maxCPU=None,blacklist=None):
-        Sample.__init__(self, sampleNumber, inputFile, maxCPU=maxCPU, blacklist=blacklist)
+    def __init__(self,sampleNumber,globalArgs):
+        Sample.__init__(self, sampleNumber, globalArgs)
 
     def __repr__(self):
         ''' Arguments:
