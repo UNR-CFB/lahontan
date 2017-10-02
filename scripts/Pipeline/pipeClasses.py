@@ -282,6 +282,24 @@ class Experiment:
     # Utilities
     ###############################################################
 
+    def checkMan(self, default, manifest):
+        """ Arguments:
+             default : 
+            manifest : 
+            Returns:
+                None
+        """
+        return default if manifest == None else manifest
+
+    def checkManBool(self, default, manifest):
+        """ Arguments:
+             default : 
+            manifest : 
+            Returns:
+                None
+        """
+        return default if manifest == None else ""
+
     def isStructurePrepared(self):
         ''' Arguments:
                 None
@@ -2253,14 +2271,15 @@ class Sample:
                                             self.sampleName)
         if not os.path.exists(fastqcFolder):
             os.makedirs(fastqcFolder)
+        localArgs = self.GlobalArgs['runQCheck']
         command1 = r'''{fastqc} -t {-t} -o {-o} {other} {read1} {read2}'''
         c1Context = {
-                "fastqc": "fastqc" if self.GlobalArgs['fcounts/runQCheck']['fastqc'] == None else self.GlobalArgs[EXECUTABLES]['fastqc'],
-                "-t": self.Procs if self.GlobalArgs['fcounts/runQCheck']['-t'] == None else self.GlobalArgs['fcounts/runQCheck']['-t'],
-                "-o": fastqcFolder if self.GlobalArgs['fcounts/runQCheck']['-o'] == None else self.GlobalArgs['fcounts/runQCheck']['-o'],
-                "other": '' if self.GlobalArgs['fcounts/runQCheck']['other'] == None else self.GlobalArgs['fcounts/runQCheck']['other'], 
-                "read1": read1 if self.GlobalArgs['fcounts/runQCheck']['read1'] == None else self.GlobalArgs['fcounts/runQCheck']['read1'], 
-                "read2": read2 if self.GlobalArgs['fcounts/runQCheck']['read2'] == None else self.GlobalArgs['fcounts/runQCheck']['read2']
+                "fastqc": self.checkMan("fastqc", localArgs['fastqc']),
+                "-t": self.checkMan(self.Procs, localArgs['-t']),
+                "-o": self.checkMan(fastqcFolder, localArgs['-o']),
+                "other": self.checkMan('', localArgs['other']),
+                "read1": self.checkMan(read1, localArgs['read1']),
+                "read2": self.checkMan(read2, localArgs['read2']),
                 }
         command1.format(**c1Context)
         command2 = r'unzip \*.zip'.format(fastqcFolder)
@@ -2401,41 +2420,49 @@ class Sample:
         os.chdir(self.samplePath)
         Phred = self.getPhred()
         Reads = self.getReadNames()
+        localArgs = self.GlobalArgs['runTrimmomatic']
         # Making Command
-        command = r'java -jar $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar PE -threads {procs} -phred{phred} {Read1} {Read2} read1.P.trim.{fastq}.gz read1.U.trim.{fastq}.gz read2.P.trim.{fastq}.gz read2.U.trim.{fastq}.gz ILLUMINACLIP:{black}:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:5 MINLEN:35'
+        #command = r'java -jar $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar PE -threads {procs} 
+        # -phred{phred} {Read1} {Read2} read1.P.trim.{fastq}.gz read1.U.trim.{fastq}.gz 
+        # read2.P.trim.{fastq}.gz read2.U.trim.{fastq}.gz 
+        # ILLUMINACLIP:{black}:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:5 MINLEN:35'
 
-                "fastqc": "fastqc" if self.GlobalArgs['fcounts/runQCheck']['fastqc'] == None else self.GlobalArgs[EXECUTABLES]['fastqc'],
         command = (r'''{java} -jar {-jar} PE -threads {-threads}'''+
-            ''' -phred {-phred} {other} {read1} {read2} {read1pout} {read1uout}'''+
-            ''' {read2pout} {read2uout} ILLUMINACLIP:{blacklist}:2:30:10'''+
+            ''' -phred{-phred} {other} {read1} {read2} {read1pout} {read1uout}'''+
+            ''' {read2pout} {read2uout} ILLUMINACLIP:{blacklist}:{ILLUMINACLIP}'''+
             ''' LEADING:{LEADING} TRAILING:{TRAILING}'''+
             ''' SLIDINGWINDOW:{SLIDINGWINDOW} MINLEN:{MINLEN}''')
-        #TODO Fix Context
         Context = {
-                "java"          : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
-                "-jar"          : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
-                "-threads"      : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
-                "-phred"        : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
-                "other"         : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
-                "read1"         : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
-                "read2"         : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
-                "read1pout"     : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
-                "read1uout"     : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
-                "read2pout"     : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
-                "read2uout"     : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
-                "blacklist"     : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
-                "ILLUMINACLIP"  : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
-                "LEADING"       : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
-                "TRAILING"      : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
-                "SLIDINGWINDOW" : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
-                "MINLEN"        : "java" if self.GlobalArgs['fcounts/runTrimmomatic']['java'] == None else self.GlobalArgs['fcounts/runTrimmomatic']['java'],
-
-                "procs": self.Procs,
-                "phred": Phred,
-                "Read1": read1,
-                "Read2": read2,
-                "fastq": self.Fastq,
-                "black": self.Blacklist
+                "java": self.checkMan("java", localArgs['java']),
+                "-jar": self.checkMan(
+                    "$RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar",
+                    localArgs['-jar']),
+                "-threads": self.checkMan(self.Procs, localArgs['-threads']),
+                "-phred": self.checkMan(Phred, localArgs['-phred']),
+                "other": self.checkMan("", localArgs['other']),
+                "read1": self.checkMan(read1, localArgs['java']),
+                "read2": self.checkMan(read2, localArgs['java']),
+                "read1pout": self.checkMan(
+                    "read1.P.trim.{}.gz".format(self.Fastq),
+                    localArgs['read1pout']),
+                "read1uout": self.checkMan(
+                    "read1.U.trim.{}.gz".format(self.Fastq),
+                    localArgs['read1uout']),
+                "read2pout": self.checkMan(
+                    "read2.P.trim.{}.gz".format(self.Fastq),
+                    localArgs['read2pout']),
+                "read2uout": self.checkMan(
+                    "read2.U.trim.{}.gz".format(self.Fastq),
+                    localArgs['read2uout']),
+                "blacklist": self.checkMan(self.Blacklist,
+                    localArgs['blacklist']),
+                "ILLUMINACLIP": self.checkMan("2:30:10",
+                    localArgs['ILLUMINACLIP']),
+                "LEADING": self.checkMan("5", localArgs['LEADING']),
+                "TRAILING": self.checkMan("5", localArgs['TRAILING']),
+                "SLIDINGWINDOW": self.checkMan("4:5",
+                    localArgs['SLIDINGWINDOW']),
+                "MINLEN": self.checkMan("35", localArgs['MINLEN']),
                 }
         commandWithContext = command.format(**Context)
         goodCommand = self.formatCommand(commandWithContext)
@@ -2444,7 +2471,8 @@ class Sample:
         self.writeFunctionCommand(goodCommand)
         subprocess.run(goodCommand,
                             shell=True,
-                            check=True)
+                            check=True,
+                            executable='/bin/bash')
 
     def runPart1(self):
         ''' Arguments:
@@ -2458,11 +2486,12 @@ class Sample:
         with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'w') as LOG:
             LOG.write('\t\tRuntime Log Part 1 for {}\n'.format(self.sampleName))
             LOG.write('----------------------------------------\n\n')
-        if self.GlobalArgs['fcounts/main']['fcounts/runQCheck']:
+        if self.GlobalArgs['fcounts/main']['runQCheck']:
             self.runQCheck(1, self.Read1, self.Read2)
-        if self.GlobalArgs['fcounts/main']['fcounts/runTrimmomatic']:
+        if self.GlobalArgs['fcounts/main']['runTrimmomatic']:
             self.runTrimmomatic(self.Read1, self.Read2)
-        if self.GlobalArgs['fcounts/main']['fcounts/runQCheck']:
+        if (self.GlobalArgs['fcounts/main']['runQCheck'] and 
+            self.GlobalArgs['fcounts/main']['runTrimmomatic']):
             self.runQCheck(2, 'read1.P.trim.{}.gz'.format(self.Fastq),
                 'read2.P.trim.{}.gz'.format(self.Fastq))
         self.writeFunctionTail('runPart1')
@@ -2480,23 +2509,44 @@ class Sample:
             Runs seqtk on reads from trimmomatic
         '''
         self.writeFunctionHeader('runSeqtk')
+        localArgs = self.GlobalArgs['runSeqtk']
         # Making Command
-        command1 = r'seqtk sample -s100 read1.P.trim.{0}.gz 10000 | seqtk seq -A - > sampled.read1.fa'.format(
-                                                    self.Fastq)
-        command2 = r'seqtk sample -s100 read2.P.trim.{0}.gz 10000 | seqtk seq -A - > sampled.read2.fa'.format(
-                                                    self.Fastq)
-        goodCommand1 = self.formatCommand(command1)
-        goodCommand2 = self.formatCommand(command2)
+        #command1 = r'seqtk sample -s100 read1.P.trim.{0}.gz 10000 |'+
+        #' seqtk seq -A - > sampled.read1.fa'.format(self.Fastq)
+        #command2 = r'seqtk sample -s100 read2.P.trim.{0}.gz 10000 |'+
+        #' seqtk seq -A - > sampled.read2.fa'.format(self.Fastq)
+        command1 = ("""{seqtk} sample -s{-s} {read1} {samples} |"""+
+                """ seqtk seq {-A} {other} - > {read1out}""")
+        command2 = ("""{seqtk} sample -s{-s} {read2} {samples} |"""+
+                """ seqtk seq {-A} {other} - > {read2out}""")
+        Context = {
+                "seqtk": self.checkMan("seqtk", localArgs['seqtk']),
+                "-s": self.checkMan("100", localArgs['-s']),
+                "read1": self.checkMan("read1.P.trim.{}.gz".format(self.Fastq),
+                    localArgs['read1']),
+                "read2": self.checkMan("read2.P.trim.{}.gz".format(self.Fastq),
+                    localArgs['read2']),
+                "samples": self.checkMan("10000", localArgs['samples']),
+                "-A": self.checkManBool("-A", localArgs['-A']),
+                "read1out": self.checkMan("sampled.read1.fa",
+                    localArgs['read1out']),
+                "read2out": self.checkMan("sampled.read2.fa",
+                    localArgs['read2out']),
+                }
+        goodCommand1 = self.formatCommand(command1.format(**Context))
+        goodCommand2 = self.formatCommand(command2.format(**Context))
         # Executing
         os.chdir(self.samplePath)
         self.writeFunctionCommand(goodCommand1)
         subprocess.run(goodCommand1,
                             shell=True,
-                            check=True)
+                            check=True,
+                            executable='/bin/bash')
         self.writeFunctionCommand(goodCommand2)
         subprocess.run(goodCommand2,
                             shell=True,
-                            check=True)
+                            check=True,
+                            executable='/bin/bash')
         self.writeFunctionTail('runSeqtk')
 
     def runBlastn(self):
@@ -2510,20 +2560,56 @@ class Sample:
         self.writeFunctionHeader('runBlastn')
         # Making Command
         db = os.path.join(self.Reference,'{}.cdna.all'.format(self.Basename))
-        command1 = r'blastn -query sampled.read1.fa -db {0} -out sampled.read1_vscdna.out -task blastn-short -outfmt "6 std sstrand" -max_target_seqs 1 -num_threads {1}'.format(db, self.Procs)
-        command2 = r'blastn -query sampled.read2.fa -db {0} -out sampled.read2_vscdna.out -task blastn-short -outfmt "6 std sstrand" -max_target_seqs 1 -num_threads {1}'.format(db, self.Procs)
-        goodCommand1 = self.formatCommand(command1)
-        goodCommand2 = self.formatCommand(command2)
+        localArgs = self.GlobalArgs['runBlastn']
+        #command1 = r'blastn -query sampled.read1.fa -db {0}
+        #-out sampled.read1_vscdna.out -task blastn-short
+        #-outfmt "6 std sstrand" -max_target_seqs 1 
+        #-num_threads {1}'.format(db, self.Procs)
+        #
+        #command2 = r'blastn -query sampled.read2.fa -db {0}
+        #-out sampled.read2_vscdna.out -task blastn-short
+        #-outfmt "6 std sstrand" -max_target_seqs 1
+        #-num_threads {1}'.format(db, self.Procs)
+        command1 = ('''{blastn} -query {read1} -db {-db} -out {out1}'''+
+                ''' -task {-task} -outfmt {-outfmt}'''+
+                ''' -max_target_seqs {-max_target_seqs}'''+
+                ''' -num_threads {-num_threads} {other}''')
+        command2 = ('''{blastn} -query {read2} -db {-db} -out {out2}'''+
+                ''' -task {-task} -outfmt {-outfmt}'''+
+                ''' -max_target_seqs {-max_target_seqs}'''+
+                ''' -num_threads {-num_threads} {other}''')
+        Context = {
+                "blastn": self.checkMan("blastn", localArgs['blastn']),
+                "read1": self.checkMan("sampled.read1.fa", localArgs['read1']),
+                "read2": self.checkMan("sampled.read2.fa", localArgs['read2']),
+                "-db": self.checkMan(db, localArgs['-db']),
+                "out1": self.checkMan("sampled.read1_vscdna.out",
+                    localArgs['out1']),
+                "out2": self.checkMan("sampled.read2_vscdna.out",
+                    localArgs['out2']),
+                "-task": self.checkMan("blastn-short", localArgs['-task']),
+                "-outfmt": self.checkMan('"6 std sstrand"',
+                    localArgs['-outfmt']),
+                "-max_target_seqs": self.checkMan("1",
+                    localArgs['-max_target_seqs']),
+                "-num_threads": self.checkMan(self.Procs,
+                    localArgs['-num_threads']),
+                "other": self.checkMan("", localArgs['other']),
+                }
+        goodCommand1 = self.formatCommand(command1.format(**Context))
+        goodCommand2 = self.formatCommand(command2.format(**Context))
         # Executing
         os.chdir(self.samplePath)
         self.writeFunctionCommand(goodCommand1)
         subprocess.run(goodCommand1,
                             shell=True,
-                            check=True)
+                            check=True,
+                            executable='/bin/bash')
         self.writeFunctionCommand(goodCommand2)
         subprocess.run(goodCommand2,
                             shell=True,
-                            check=True)
+                            check=True,
+                            executable='/bin/bash')
         self.writeFunctionTail('runBlastn')
 
     def findStranded(self):
@@ -2634,25 +2720,51 @@ class FCountsSample(Sample):
             FR = ' --rna-strandness FR'
         else:
             FR = ' --rna-strandness RF'
+        Phred = str(self.getPhred())
+        localArgs = self.GlobalArgs['fcounts/runHisat']
         # Making Command
-        command = r"""hisat2 -k 5 -p {numProcs}{FRoRF} --dta --phred{phred} --known-splicesite-infile {ref}/splice_sites.txt -x {ref}/{basename} -1 read1.P.trim.{fastq}.gz -2 read2.P.trim.{fastq}.gz -S aligned.{sample}.sam"""
-        Phred = self.getPhred()
-        context = {
-                "numProcs": self.Procs,
-                "phred": str(Phred),
-                "ref": self.Reference,
-                "basename": self.Basename,
-                "fastq": self.Fastq,
-                "sample": self.sampleName,
-                "FRoRF": FR
+        #command = r"""hisat2 -k 5 -p {numProcs}{FRoRF} --dta 
+        # --phred{phred} --known-splicesite-infile {ref}/splice_sites.txt
+        # -x {ref}/{basename} -1 read1.P.trim.{fastq}.gz 
+        # -2 read2.P.trim.{fastq}.gz -S aligned.{sample}.sam"""
+        command = ("""{hisat2} -k {-k} -p {-p} {--rna-strandedness}"""+
+            """ {--dta} --phred{phred} {other}"""+
+            """ --known-slicesite-infile {--known-splicesite-infile}"""+
+            """ -x {-x} -1 {-1} -2 {-2} -S {-S}""")
+        Context = {
+                "hisat2": self.checkMan("hisat2", localArgs['hisat2']),
+                "-k": self.checkMan("5", localArgs['-k']),
+                "-p": self.checkMan(self.Procs, localArgs['-p']),
+                "--rna-strandedness": (FR 
+                    if localArgs['--rna-strandedness'] == None
+                    else "--rna-strandedness "+localArgs['--rna-strandedness']),
+                "--dta": self.checkManBool("--dta", localArgs['--dta']),
+                "phred": self.checkMan(Phred, localArgs['phred']),
+                "other": self.checkMan("", localArgs['other']),
+                "--known-splicesite-infile": self.checkMan(
+                    "{}/splice_sites.txt".format(self.Reference),
+                    localArgs['--known-splicesite-infile']),
+                "-x": self.checkMan(
+                    "{}/{}".format(self.Reference, self.Basename),
+                    localArgs['-x']),
+                "-1": self.checkMan(
+                    "read1.P.trim.{}.gz".format(self.Fastq),
+                    localArgs['-1']),
+                "-2": self.checkMan(
+                    "read2.P.trim.{}.gz".format(self.Fastq),
+                    localArgs['-2']),
+                "-S": self.checkMan(
+                    "aligned.{}.sam".format(self.sampleName),
+                    localArgs['-S']),
                 }
-        goodCommand = self.formatCommand(command.format(**context))
+        goodCommand = self.formatCommand(command.format(**Context))
         # Executing
         self.writeFunctionCommand(goodCommand)
         os.chdir(self.samplePath)
         subprocess.run(goodCommand,
                             shell=True,
-                            check=True)
+                            check=True,
+                            executable=True)
         self.writeFunctionTail('runHisat')
 
     def runCompression(self):
@@ -2664,23 +2776,42 @@ class FCountsSample(Sample):
             Compresses output of hisat2 with samtools
         '''
         self.writeFunctionHeader('runCompression')
+        localArgs = self.GlobalArgs['fcounts/runCompression']
         # Making Command
-        command = r"samtools view -bT {ref}/{genome} -@{procs} aligned.{sample}.sam -o aligned.{sample}.bam"
-        context = {
-                "ref": self.Reference,
-                "genome": self.Genome,
-                "procs": self.Procs,
-                "sample": self.sampleName,
+        #command = r"samtools view -bT {ref}/{genome} -@{procs}
+        # aligned.{sample}.sam -o aligned.{sample}.bam"
+        command = ("""{samtools} view {-b} -T {-T} -@{-@} {other}"""+
+            """ {in} -o {-o}""")
+        Context = {
+                "samtools"  : self.checkMan("samtools",
+                    localArgs['samtools']),
+                "-b"        : self.checkManBool("-b",
+                    localArgs['-b']),
+                "-T"        : self.checkMan(
+                    "{}/{}".format(self.Reference, self.Genome),
+                    localArgs['-T']),
+                "-@"        : self.checkMan(self.Procs,
+                    localArgs['-@']),
+                "other"     : self.checkMan("",
+                    localArgs['other']),
+                "in"        : self.checkMan(
+                    "aligned.{}.sam".format(self.sampleName),
+                    localArgs['in']),
+                "-o"        : self.checkMan(
+                    "aligned.{}.bam".format(self.sampleName),
+                    localArgs['-o']),
                 }
-        goodCommand = self.formatCommand(command.format(**context))
+        goodCommand = self.formatCommand(command.format(**Context))
         # Executing
         os.chdir(self.samplePath)
         self.writeFunctionCommand(goodCommand)
         subprocess.run(goodCommand,
                             shell=True,
-                            check=True)
+                            check=True,
+                            executable='/bin/bash')
         os.chdir(self.samplePath)
-        os.remove('aligned.{}.sam'.format(self.sampleName))
+        os.remove(self.checkMan("aligned.{}.sam".format(self.sampleName),
+                    localArgs['in']))
         self.writeFunctionTail('runCompression')
 
     ########################################################
@@ -2696,23 +2827,54 @@ class FCountsSample(Sample):
             Collects counts from data with featureCounts
         '''
         self.writeFunctionHeader('runFeatureCounts')
-        strandedVar = self.findStranded()
+        strandedVar = str(self.findStranded())
+        localArgs = self.GlobalArgs['fcounts/runFeatureCounts']
         # Making Command
-        command = r"featureCounts -T {procs} -s {stranded} -p -C --primary --ignoreDup -t exon -g gene_id -a {ref}/{gtf} -o aligned.{sample}.counts aligned.{sample}.bam"
-        context = {
-                "procs": self.Procs,
-                "ref": self.Reference,
-                "gtf": self.Gtf,
-                "sample": self.sampleName,
-                "stranded": str(strandedVar)
+        #command = r"featureCounts -T {procs} -s {stranded} -p -C --primary
+        # --ignoreDup -t exon -g gene_id -a {ref}/{gtf} 
+        # -o aligned.{sample}.counts aligned.{sample}.bam"
+        command = ("""{featureCounts} -T {-T}"""+
+            """ -s {-s}{-p}{-C}{--primary}{--ignoreDup} -t {-t} -g {-g}"""+
+            """ -a {-a} {other} -o {-o} {in}""")
+        Context = {
+                "featureCounts" : self.checkMan("featureCounts",
+                                    localArgs['featureCounts']),
+                "-T"            : self.checkMan(self.Procs,
+                                    localArgs['-T']),
+                "-s"            : self.checkMan(strandedVar,
+                                    localArgs['-s']),
+                "-p"            : self.checkManBool(" -p",
+                                    localArgs['-p']),
+                "-C"            : self.checkManBool(" -C",
+                                    localArgs['-C']),
+                "--primary"     : self.checkManBool(" --primary",
+                                    localArgs['--primary']),
+                "--ignoreDup"   : self.checkManBool(" --ignoreDup",
+                                    localArgs['--ignoreDup']),
+                "-t"            : self.checkMan("exon",
+                                    localArgs['-t']),
+                "-g"            : self.checkMan("gene_id",
+                                    localArgs['-g']),
+                "-a"            : self.checkMan(
+                                    os.path.join(self.Reference, self.Gtf),
+                                    localArgs['-a']),
+                "-o"            : self.checkMan(
+                                    "aligned.{}.counts".format(self.sampleName),
+                                    localArgs['-o']),
+                "in"            : self.checkMan(
+                                    "aligned.{}.bam".format(self.sampleName),
+                                    localArgs['in']),
+                "other"         : self.checkMan("",
+                                    localArgs['other']),
                 }
-        goodCommand = self.formatCommand(command.format(**context))
+        goodCommand = self.formatCommand(command.format(**Context))
         # Executing
         os.chdir(self.samplePath)
         self.writeFunctionCommand(goodCommand)
         subprocess.run(goodCommand,
-                            shell=True,
-                            check=True)
+            shell=True,
+            check=True,
+            executable='/bin/bash')
         self.writeFunctionTail('runFeatureCounts')
 
     ########################################################
@@ -2778,13 +2940,20 @@ class FCountsSample(Sample):
         with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'a') as LOG:
             LOG.write('\t\tRuntime Log Part 2 for {}\n'.format(self.sampleName))
             LOG.write('----------------------------------------\n\n')
-        self.runSeqtk()
-        self.runBlastn()
-        self.runHisat()
-        self.runCompression()
-        self.runFeatureCounts()
-        self.getNiceColumns()
-        self.getAlignedColumn()
+        if self.GlobalArgs['fcounts/main']['runQCheck']:
+            self.runSeqtk()
+        if self.GlobalArgs['fcounts/main']['runBlastn']:
+            self.runBlastn()
+        if self.GlobalArgs['fcounts/main']['runHisat']:
+            self.runHisat()
+        if self.GlobalArgs['fcounts/main']['runCompression']:
+            self.runCompression()
+        if self.GlobalArgs['fcounts/main']['runFeatureCounts']:
+            self.runFeatureCounts()
+        if self.GlobalArgs['fcounts/main']['getNiceColumns']:
+            self.getNiceColumns()
+        if self.GlobalArgs['fcounts/main']['getAlignedColumn']:
+            self.getAlignedColumn()
         self.writeFunctionTail('runPart2')
         with open(self.Project + '/runPipeNotify/{}'.format('done'+self.sampleName), 'w') as N:
             N.write('{} is done'.format(self.samplePath))

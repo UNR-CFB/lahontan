@@ -923,6 +923,9 @@ Options:
 
 Note: Any options given on command-line will override those in
 input file'''
+    ############################################################
+    # Set-Up Config
+    ############################################################
     config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation(),
             dict_type=OD)
     config.optionxform = str
@@ -948,7 +951,10 @@ input file'''
             ('string', 'True' if arguments['--mode'] == 'string' else 'False'),
             ))
     RNASEQDIR = os.path.expandvars('$RNASEQDIR')
-    # GENERAL
+
+    ############################################################
+    # CLI-mutable args
+    ############################################################
     if arguments['--mode'] == 'fcounts':
         config['fcounts'] = OD((
                 ('--execute', 'A'),
@@ -988,7 +994,10 @@ input file'''
                 ('--makebatch', 'None'),
                 ('--batchjson', 'None'),
                 ))
-    # EXECUTABLES
+
+    ############################################################
+    # Executables
+    ############################################################
     config['EXECUTABLES'] = OD((
             ('Rscript', '/usr/local/bin/Rscript'),
             ('java', '/usr/bin/java'),
@@ -1014,81 +1023,17 @@ input file'''
     ############################################################
     if arguments['--mode'] == 'fcounts':
         config['fcounts/main'] = OD((
-                ('fcounts/runQCheck', 'True'),
-                ('fcounts/runTrimmomatic', 'True'),
-                ('fcounts/runSeqtk', 'True'),
-                ('fcounts/runBlastn', 'True'),
-                ('fcounts/runHisat', 'True'),
-                ('fcounts/runCompression', 'True'),
-                ('fcounts/runFeatureCounts', 'True'),
-                ('fcounts/getNiceColumns', 'True'),
-                ('fcounts/getAlignedColumn', 'True'),
+                ('runQCheck', 'True'),
+                ('runTrimmomatic', 'True'),
+                ('runSeqtk', 'True'),
+                ('runBlastn', 'True'),
+                ('runHisat', 'True'),
+                ('runCompression', 'True'),
+                ('runFeatureCounts', 'True'),
+                ('getNiceColumns', 'True'),
+                ('getAlignedColumn', 'True'),
                 ))
-        # fcounts/runQCheck
-        # fastqc -t {procs} -o {fastqfolder} {other} {read1} {read2}
-        config['fcounts/runQCheck'] = OD((
-                ('fastqc', '${EXECUTABLES:fastqc}'),
-                ('-t', 'None'),
-                ('-o', 'None'),
-                ('read1', 'None'),
-                ('read2', 'None'),
-                ('other', 'None'),
-                ))
-        # fcounts/runTrimmomatic
-        # java -jar $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar PE -threads {procs} -phred{phred} {other}\
-        #       {Read1} {Read2} \
-        #       read1.P.trim.{fastq}.gz read1.U.trim.{fastq}.gz \
-        #       read2.P.trim.{fastq}.gz read2.U.trim.{fastq}.gz \
-        #       ILLUMINACLIP:{blacklist}:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:5 MINLEN:35
-        config['fcounts/runTrimmomatic'] = OD((
-                ('java', '${EXECUTABLES:java}'),
-                ('-jar', 'None'),
-                ('-threads', 'None'),
-                ('-phred', 'None'),
-                ('read1', 'None'),
-                ('read2', 'None'),
-                ('read1pout', 'None'),
-                ('read2pout', 'None'),
-                ('read1uout', 'None'),
-                ('read2uout', 'None'),
-                ('blacklist', 'None'),
-                ('LEADING', 'None'),
-                ('TRAILING', 'None'),
-                ('SLIDINGWINDOW', 'None'),
-                ('MINLEN', 'None'),
-                ('other', 'None'),
-                ))
-        # fcounts/runSeqtk
-        # seqtk sample -s100 read1.P.trim.{0}.gz 10000 | seqtk seq -A {other} - > sampled.read1.fa
-        # seqtk sample -s100 read2.P.trim.{0}.gz 10000 | seqtk seq -A {other} - > sampled.read2.fa
-        config['fcounts/runSeqtk'] = OD((
-                ('seqtk', '${EXECUTABLES:seqtk}'),
-                ('-s', 'None'),
-                ('read1', 'None'),
-                ('read2', 'None'),
-                ('samples', 'None'),
-                ('-A', 'None'),
-                ('other', 'None'),
-                ))
-        # fcounts/runBlastn
-        # blastn -query sampled.read1.fa -db {0} -out sampled.read1_vscdna.out -task blastn-short \
-        #       -outfmt "6 std sstrand" -max_target_seqs 1 -num_threads {1} {other}
-        # blastn -query sampled.read2.fa -db {0} -out sampled.read2_vscdna.out -task blastn-short \
-        #       -outfmt "6 std sstrand" -max_target_seqs 1 -num_threads {1} {other}
-        config['fcounts/runBlastn'] = OD((
-                ('blastn', '${EXECUTABLES:blastn}'),
-                ('read1', 'None'),
-                ('read2', 'None'),
-                ('out1', 'None'),
-                ('out2', 'None'),
-                ('-db', 'None'),
-                ('-task', 'None'),
-                ('-outfmt', 'None'),
-                ('-max_target_seqs', 'None'),
-                ('num_threads', 'None'),
-                ('other', 'None'),
-                ))
-        # fcounts/runHisat
+        # fcounts/main/runHisat
         # hisat2 -k 5 -p {numProcs}{FRoRF} --dta --phred{phred} {other}\
         #       --known-splicesite-infile {ref}/splice_sites.txt -x {ref}/{basename} \
         #       -1 read1.P.trim.{fastq}.gz -2 read2.P.trim.{fastq}.gz -S aligned.{sample}.sam
@@ -1106,7 +1051,7 @@ input file'''
                 ('-S', 'None'),
                 ('other', 'None'),
                 ))
-        # fcounts/runCompression
+        # fcounts/main/runCompression
         # samtools view -bT {ref}/{genome} -@{procs} {other} aligned.{sample}.sam -o aligned.{sample}.bam
         config['fcounts/runCompression'] = OD((
                 ('samtools', '${EXECUTABLES:samtools}'),
@@ -1117,10 +1062,10 @@ input file'''
                 ('in', 'None'),
                 ('other', 'None'),
                 ))
-        # fcounts/runFeatureCounts
+        # fcounts/main/runFeatureCounts
         # featureCounts -T {procs} -s {stranded} -p -C --primary --ignoreDup -t exon -g gene_id \
         #       -a {ref}/{gtf} -o aligned.{sample}.counts {other} aligned.{sample}.bam
-        config['fcounts/runCompression'] = OD((
+        config['fcounts/runFeatureCounts'] = OD((
                 ('featureCounts', '${EXECUTABLES:featureCounts}'),
                 ('-T', 'None'),
                 ('-s', 'None'),
@@ -1141,82 +1086,18 @@ input file'''
     ############################################################
     elif arguments['--mode'] == 'string':
         config['string/main'] = OD((
-                ('string/runQCheck', 'True'),
-                ('string/runTrimmomatic', 'True'),
-                ('string/runSeqtk', 'True'),
-                ('string/runBlastn', 'True'),
-                ('string/runHisat', 'True'),
-                ('string/runAltCompression', 'True'),
-                ('string/assembleTranscripts', 'True'),
-                ('string/stringtieMerge', 'True'),
-                ('string/compareTranscripts', 'True'),
-                ('string/estimateTranscriptAbundances', 'True'),
+                ('runQCheck', 'True'),
+                ('runTrimmomatic', 'True'),
+                ('runSeqtk', 'True'),
+                ('runBlastn', 'True'),
+                ('runHisat', 'True'),
+                ('runAltCompression', 'True'),
+                ('assembleTranscripts', 'True'),
+                ('stringtieMerge', 'True'),
+                ('compareTranscripts', 'True'),
+                ('estimateTranscriptAbundances', 'True'),
                 ))
-        # string/runQCheck
-        # fastqc -t {procs} -o {fastqfolder} {other} {read1} {read2}
-        config['string/runQCheck'] = OD((
-                ('fastqc', '${EXECUTABLES:fastqc}'),
-                ('-t', 'None'),
-                ('-o', 'None'),
-                ('read1', 'None'),
-                ('read2', 'None'),
-                ('other', 'None'),
-                ))
-        # string/runTrimmomatic
-        # java -jar $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar PE -threads {procs} -phred{phred} \
-        #       {Read1} {Read2} \
-        #       read1.P.trim.{fastq}.gz read1.U.trim.{fastq}.gz \
-        #       read2.P.trim.{fastq}.gz read2.U.trim.{fastq}.gz \
-        #       ILLUMINACLIP:{blacklist}:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:5 MINLEN:35
-        config['string/runTrimmomatic'] = OD((
-                ('java', '${EXECUTABLES:java}'),
-                ('-jar', 'None'),
-                ('-threads', 'None'),
-                ('-phred', 'None'),
-                ('read1', 'None'),
-                ('read2', 'None'),
-                ('read1pout', 'None'),
-                ('read2pout', 'None'),
-                ('read1uout', 'None'),
-                ('read2uout', 'None'),
-                ('blacklist', 'None'),
-                ('LEADING', 'None'),
-                ('TRAILING', 'None'),
-                ('SLIDINGWINDOW', 'None'),
-                ('MINLEN', 'None'),
-                ('other', 'None'),
-                ))
-        # string/runSeqtk
-        # seqtk sample -s100 read1.P.trim.{0}.gz 10000 | seqtk seq -A {other} - > sampled.read1.fa
-        # seqtk sample -s100 read2.P.trim.{0}.gz 10000 | seqtk seq -A {other} - > sampled.read2.fa
-        config['string/runSeqtk'] = OD((
-                ('seqtk', '${EXECUTABLES:seqtk}'),
-                ('-s', 'None'),
-                ('read1', 'None'),
-                ('read2', 'None'),
-                ('samples', 'None'),
-                ('-A', 'None'),
-                ('other', 'None'),
-                ))
-        # string/runBlastn
-        # blastn -query sampled.read1.fa -db {0} -out sampled.read1_vscdna.out -task blastn-short \
-        #       -outfmt "6 std sstrand" -max_target_seqs 1 -num_threads {1} {other}
-        # blastn -query sampled.read2.fa -db {0} -out sampled.read2_vscdna.out -task blastn-short \
-        #       -outfmt "6 std sstrand" -max_target_seqs 1 -num_threads {1} {other}
-        config['string/runBlastn'] = OD((
-                ('blastn', '${EXECUTABLES:blastn}'),
-                ('read1', 'None'),
-                ('read2', 'None'),
-                ('out1', 'None'),
-                ('out2', 'None'),
-                ('-db', 'None'),
-                ('-task', 'None'),
-                ('-outfmt', 'None'),
-                ('-max_target_seqs', 'None'),
-                ('num_threads', 'None'),
-                ('other', 'None'),
-                ))
-        # string/runHisat
+        # string/main/runHisat
         # hisat2 -k 5 -p {numProcs}{FRoRF} --dta --phred{phred} {other}\
         #       --known-splicesite-infile {ref}/splice_sites.txt -x {ref}/{basename} \
         #       -1 read1.P.trim.{fastq}.gz -2 read2.P.trim.{fastq}.gz -S aligned.{sample}.sam
@@ -1234,7 +1115,7 @@ input file'''
                 ('-S', 'None'),
                 ('other', 'None'),
                 ))
-        # string/runAltCompression
+        # string/main/runAltCompression
         # samtools sort -@ {procs} -o aligned.{sample}.bam {other} aligned.{sample}.sam
         config['string/runAltCompression'] = OD((
                 ('samtools', '${EXECUTABLES:samtools}'),
@@ -1243,7 +1124,7 @@ input file'''
                 ('in', 'None'),
                 ('other', 'None'),
                 ))
-        # string/assembleTranscripts
+        # string/main/assembleTranscripts
         # stringtie -p {procs} -o {sample}.st.gtf -l {sample} {other} aligned.{sample}.bam
         config['string/assembleTranscripts'] = OD((
                 ('stringtie', '${EXECUTABLES:stringtie}'),
@@ -1253,7 +1134,7 @@ input file'''
                 ('in', 'None'),
                 ('other', 'None'),
                 ))
-        # string/stringtieMerge
+        # string/main/stringtieMerge
         # stringtie --merge -p {procs} -o {mergedir}/{projectname}.stmerged.gtf {other} {mergelist}
         config['string/makeStringtieMergelist'] = OD((
                 ('stringtie', '${EXECUTABLES:stringtie}'),
@@ -1262,7 +1143,7 @@ input file'''
                 ('in', 'None'),
                 ('other', 'None'),
                 ))
-        # string/compareTranscripts
+        # string/main/compareTranscripts
         # gffcompare -r {ref}/{gtf} -G -o {projectname}.merged {other} {stmerged}
         config['string/compareTranscripts'] = OD((
                 ('gffcompare', '${EXECUTABLES:gffcompare}'),
@@ -1272,7 +1153,7 @@ input file'''
                 ('in', 'None'),
                 ('other', 'None'),
                 ))
-        # string/estimateTranscriptAbundances
+        # string/main/estimateTranscriptAbundances
         # stringtie -e -B -p {procs} -G {stmerged} -o {sample}.good.st.gtf {other} aligned.{sample}.bam
         config['string/estimateTranscriptAbundances'] = OD((
                 ('stringtie', '${EXECUTABLES:stringtie}'),
@@ -1290,77 +1171,13 @@ input file'''
     ############################################################
     elif arguments['--mode'] == 'kall':
         config['kall/main'] = OD((
-                ('kall/runQCheck', 'True'),
-                ('kall/runTrimmomatic', 'True'),
-                ('kall/runSeqtk', 'True'),
-                ('kall/runBlastn', 'True'),
-                ('kall/runKallisto', 'True'),
+                ('runQCheck', 'True'),
+                ('runTrimmomatic', 'True'),
+                ('runSeqtk', 'True'),
+                ('runBlastn', 'True'),
+                ('runKallisto', 'True'),
                 ))
-        # kall/runQCheck
-        # fastqc -t {procs} -o {fastqfolder} {other} {read1} {read2}
-        config['kall/runQCheck'] = OD((
-                ('fastqc', '${EXECUTABLES:fastqc}'),
-                ('-t', 'None'),
-                ('-o', 'None'),
-                ('read1', 'None'),
-                ('read2', 'None'),
-                ('other', 'None'),
-                ))
-        # kall/runTrimmomatic
-        # java -jar $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar PE -threads {procs} -phred{phred} \
-        #       {Read1} {Read2} \
-        #       read1.P.trim.{fastq}.gz read1.U.trim.{fastq}.gz \
-        #       read2.P.trim.{fastq}.gz read2.U.trim.{fastq}.gz \
-        #       ILLUMINACLIP:{blacklist}:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:5 MINLEN:35
-        config['kall/runTrimmomatic'] = OD((
-                ('java', '${EXECUTABLES:java}'),
-                ('-jar', 'None'),
-                ('-threads', 'None'),
-                ('-phred', 'None'),
-                ('read1', 'None'),
-                ('read2', 'None'),
-                ('read1pout', 'None'),
-                ('read2pout', 'None'),
-                ('read1uout', 'None'),
-                ('read2uout', 'None'),
-                ('blacklist', 'None'),
-                ('LEADING', 'None'),
-                ('TRAILING', 'None'),
-                ('SLIDINGWINDOW', 'None'),
-                ('MINLEN', 'None'),
-                ('other', 'None'),
-                ))
-        # kall/runSeqtk
-        # seqtk sample -s100 read1.P.trim.{0}.gz 10000 | seqtk seq -A {other} - > sampled.read1.fa
-        # seqtk sample -s100 read2.P.trim.{0}.gz 10000 | seqtk seq -A {other} - > sampled.read2.fa
-        config['kall/runSeqtk'] = OD((
-                ('seqtk', '${EXECUTABLES:seqtk}'),
-                ('-s', 'None'),
-                ('read1', 'None'),
-                ('read2', 'None'),
-                ('samples', 'None'),
-                ('-A', 'None'),
-                ('other', 'None'),
-                ))
-        # kall/runBlastn
-        # blastn -query sampled.read1.fa -db {0} -out sampled.read1_vscdna.out -task blastn-short \
-        #       -outfmt "6 std sstrand" -max_target_seqs 1 -num_threads {1} {other}
-        # blastn -query sampled.read2.fa -db {0} -out sampled.read2_vscdna.out -task blastn-short \
-        #       -outfmt "6 std sstrand" -max_target_seqs 1 -num_threads {1} {other}
-        config['kall/runBlastn'] = OD((
-                ('blastn', '${EXECUTABLES:blastn}'),
-                ('read1', 'None'),
-                ('read2', 'None'),
-                ('out1', 'None'),
-                ('out2', 'None'),
-                ('-db', 'None'),
-                ('-task', 'None'),
-                ('-outfmt', 'None'),
-                ('-max_target_seqs', 'None'),
-                ('num_threads', 'None'),
-                ('other', 'None'),
-                ))
-        # kall/runKallisto
+        # kall/main/runKallisto
         # kallisto quant -i {transcriptindex} -o {outputdir} --threads {procs}{FRoRF} -b 100 \
         #       <( zcat read1.P.trim.{fastq}.gz ) <( zcat read2.P.trim.{fastq}.gz )
         config['kall/runKallisto'] = OD((
@@ -1374,6 +1191,77 @@ input file'''
                 ('read2', 'None'),
                 ('other', 'None'),
                 ))
+
+    ############################################################
+    # General Utilities
+    ############################################################
+    # runQCheck
+    # fastqc -t {procs} -o {fastqfolder} {other} {read1} {read2}
+    config['runQCheck'] = OD((
+            ('fastqc', '${EXECUTABLES:fastqc}'),
+            ('-t', 'None'),
+            ('-o', 'None'),
+            ('read1', 'None'),
+            ('read2', 'None'),
+            ('other', 'None'),
+            ))
+    # runTrimmomatic
+    # java -jar $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar PE -threads {procs} -phred{phred} {other}\
+    #       {Read1} {Read2} \
+    #       read1.P.trim.{fastq}.gz read1.U.trim.{fastq}.gz \
+    #       read2.P.trim.{fastq}.gz read2.U.trim.{fastq}.gz \
+    #       ILLUMINACLIP:{blacklist}:2:30:10 LEADING:5 TRAILING:5 SLIDINGWINDOW:4:5 MINLEN:35
+    config['runTrimmomatic'] = OD((
+            ('java', '${EXECUTABLES:java}'),
+            ('-jar', 'None'),
+            ('-threads', 'None'),
+            ('-phred', 'None'),
+            ('read1', 'None'),
+            ('read2', 'None'),
+            ('read1pout', 'None'),
+            ('read2pout', 'None'),
+            ('read1uout', 'None'),
+            ('read2uout', 'None'),
+            ('blacklist', 'None'),
+            ('ILLUMINACLIP', 'None'),
+            ('LEADING', 'None'),
+            ('TRAILING', 'None'),
+            ('SLIDINGWINDOW', 'None'),
+            ('MINLEN', 'None'),
+            ('other', 'None'),
+            ))
+    # runSeqtk
+    # seqtk sample -s100 read1.P.trim.{0}.gz 10000 | seqtk seq -A {other} - > sampled.read1.fa
+    # seqtk sample -s100 read2.P.trim.{0}.gz 10000 | seqtk seq -A {other} - > sampled.read2.fa
+    config['runSeqtk'] = OD((
+            ('seqtk', '${EXECUTABLES:seqtk}'),
+            ('-s', 'None'),
+            ('read1', 'None'),
+            ('read2', 'None'),
+            ('read1out', 'None'),
+            ('read2out', 'None'),
+            ('samples', 'None'),
+            ('-A', 'None'),
+            ('other', 'None'),
+            ))
+    # runBlastn
+    # blastn -query sampled.read1.fa -db {0} -out sampled.read1_vscdna.out -task blastn-short \
+    #       -outfmt "6 std sstrand" -max_target_seqs 1 -num_threads {1} {other}
+    # blastn -query sampled.read2.fa -db {0} -out sampled.read2_vscdna.out -task blastn-short \
+    #       -outfmt "6 std sstrand" -max_target_seqs 1 -num_threads {1} {other}
+    config['runBlastn'] = OD((
+            ('blastn', '${EXECUTABLES:blastn}'),
+            ('read1', 'None'),
+            ('read2', 'None'),
+            ('out1', 'None'),
+            ('out2', 'None'),
+            ('-db', 'None'),
+            ('-task', 'None'),
+            ('-outfmt', 'None'),
+            ('-max_target_seqs', 'None'),
+            ('-num_threads', 'None'),
+            ('other', 'None'),
+            ))
 
     ############################################################
     with open(arguments['--filename'], 'w') as configfile:
@@ -1407,8 +1295,73 @@ def moreHelp(arguments):
     except IndexError:
         raise SystemExit(__doc__)
     if helpCommand == 'fcounts':
-        print('''This is featureCounts information #TODO''')
-        raise SystemExit(featureCounts.__doc__)
+        print(featureCounts.__doc__)
+        print(
+"""\n################################################################
+                    fcounts Information
+################################################################
+
+The fcounts API consists of the FCountsExperiment and
+FCountsSample classes located in pipeClasses.py. There are also
+methods and attributes that are inherited from the Experiment
+and Sample Class. Execution of an experiment consists of
+executing the 5 runStage methods of an FCountsExperiment. These
+stages are:
+            1: Creating Project Structure
+            2: Preparing Reference Data
+            3: Running actual Pipeline
+            4: Preparing for R analysis
+            5: Running R analysis
+
+Within the runStage1() method, there are two functions:
+            1: makeStructure()
+            2: makeSyms()
+
+Function 1: Experiment.makeStructure():
+    Action: Calls the makeStructure.sh shell script which takes
+    as its arguments the path to the project and the number of
+    samples
+    Result: After execution, all the main directories of the
+    project should be included -> Project, Data, Original,
+    Postprocessing, Reference, and each of the sample
+    directories
+
+Function 2: Experiment.makeSyms():
+    Action: Calls the makeSyms.sh shell script which takes as
+    its arguments the path to the project, the path to the
+    original data, and the path to the reference data
+    Result: The original data files will have symbolic links 
+    in their respective sample directories; if there is a
+    metadata file specified by the '--jsonfile' option, it
+    will be linked in the Postprocessing directory; if the
+    reference data has been prepared and specified by the
+    '--use-reference' option, the entire reference directory
+    will be linked in the Reference directoy, otherwise, just
+    the 3 necessary reference files will be linked -> Gtf, Cdna,
+    and Genome
+
+Within the runStage2() method, there are two functions:
+            1: qcRef()
+            2: ppRef()
+
+Function 1: Experiment.qcRef()
+    Action:
+    Result:
+
+Function 2: Experiment.ppRef()
+    Action:
+    Result:
+
+Within the runStage3() method, there is one function:
+            1: GO()
+
+Function 1: FCountsExperiment.GO()
+    Action:
+    Result:
+
+Further Stage 3 information:
+""")
+        raise SystemExit()
     elif helpCommand == 'string':
         print('''This is stringtie information #TODO''')
         raise SystemExit(stringtie.__doc__)
