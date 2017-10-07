@@ -23,6 +23,7 @@ import makeJSON
 import makeCols
 import makeReportr
 import makeEdgeReport
+from datetime import datetime
 
 ################################################################
 # Utilities
@@ -177,6 +178,14 @@ def checkJSON(jsonFile, behavior='default'):
         except ValueError as e:
             raise SystemExit("Need --json argument with valid JSON file: {}".format(e))
 
+def now():
+    """ Arguments:
+            None
+        Returns:
+            str; current date and time
+    """
+    return datetime.now()
+    
 def funTime(function):
     ''' Arguments:
             function = str; name of function
@@ -186,12 +195,12 @@ def funTime(function):
         Wrapper to time a function and write into RUNTIMELOG
     '''
     def wrapper(*args):
-        t1 = timer()
+        t1 = now()
         stuff = function(*args)
-        t2 = timer()
+        t2 = now()
         with open(RUNTIMELOG, 'a') as R:
-            R.write('{} function took {:.3f} seconds\n'.format(
-                                    function.__name__, t2 - t1))
+            R.write('{} # {:^30} # {} # {}\n'.format(
+                t1, function.__name__, t2, t2 - t1))
         return stuff
     return wrapper
 
@@ -204,7 +213,8 @@ def makeTimeFile(logPath):
         Initializes log file
     '''
     with open(logPath, 'w') as R:
-        R.write('runPipe Runtime File\n-----------------------------------------\n\n')
+        R.write('{:^64}\n'.format('runPipe Runtime File'))
+        R.write('='*64+'\n\n')
 
 def unwrap_self_runSample_fc(arg, **kwarg):
     ''' Magic for multiprocessing
@@ -281,24 +291,6 @@ class Experiment:
     ###############################################################
     # Utilities
     ###############################################################
-
-    def checkMan(self, default, manifest):
-        """ Arguments:
-             default : 
-            manifest : 
-            Returns:
-                None
-        """
-        return default if manifest == None else manifest
-
-    def checkManBool(self, default, manifest):
-        """ Arguments:
-             default : 
-            manifest : 
-            Returns:
-                None
-        """
-        return default if manifest == None else ""
 
     def isStructurePrepared(self):
         ''' Arguments:
@@ -580,15 +572,14 @@ class Experiment:
 
             Calls makeStructure.sh to make Directory Structure
         '''
-        if not self.isStructurePrepared():
-            print("Creating Structure...")
-            command = r'''makeStructure.sh {} {}'''.format(self.Project,
-                    self.Numsamples)
-            subprocess.run(command,
-                shell=True,
-                check=True,
-                executable="/bin/bash")
-            makeTimeFile(RUNTIMELOG)
+        print("Creating Structure...")
+        command = r'''makeStructure.sh {} {}'''.format(self.Project,
+                self.Numsamples)
+        subprocess.run(command,
+            shell=True,
+            check=True,
+            executable="/bin/bash")
+        makeTimeFile(RUNTIMELOG)
 
     @funTime
     def makeSyms(self):
@@ -600,16 +591,15 @@ class Experiment:
             Calls makeSyms.sh to make Symbolic Links for
             Original Data, Reference Data; and Metadata if available
         '''
-        if not self.isStructurePrepared():
-            command = r'''makeSyms.sh {} {} {} {}'''.format(self.Project,
-                    self.ogOriginal, self.ogReference,
-                    'false' if JSFI == None else JSFI)
-            subprocess.run(command,
-                shell=True,
-                check=True,
-                executable="/bin/bash")
-            with open(os.path.join(self.Project,'.init'), 'w') as F:
-                F.write('S')
+        command = r'''makeSyms.sh {} {} {} {}'''.format(self.Project,
+                self.ogOriginal, self.ogReference,
+                'false' if JSFI == None else JSFI)
+        subprocess.run(command,
+            shell=True,
+            check=True,
+            executable="/bin/bash")
+        with open(os.path.join(self.Project,'.init'), 'w') as F:
+            F.write('S')
 
     @funTime
     def qcRef(self):
@@ -743,8 +733,12 @@ class Experiment:
     ################################################################
     @funTime
     def runStage1(self):
-        self.makeStructure()
-        self.makeSyms()
+        if not self.isStructurePrepared():
+            self.makeStructure()
+            self.makeSyms()
+        else:
+            with open(os.path.join(self.Project,'.init'), 'w') as F:
+                F.write('S')
 
     @funTime
     def runAll(self):
@@ -1027,7 +1021,7 @@ wait
             that describes Experiment. Uses Metadata JSON file for this
         '''
         os.chdir(self.Postprocessing)
-        makeCols.makeCols(makeCols.readJSON('Metadata.json'), 'Cols.dat')
+        makeCols.makeCols(makeCols.readJSON(JSFI), 'Cols.dat')
 
     def createRProgram(self):
         ''' Arguments:
@@ -1038,12 +1032,11 @@ wait
             Calls makeReportr.createRscript and makeEdgeReport.createEdgeR()
             to make DESeq2 R analysis program and edgeR analysis program
         '''
-        makeReportr.createRscript(makeCols.readJSON('Metadata.json'),
+        makeReportr.createRscript(makeCols.readJSON(JSFI),
                 'makeReport.r')
-        makeEdgeReport.createEdgeR(makeCols.readJSON('Metadata.json'),
+        makeEdgeReport.createEdgeR(makeCols.readJSON(JSFI),
                 'makeEdge.r')
 
-    @funTime
     def runRProgram(self):
         ''' Arguments:
                 None
@@ -1066,7 +1059,7 @@ wait
 
             Runs DESeq2
         '''
-        deseqCommand = r'''{ time Rscript "makeReport.r"; } > makeEdgeTime.log 2>&1'''
+        deseqCommand = r'''{ time Rscript "makeReport.r"; } > makeDESeq2Time.log 2>&1'''
         subprocess.run(deseqCommand,
             shell=True,
             check=True,
@@ -1081,7 +1074,7 @@ wait
 
             Runs edgeR
         '''
-        edgeCommand = r'''{ time Rscript "makeEdge.r"; } > makeEdgeTime.log 2>&1'''
+        edgeCommand = r'''{ time Rscript "makeEdge.r"; } > makeEdgeRTime.log 2>&1'''
         subprocess.run(edgeCommand,
             shell=True,
             check=True,
@@ -1188,25 +1181,32 @@ wait
     # Stage Run Functions
     ################################################################
 
+    @funTime
     def runStage2(self):
         if not IS_REFERENCE_PREPARED:
             self.qcRef()
             self.ppRef()
         else:
-            with open(os.path.join(self.Project, '.init'), 'a') as F:
-                F.write('P')
+            with open(os.path.join(self.Project, '.init'), 'r') as F:
+                stuff = F.readlines()[0]
+            if 'P' not in stuff:
+                with open(os.path.join(self.Project, '.init'), 'a') as F:
+                    F.write('P')
 
+    @funTime
     def runStage3(self):
         print("Pipeline is running...")
         self.makeNotifyFolder()
         self.GO()
         self.findPipeFinish()
 
+    @funTime
     def executeSample(self, number):
         self.makeNotifyFolder2() #TODO Fix makeNotifyFolder1 vs 2
         print("Pipeline is running for sample_{} on {}...".format(number,os.uname()[1]))
         self.GO(int(number))
 
+    @funTime
     def runStage4(self):
         while True:
             if self.is3Finished() or self.checkEach():
@@ -1230,6 +1230,7 @@ wait
             else:
                 time.sleep(1)
 
+    @funTime
     def runStage5(self):
         self.runRProgram()
 
@@ -2122,7 +2123,7 @@ class Sample:
             initializes some sample specific variables
         '''
         Experiment.__init__(self,globalArgs)
-        assert sampleNumber <= Experiment.Numsamples and sampleNumber > 0
+        assert sampleNumber <= self.Numsamples and sampleNumber > 0
         self.sampleNumber = sampleNumber
         self.sampleName = 'sample_{}'.format(str(sampleNumber).zfill(2))
         self.samplePath = '{}/{}'.format(self.Data, self.sampleName)
@@ -2190,7 +2191,8 @@ class Sample:
 
             Writes to sample log a string(message)
         '''
-        with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'a') as LOG:
+        with open(os.path.join(self.samplePath,
+            'Runtime.{}.log'.format(self.sampleName)), 'a') as LOG:
             LOG.write(message)
 
     def writeFunctionHeader(self, function):
@@ -2202,7 +2204,8 @@ class Sample:
             Calls self.writeToLog with name of function
             Used to identify specific function output and times
         '''
-        self.writeToLog('\n{} started\n\n'.format(function))
+        self.writeToLog('-'*64 + '\n')
+        self.writeToLog('{:20} started at {}\n\n'.format(function, now()))
 
     def writeFunctionTail(self, function):
         ''' Arguments:
@@ -2213,7 +2216,8 @@ class Sample:
             Calls self.writeToLog with name of function
             Used to identify specific function output and times
         '''
-        self.writeToLog('\n{} done\n\n'.format(function))
+        self.writeToLog('\n{:20} finished at {}\n'.format(function, now()))
+        self.writeToLog('-'*64 + '\n\n')
 
     def writeFunctionCommand(self, command):
         ''' Arguments:
@@ -2224,7 +2228,7 @@ class Sample:
             Calls self.writeToLog with name of function
             Used to identify specific function output and times
         '''
-        self.writeToLog('\nCommand Used:\n{}\n'.format(command))
+        self.writeToLog('\n{:20} started at {}\n{}\n'.format('Subcommand', now(),command))
 
     def initializeLog(self):
         ''' Arguments:
@@ -2252,6 +2256,24 @@ class Sample:
             return True
         return False
 
+    def checkMan(self, default, manifest):
+        """ Arguments:
+             default : 
+            manifest : 
+            Returns:
+                None
+        """
+        return default if manifest == None else manifest
+
+    def checkManBool(self, default, manifest):
+        """ Arguments:
+             default : 
+            manifest : 
+            Returns:
+                None
+        """
+        return default if manifest == None else ""
+
     ########################################################
     # Quality Control
     ########################################################
@@ -2269,7 +2291,7 @@ class Sample:
         fastqcFolder = '{}/fastqc{}.{}'.format(self.samplePath,
                                             int(runNumber),
                                             self.sampleName)
-        if not os.path.exists(fastqcFolder):
+        if not os.path.isdir(fastqcFolder):
             os.makedirs(fastqcFolder)
         localArgs = self.GlobalArgs['runQCheck']
         command1 = r'''{fastqc} -t {-t} -o {-o} {other} {read1} {read2}'''
@@ -2281,8 +2303,8 @@ class Sample:
                 "read1": self.checkMan(read1, localArgs['read1']),
                 "read2": self.checkMan(read2, localArgs['read2']),
                 }
-        command1.format(**c1Context)
-        command2 = r'unzip \*.zip'.format(fastqcFolder)
+        command1 = command1.format(**c1Context)
+        command2 = r'echo "A" | unzip \*.zip'.format(fastqcFolder)
         goodCommand1 = self.formatCommand(command1)
         goodCommand2 = self.formatCommand(command2)
         # Executing Commands
@@ -2307,13 +2329,14 @@ class Sample:
 
             Scrapes Phred Version Number from fastqc output
         '''
-        fastqcFolder = '{}/fastqc1.{}'.format(self.samplePath, self.sampleName)
-        os.chdir(glob.glob('{}/*/'.format(fastqcFolder))[0])
+        fastqcFolder = os.path.join(self.samplePath,
+            'fastqc1.{}'.format(self.sampleName))
+        os.chdir(glob.glob(os.path.join(fastqcFolder, '*/'))[0])
         command = r"grep -E 'Encoding' fastqc_data.txt | sed 's/[^0-9.]*//g'"
         proc = subprocess.Popen(command,
-                                    shell=True,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT)
+            shell=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT)
         illumVN = float(proc.communicate()[0])
         phred = 33
         if illumVN >= 1.3 and illumVN < 1.8:
@@ -2331,15 +2354,19 @@ class Sample:
             Scrapes Overrepresented Sequences from Fastqc output
             and writes to a file in sample fastqc directory
         '''
-        fastqcFolder = '{}/fastqc{}.{}'.format(self.samplePath, runNumber, self.sampleName)
+        fastqcFolder = '{}/fastqc{}.{}'.format(self.samplePath,
+            runNumber, self.sampleName)
         os.chdir(fastqcFolder)
         availableDirs = glob.glob('{}/*/'.format(fastqcFolder))
         for directory in availableDirs:
             os.chdir(directory)
-            command = r"awk '/Overrepresented sequences/,/>>END_MODULE/' fastqc_data.txt | tail -n +2 | head -n -1 > Overrepresented_sequences.txt"
+            command = (r"awk '/Overrepresented sequences/,/>>END_MODULE/'"+
+                " fastqc_data.txt | tail -n +2 | head -n -1 >"+
+                " Overrepresented_sequences.txt")
             subprocess.run(command,
-                            shell=True,
-                            check=True)
+                shell=True,
+                check=True,
+                executable='/bin/bash')
             with open('Overrepresented_sequences.txt','r') as Over:
                 G = Over.readlines()
             if len(G) != 0:
@@ -2347,8 +2374,9 @@ class Sample:
             else:
                 thing = 'no'
             with open(self.logPath,'a') as LOG:
-                LOG.write('There are {} overrepresented sequence in {}'.format(thing,
-                            str('{}/{}'.format(fastqcFolder, directory))))
+                LOG.write('There are'+
+                    ' {} overrepresented sequence in {}\n'.format(
+                        thing,directory))
 
     def initOverrepLog(self, runNumber):
         ''' Arguments:
@@ -2358,12 +2386,12 @@ class Sample:
 
             Initializes Log for Overepresented Sequences
         '''
-        with open('{}/Sample{}Run{}-OverrepSeq.txt'.format(self.samplePath,
-                                                            self.sampleNumber,
-                                                            runNumber), 'w') as Log:
-            Log.write('Overrepresented Sequences for {} and fastqc number {}\n'.format(
-                                                    self.sampleName,runNumber))
-            Log.write('-------------------------------------------------------------\n\n')
+        sampleLog = os.path.join(self.samplePath,
+            "Sample{}Run{}-OverrepSeq.txt".format(self.sampleNumber, runNumber))
+        with open(sampleLog, 'w') as Log:
+            Log.write('Overrepresented Sequences for'+
+                ' {} and fastqc number {}\n'.format(self.sampleName,runNumber))
+            Log.write('-'*60 + '\n\n')
 
     def gatherOverrep(self, runNumber):
         ''' Arguments:
@@ -2371,27 +2399,27 @@ class Sample:
             Returns:
                 None
 
-            Collects Overrepresented sequences together into a specific sample file
+            Collects Overrepresented sequences together into a
+            specific sample file
         '''
-        QCs = glob.glob(self.samplePath + '/fastqc*')
+        QCs = glob.glob(os.path.join(self.samplePath, 'fastqc*'))
         goodQC = [qc for qc in QCs if 'fastqc{}'.format(runNumber) in qc]
+        sampleLog = os.path.join(self.samplePath,
+            "Sample{}Run{}-OverrepSeq.txt".format(self.sampleNumber, runNumber))
+        self.initOverrepLog(runNumber)
         if len(goodQC) != 1:
-            with open('{}/Sample{}Run{}-OverrepSeq.txt'.format(self.samplePath,
-                                                                self.sampleNumber,
-                                                                runNumber), 'a') as Log:
-                Log.write('Error: Unable to gather Overrepresented Sequences for {}\n'.format(
-                            self.sampleName))
+            with open(sampleLog,'a') as Log:
+                Log.write('Error: Unable to gather Overrepresented Sequences'+
+                        ' for {}\n'.format(self.sampleName))
         else:
-            unzipped = glob.glob(goodQC[0] + '/*/')
+            unzipped = glob.glob(os.path.join(goodQC[0], '*/'))
             for unzip in unzipped:
-                Overrep = glob.glob(unzip + '/Overrep*')
+                Overrep = glob.glob(os.path.join(unzip, 'Overrep*'))
                 header = '-'.join(unzip.split('/')[-3:-1])
-                with open('{}/Sample{}Run{}-OverrepSeq.txt'.format(self.samplePath,
-                                                                    self.sampleNumber,
-                                                                    runNumber), 'a') as Log:
+                with open(sampleLog,'a') as Log:
                     Log.write('\n' + header + '\n')
-                    with open(Overrep[0],'r') as O:
-                        contents = O.read()
+                    with open(Overrep[0],'r') as OverrepFile:
+                        contents = OverrepFile.read()
                     Log.write(contents + '\n')
 
     def runQCheck(self, runNumber, read1, read2):
@@ -2440,8 +2468,8 @@ class Sample:
                 "-threads": self.checkMan(self.Procs, localArgs['-threads']),
                 "-phred": self.checkMan(Phred, localArgs['-phred']),
                 "other": self.checkMan("", localArgs['other']),
-                "read1": self.checkMan(read1, localArgs['java']),
-                "read2": self.checkMan(read2, localArgs['java']),
+                "read1": self.checkMan(read1, localArgs['read1']),
+                "read2": self.checkMan(read2, localArgs['read2']),
                 "read1pout": self.checkMan(
                     "read1.P.trim.{}.gz".format(self.Fastq),
                     localArgs['read1pout']),
@@ -2483,17 +2511,27 @@ class Sample:
             Runs Fastqc once, then Trimmomatic, and then fastqc again
         '''
         os.chdir(self.samplePath)
-        with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'w') as LOG:
-            LOG.write('\t\tRuntime Log Part 1 for {}\n'.format(self.sampleName))
-            LOG.write('----------------------------------------\n\n')
+        with open(os.path.join(self.samplePath,
+            'Runtime.{}.log'.format(self.sampleName)), 'w') as LOG:
+            LOG.write('='*64+'\n')
+            LOG.write('{:^64}\n'.format('Runtime Log Part 1 - {}'.format(
+                self.sampleName)))
+            LOG.write('='*64+'\n\n')
+        self.writeFunctionHeader('runPart1')
         if self.GlobalArgs['fcounts/main']['runQCheck']:
             self.runQCheck(1, self.Read1, self.Read2)
+        else:
+            self.writeToLog('runQCheck # 1 skipped due to manifest\n')
         if self.GlobalArgs['fcounts/main']['runTrimmomatic']:
             self.runTrimmomatic(self.Read1, self.Read2)
+        else:
+            self.writeToLog('runTrimmomatic skipped due to manifest\n')
         if (self.GlobalArgs['fcounts/main']['runQCheck'] and 
             self.GlobalArgs['fcounts/main']['runTrimmomatic']):
             self.runQCheck(2, 'read1.P.trim.{}.gz'.format(self.Fastq),
                 'read2.P.trim.{}.gz'.format(self.Fastq))
+        else:
+            self.writeToLog('runQCheck # 2 skipped due to manifest\n')
         self.writeFunctionTail('runPart1')
 
     ########################################################
@@ -2528,6 +2566,7 @@ class Sample:
                     localArgs['read2']),
                 "samples": self.checkMan("10000", localArgs['samples']),
                 "-A": self.checkManBool("-A", localArgs['-A']),
+                "other": self.checkMan("", localArgs['other']),
                 "read1out": self.checkMan("sampled.read1.fa",
                     localArgs['read1out']),
                 "read2out": self.checkMan("sampled.read2.fa",
@@ -2625,32 +2664,25 @@ class Sample:
         '''
         # Running stranded_classifier.py
         # Making Command
-        command1 = r'stranded_classifier.py -1 sampled.read1_vscdna.out -2 sampled.read2_vscdna.out'
+        command1 = (r'stranded_classifier.py '+
+            '-1 sampled.read1_vscdna.out -2 sampled.read2_vscdna.out')
         goodCommand1 = self.formatCommand(command1)
         self.writeFunctionCommand(goodCommand1)
-        with open('{}/Runtime.{}.log'.format(self.samplePath,
-                                            self.sampleName), 'a') as LOG:
-            LOG.write('findStranded started\n\n')
         # Executing
         os.chdir(self.samplePath)
         subprocess.run(goodCommand1,
                             shell=True,
-                            check=True)
-        with open('{}/Runtime.{}.log'.format(self.samplePath,
-                                            self.sampleName), 'a') as LOG:
-            LOG.write('\nfindStranded done\n\n')
+                            check=True,
+                            executable='/bin/bash')
         # Scraping stranded_classifier.py output
-        command2 = r"awk '/read1 plus percent/,/findStranded done/' Runtime.{}.log | grep -q True && stranded=1 || stranded=0 && echo $stranded".format(self.sampleName)
-        # Executing
-        os.chdir(self.samplePath)
-        self.writeFunctionCommand(command2)
-        proc = subprocess.Popen(command2,
-                                    shell=True,
-                                    universal_newlines=True,
-                                    stdout=subprocess.PIPE,
-                                    stderr=subprocess.STDOUT)
-        strandedBool = int(proc.communicate()[0])
-        if strandedBool == 1:
+        with open(os.path.join(self.samplePath,
+            'Runtime.{}.log'.format(self.sampleName)), 'r') as LOG:
+            wholeFile = LOG.read()
+        searchSpace = re.search('read1 plus percent(.*)real', wholeFile,
+            flags=(re.MULTILINE|re.DOTALL)).group(1)
+        strandedBool = re.search('True', searchSpace,
+            flags=(re.MULTILINE|re.DOTALL))
+        if strandedBool:
             Data = []
             with open('Runtime.{}.log'.format(self.sampleName),'r') as F:
                 copy = False
@@ -2668,16 +2700,18 @@ class Sample:
                 if line.startswith('read2 plus percent'):
                     R2 = float(re.findall(r'\d+\.\d+', line)[0])
             if R1 > R2:
-                self.writeToLog('! Going to use "--rna-strandness FR" for hisat and "-s 1" for FC or --fr-stranded for kallisto quant')
+                self.writeToLog('! Going to use "--rna-strandness FR" for'+
+                    ' hisat and "-s 1" for FC or --fr-stranded for kallisto'+
+                    ' quant\n')
                 return 1
             else:
-                self.writeToLog('! Going to use "--rna-strandness RF" for hisat and "-s 2" for FC or --rf-stranded for kallisto quant')
+                self.writeToLog('! Going to use "--rna-strandness RF" for'+
+                    ' hisat and "-s 2" for FC or --rf-stranded for kallisto'+
+                    ' quant\n')
                 return 2
-        elif strandedBool == 0:
-            self.writeToLog('! Reads not stranded')
-            return 0
         else:
-            print('There was an error with findStranded')
+            self.writeToLog('! Reads not stranded\n')
+            return 0
 
     ########################################################
     # End of Sample class
@@ -2713,58 +2747,83 @@ class FCountsSample(Sample):
             Runs hisat2 on data
         '''
         self.writeFunctionHeader('runHisat')
-        strandedVar = self.findStranded()
-        if strandedVar == 0:
-            FR = ''
-        elif strandedVar == 1:
-            FR = ' --rna-strandness FR'
-        else:
-            FR = ' --rna-strandness RF'
-        Phred = str(self.getPhred())
         localArgs = self.GlobalArgs['fcounts/runHisat']
+        if localArgs['--rna-strandedness'] == None:
+            try:
+                strandedVar = self.findStranded()
+            except subprocess.CalledProcessError:
+                if localArgs['--rna-strandedness'] == None:
+                    raise SystemExit('findStranded() error; must specify'+
+                        ' --rna-strandedness in [fcounts/runHisat] manifest'+
+                        ' header')
+            if strandedVar == 0:
+                FR = ''
+            elif strandedVar == 1:
+                FR = ' --rna-strandness FR'
+            else:
+                FR = ' --rna-strandness RF'
+        elif localArgs['--rna-strandedness'] == False:
+            FR = ''
+        else:
+            FR = ' --rna-strandedness {}'.format(
+                localArgs['--rna-strandedness'])
+        if localArgs['--phred'] == None:
+            try:
+                Phred = str(self.getPhred())
+            except IndexError:
+                if localArgs['--phred'] == None:
+                    raise SystemExit('getPhred() error; must specify'+
+                        ' --phred in [fcounts/runHisat] manifest'+
+                        ' header')
+        else:
+            Phred = localArgs['--phred']
+        if localArgs['-1'] == None:
+            if not os.path.exists(os.path.join(self.samplePath,
+                "read1.P.trim.{}.gz".format(self.Fastq))):
+                raise SystemExit('FileNotExistsError: must specify'+
+                    ' -1 and -2 in [fcounts/runHisat] manifest'+
+                    ' header; this problem may arise if trimmomatic'+
+                    ' was skipped')
         # Making Command
         #command = r"""hisat2 -k 5 -p {numProcs}{FRoRF} --dta 
         # --phred{phred} --known-splicesite-infile {ref}/splice_sites.txt
         # -x {ref}/{basename} -1 read1.P.trim.{fastq}.gz 
         # -2 read2.P.trim.{fastq}.gz -S aligned.{sample}.sam"""
-        command = ("""{hisat2} -k {-k} -p {-p} {--rna-strandedness}"""+
-            """ {--dta} --phred{phred} {other}"""+
-            """ --known-slicesite-infile {--known-splicesite-infile}"""+
+        command = ("""{hisat2} -k {-k} -p {-p}{--rna-strandedness}"""+
+            """ {--dta} --phred{--phred} {other}"""+
+            """ --known-splicesite-infile {--known-splicesite-infile}"""+
             """ -x {-x} -1 {-1} -2 {-2} -S {-S}""")
         Context = {
-                "hisat2": self.checkMan("hisat2", localArgs['hisat2']),
-                "-k": self.checkMan("5", localArgs['-k']),
-                "-p": self.checkMan(self.Procs, localArgs['-p']),
-                "--rna-strandedness": (FR 
-                    if localArgs['--rna-strandedness'] == None
-                    else "--rna-strandedness "+localArgs['--rna-strandedness']),
-                "--dta": self.checkManBool("--dta", localArgs['--dta']),
-                "phred": self.checkMan(Phred, localArgs['phred']),
-                "other": self.checkMan("", localArgs['other']),
-                "--known-splicesite-infile": self.checkMan(
-                    "{}/splice_sites.txt".format(self.Reference),
-                    localArgs['--known-splicesite-infile']),
-                "-x": self.checkMan(
-                    "{}/{}".format(self.Reference, self.Basename),
-                    localArgs['-x']),
-                "-1": self.checkMan(
-                    "read1.P.trim.{}.gz".format(self.Fastq),
-                    localArgs['-1']),
-                "-2": self.checkMan(
-                    "read2.P.trim.{}.gz".format(self.Fastq),
-                    localArgs['-2']),
-                "-S": self.checkMan(
-                    "aligned.{}.sam".format(self.sampleName),
-                    localArgs['-S']),
-                }
+            "hisat2": self.checkMan("hisat2", localArgs['hisat2']),
+            "-k": self.checkMan("5", localArgs['-k']),
+            "-p": self.checkMan(self.Procs, localArgs['-p']),
+            "--rna-strandedness": FR,
+            "--dta": self.checkManBool("--dta", localArgs['--dta']),
+            "--phred": self.checkMan(Phred, localArgs['--phred']),
+            "other": self.checkMan("", localArgs['other']),
+            "--known-splicesite-infile": self.checkMan(
+                os.path.join(self.Reference,'splice_sites.txt'),
+                localArgs['--known-splicesite-infile']),
+            "-x": self.checkMan(os.path.join(self.Reference,self.Basename),
+                localArgs['-x']),
+            "-1": self.checkMan(
+                "read1.P.trim.{}.gz".format(self.Fastq),
+                localArgs['-1']),
+            "-2": self.checkMan(
+                "read2.P.trim.{}.gz".format(self.Fastq),
+                localArgs['-2']),
+            "-S": self.checkMan(
+                "aligned.{}.sam".format(self.sampleName),
+                localArgs['-S']),
+            }
         goodCommand = self.formatCommand(command.format(**Context))
         # Executing
         self.writeFunctionCommand(goodCommand)
         os.chdir(self.samplePath)
         subprocess.run(goodCommand,
-                            shell=True,
-                            check=True,
-                            executable=True)
+            shell=True,
+            check=True,
+            executable='/bin/bash')
         self.writeFunctionTail('runHisat')
 
     def runCompression(self):
@@ -2827,8 +2886,16 @@ class FCountsSample(Sample):
             Collects counts from data with featureCounts
         '''
         self.writeFunctionHeader('runFeatureCounts')
-        strandedVar = str(self.findStranded())
         localArgs = self.GlobalArgs['fcounts/runFeatureCounts']
+        if localArgs['-s'] == None:
+            try:
+                strandedVar = str(self.findStranded())
+            except subprocess.CalledProcessError:
+                raise SystemExit('findStranded() error; must specify'+
+                    ' -s in [fcounts/runFeatureCounts] manifest'+
+                    ' header')
+        else:
+            strandedVar = str(localArgs['-s'])
         # Making Command
         #command = r"featureCounts -T {procs} -s {stranded} -p -C --primary
         # --ignoreDup -t exon -g gene_id -a {ref}/{gtf} 
@@ -2841,8 +2908,7 @@ class FCountsSample(Sample):
                                     localArgs['featureCounts']),
                 "-T"            : self.checkMan(self.Procs,
                                     localArgs['-T']),
-                "-s"            : self.checkMan(strandedVar,
-                                    localArgs['-s']),
+                "-s"            : strandedVar,
                 "-p"            : self.checkManBool(" -p",
                                     localArgs['-p']),
                 "-C"            : self.checkManBool(" -C",
@@ -2891,7 +2957,9 @@ class FCountsSample(Sample):
         '''
         self.writeFunctionHeader('getNiceColumns')
         # Making Command
-        command = r'''tail -n +2 aligned.{sample}.counts | awk '{{printf ("%5s\t%s\t%s\n", $1, $6, $7)}}' > aligned.{sample}.counts.three'''
+        command = (r'''tail -n +2 aligned.{sample}.counts |'''+
+            ''' awk '{{printf ("%5s\\t%s\\t%s\\n", $1, $6, $7)}}' >'''+
+            ''' aligned.{sample}.counts.three''')
         context = {"sample": self.sampleName}
         goodCommand = self.formatCommand(command.format(**context))
         # Executing
@@ -2912,7 +2980,8 @@ class FCountsSample(Sample):
         '''
         self.writeFunctionHeader('getAlignedColumn')
         # Making Command
-        command = r'''tail -n +2 aligned.{sample}.counts | awk '{{print $7}}' > aligned.{sample}.counts.one'''
+        command = (r'''tail -n +2 aligned.{sample}.counts |'''+
+            ''' awk '{{print $7}}' > aligned.{sample}.counts.one''')
         context = {"sample": self.sampleName}
         goodCommand = self.formatCommand(command.format(**context))
         # Executing
@@ -2937,28 +3006,48 @@ class FCountsSample(Sample):
             Note: Does not include Quality control steps: Fastqc and trimmomatic
         '''
         os.chdir(self.samplePath)
-        with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'a') as LOG:
-            LOG.write('\t\tRuntime Log Part 2 for {}\n'.format(self.sampleName))
-            LOG.write('----------------------------------------\n\n')
-        if self.GlobalArgs['fcounts/main']['runQCheck']:
+        with open(os.path.join(self.samplePath,
+            'Runtime.{}.log'.format(self.sampleName)), 'a') as LOG:
+            LOG.write('='*64+'\n')
+            LOG.write('{:^64}\n'.format('Runtime Log Part 2 - {}'.format(self.sampleName)))
+            LOG.write('='*64+'\n\n')
+        self.writeFunctionHeader('runPart2')
+        if self.GlobalArgs['fcounts/main']['runSeqtk']:
             self.runSeqtk()
+        else:
+            self.writeToLog('runSeqtk skipped due to manifest\n')
         if self.GlobalArgs['fcounts/main']['runBlastn']:
             self.runBlastn()
+        else:
+            self.writeToLog('runBlastn skipped due to manifest\n')
         if self.GlobalArgs['fcounts/main']['runHisat']:
             self.runHisat()
+        else:
+            self.writeToLog('runHisat skipped due to manifest\n')
         if self.GlobalArgs['fcounts/main']['runCompression']:
             self.runCompression()
+        else:
+            self.writeToLog('runCompression skipped due to manifest\n')
         if self.GlobalArgs['fcounts/main']['runFeatureCounts']:
             self.runFeatureCounts()
+        else:
+            self.writeToLog('runFeatureCounts skipped due to manifest\n')
         if self.GlobalArgs['fcounts/main']['getNiceColumns']:
             self.getNiceColumns()
+        else:
+            self.writeToLog('getNiceColumns skipped due to manifest\n')
         if self.GlobalArgs['fcounts/main']['getAlignedColumn']:
             self.getAlignedColumn()
+        else:
+            self.writeToLog('getAlignedColumn skipped due to manifest\n')
         self.writeFunctionTail('runPart2')
-        with open(self.Project + '/runPipeNotify/{}'.format('done'+self.sampleName), 'w') as N:
-            N.write('{} is done'.format(self.samplePath))
-        with open(self.samplePath + '/.done', 'w') as N:
-            N.write('{} is done'.format(self.samplePath))
+        if os.path.exists(os.path.join(self.samplePath,
+            "aligned.{}.counts.one".format(self.sampleName))):
+            with open(os.path.join(self.Project,
+                'runPipeNotify/{}'.format('done'+self.sampleName)), 'w') as N:
+                N.write('{} is done'.format(self.samplePath))
+            with open(os.path.join(self.samplePath, '.done'), 'w') as N:
+                N.write('{} is done'.format(self.samplePath))
 
     def runParts(self):
         ''' Arguments:

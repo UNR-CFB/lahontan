@@ -658,8 +658,6 @@ Options:
         else:
             for sample in samplesToExecute:
                 FCClass.executeSample(sample)
-    #TODO do stage 3 reform
-    exit(1)
     # Run Stage 4 if necessary
     if '4' in stagesToExecute and stage4ReadyToExecute(FCClass):
         FCClass.runStage4()
@@ -1330,15 +1328,14 @@ Function 2: Experiment.makeSyms():
     Action: Calls the makeSyms.sh shell script which takes as
     its arguments the path to the project, the path to the
     original data, and the path to the reference data
-    Result: The original data files will have symbolic links 
-    in their respective sample directories; if there is a
-    metadata file specified by the '--jsonfile' option, it
-    will be linked in the Postprocessing directory; if the
-    reference data has been prepared and specified by the
-    '--use-reference' option, the entire reference directory
-    will be linked in the Reference directoy, otherwise, just
-    the 3 necessary reference files will be linked -> Gtf, Cdna,
-    and Genome
+    Result: The original data files will have symbolic links in
+    their respective sample directories; if there is a metadata
+    file specified by the '--jsonfile' option, it will be linked
+    in the Postprocessing directory; if the reference data has
+    been prepared and specified by the '--use-reference' option,
+    the entire reference directory will be linked in the
+    Reference directoy, otherwise, just the 3 necessary
+    reference files will be linked -> Gtf, Cdna, and Genome
 
 Within the runStage2() method, there are two functions:
             1: qcRef()
@@ -1360,6 +1357,296 @@ Function 1: FCountsExperiment.GO()
     Result:
 
 Further Stage 3 information:
+
+In Stage 3, the GO() method will create execution spaces for
+each sample specified on the command line, or all possible by
+default. After creating each sample, each sample's runSample()
+method will be executed.
+
+For the FCountsSample types, the runSample() method executes the
+following commands:
+        Part 1:
+            1: runQCheck()
+            2: runTrimmomatic()
+            3: runQCheck()
+        Part 2:
+            1: runSeqtk()
+            2: runBlastn()
+            3: runHisat()
+            4: runCompression()
+            5: runFeatureCounts()
+            6: getNiceColumns()
+            7: getAlignedColumn()
+
+Part 1: Consists of quality control with fastQC and trimmomatic
+
+Function 1: Sample.runQCheck()
+    Action: Runs fastQC on reads and then scrapes the
+    overrepresented sequences from fastQC logs
+    Result: There will be a fastQC folder in each sample
+    directory that contains quality control information
+    Manifest Information: Able to be controlled from manifest
+    under the [fcounts/main] header by setting runQCheck to
+    False. Can also control the execution options under the
+    [runQCheck] header:
+        {fastqc} -t {-t} -o {-o} {other} {read1} {read2}
+        fastqc: fastQC executable (by default will use
+        executable defined under [EXECUTABLES] header)
+        -t: processors to use (by default will use allocated
+        sample space)
+        -o: output directory (by default will use folder named
+        fastqc{run-number}.{sample-name}) (CAUTION: highly
+        discouraged from changing)
+        other: used to specify any other options not already
+        defined
+        read1: path to read 1 (CAUTION: highly discouraged from
+        changing)
+        read2: path to read 2 (CAUTION: highly discouraged from
+        changing)
+
+Function 2: Sample.runTrimmomatic()
+    Action: Executes trimmomatic on reads
+    Result: Reads will be trimmed
+    Manifest Information: Able to be controlled from manifest
+    under the [fcounts/main] header by setting runTrimmomatic to
+    False. Can also control the execution options under the
+    [runTrimmomatic] header:
+        {java} -jar {-jar} PE -threads {-threads} -phred{-phred}
+        {other} {read1} {read2} {read1pout} {read1uout}
+        {read2pout} {read2uout}
+        ILLUMINACLIP:{blacklist}:{ILLUMINACLIP}
+        LEADING:{LEADING} TRAILING:{TRAILING}
+        SLIDINGWINDOW:{SLIDINGWINDOW} MINLEN:{MINLEN}
+        java: java executable (by default will use executable
+        defined under [EXECUTABLES] header)
+        -jar: trimmomatic jar file (by default will use
+        $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar)
+        -threads: processors to use (by default will use
+        allocated sample space)
+        -phred: phred version (by default will scrape version
+        from fastQC logs). Can set to 33, 64, or None (for
+        default)
+        other: used to specify any other options not already
+        defined
+        read1: path to read 1 (CAUTION: highly discouraged from
+        changing)
+        read2: path to read 2 (CAUTION: highly discouraged from
+        changing)
+        read1pout: output read 1 (CAUTION: highly discouraged from
+        changing)
+        read2pout: output read 2 (CAUTION: highly discouraged from
+        changing)
+        read1uout: output read 1 (CAUTION: highly discouraged from
+        changing)
+        read2uout: output read 2 (CAUTION: highly discouraged from
+        changing)
+        blacklist: blacklist file (Can also specify on
+        command-line with --use-blacklist)
+        ILLUMINACLIP: trim options (by default: "2:30:10")
+        LEADING: trim options (by default: "5")
+        TRAILING: trim options (by default: "5")
+        SLIDINGWINDOW: trim options (by default: "4:5")
+        MINLEN: trim options (by default: "35")
+
+Function 3: Sample.runQCheck()
+    Action: Runs fastQC on reads and then scrapes the
+    overrepresented sequences from fastQC logs
+    Result: Does the same thing as the previous runQCheck except
+    this run is post-trimmomatic to get a perspective on the
+    changes that trimmomatic made
+    Manifest Information: Able to be controlled from manifest
+    under the [fcounts/main] header by setting runQCheck to
+    False or runTrimmomatic to False. Control execution options
+    exactly the same as in Function 1.
+
+Part 2: Consists of execution of feature counts method
+
+Function 1: Sample.runSeqtk()
+    Action: Execute seqtk on reads to get a representative
+    sample of reads
+    Result: Obtains a representative sample of reads in order to
+    more quickly check strandedness of reads
+    Manifest Information: Able to be controlled from manifest
+    under the [fcounts/main] header by setting runSeqtk to
+    False. Can also control the execution options under the
+    [runSeqtk] header:
+        {seqtk} sample -s{-s} {read1} {samples} | seqtk seq {-A}
+            {other} - > {read1out}
+        {seqtk} sample -s{-s} {read2} {samples} | seqtk seq {-A}
+            {other} - > {read2out}
+        seqtk: seqtk executable (by default will use executable
+        defined under [EXECUTABLES] header)
+        -s: random seed (by default: "100")
+        read1: path to read 1 (CAUTION: highly discouraged from
+        changing)
+        read2: path to read 2 (CAUTION: highly discouraged from
+        changing)
+        read1out: output read 1 (CAUTION: highly discouraged from
+        changing)
+        read2out: output read 2 (CAUTION: highly discouraged from
+        changing)
+        samples: number of samples to take (by default: "10000")
+        -A: boolean option to force FASTA output (by default is
+        on). Can turn off by setting to False
+        other: used to specify any other options not already
+        defined
+
+Function 2: Sample.runBlastn()
+    Action: Execute blastn on seqtk output
+    Result: Used to gather strandedness information of reads
+    Manifest Information: Able to be controlled from manifest
+    under the [fcounts/main] header by setting runBlastn to
+    False. Can also control the execution options under the
+    [runBlastn] header:
+        {blastn} -query {read1} -db {-db} -out {out1} -task
+            {-task} -outfmt {-outfmt} -max_target_seqs
+            {-max_target_seqs} -num_threads {-num_threads}
+            {other}
+        {blastn} -query {read2} -db {-db} -out {out2} -task
+            {-task} -outfmt {-outfmt} -max_target_seqs
+            {-max_target_seqs} -num_threads {-num_threads}
+            {other}
+        blastn: blastn executable (by default will use executable
+        defined under [EXECUTABLES] header)
+        read1: path to read 1 (CAUTION: highly discouraged from
+        changing)
+        read2: path to read 2 (CAUTION: highly discouraged from
+        changing)
+        out1: output read 1 (CAUTION: highly discouraged from
+        changing)
+        out2: output read 2 (CAUTION: highly discouraged from
+        changing)
+        -db: path to blast database (by default:
+        Reference/{basename}.cdna.all)
+        -task: task to executed (by default "blastn-short")
+        -outfmt: output format (by default '"6 std sstrand"';
+        notice the double quotes necessary to contain the
+        spaces)
+        -max_target_seqs: max target sequences (by default "1")
+        -num_threads: processors to use (by default will use
+        allocated sample space)
+        other: used to specify any other options not already
+        defined
+
+Function 3: FCountsSample.runHisat()
+    Action: Executes hisat2 for alignment of reads to reference
+    genome
+    Result: A SAM file with identified reads
+    Manifest Information: Able to be controlled from manifest
+    under the [fcounts/main] header by setting runHisat to
+    False. Can also control the execution options under the
+    [fcounts/runHisat] header:
+        {hisat2} -k {-k} -p {-p} {--rna-strandedness} {--dta}
+        --phred{phred} {other} --known-slicesite-infile
+        {--known-splicesite-infile} -x {-x} -1 {-1} -2 {-2}
+        -S {-S}
+        hisat2: hisat2 executable (by default will use executable
+        defined under [EXECUTABLES] header)
+        -k: alternates per read (by default "5")
+        -p: processors to use (by default will use allocated
+        sample space)
+        --rna-strandedness: strandedness of reads (by default
+        will determine from blastn and seqtk) Can set to FR, RF,
+        False, or None. False specifies unstrandedness while
+        None defaults to pipeline findStranded()
+        --dta: boolean option to report alignments tailored for
+        transcript assemblers (by default on). Can turn off by
+        setting to False
+        --phred: phred version (by default will determine from
+        fastQC logs). Can set to 33 or 64
+        --known-splicesite-infile: path to splice sites (by
+        default will use Reference/splice_sites.txt)
+        -x: path to hisat2 index (by default will use
+        Reference/{basename})
+        read1: path to read 1 (CAUTION: highly discouraged from
+        changing)
+        read2: path to read 2 (CAUTION: highly discouraged from
+        changing)
+        -S: outpus SAM file (CAUTION: highly discouraged from
+        changing)
+        other: used to specify any other options not already
+        defined
+
+Function 4: FCountsSample.runCompression()
+    Action: Use samtools to compress hisat2 output
+    Result: A compressed BAM files with aligned read information
+    Manifest Information: Able to be controlled from manifest
+    under the [fcounts/main] header by setting runCompression to
+    False. Can also control the execution options under the
+    [fcounts/runCompression] header:
+        {samtools} view {-b} -T {-T} -@{-@} {other} {in} -o {-o}
+        samtools: samtools executable (by default will use executable
+        defined under [EXECUTABLES] header)
+        -b: boolean option to output BAM file (by default on).
+        Can turn off by setting to False
+        -T: path to reference sequence FASTA file (by default
+        will use Reference/{genome_file})
+        -@: processors to use (by default will use allocated
+        sample space)
+        -o: output file name (CAUTION: highly discouraged from
+        changing)
+        in: input SAM file (CAUTION: highly discouraged from
+        changing)
+        other: used to specify any other options not already
+        defined
+
+Function 5: FCountsSample.runFeatureCounts()
+    Action: Use featureCounts to count aligned reads
+    Result: A file with count data
+    Manifest Information: Able to be controlled from manifest
+    under the [fcounts/main] header by setting runFeatureCounts
+    to False. Can also control the execution options under the
+    [fcounts/runFeatureCounts] header:
+        {featureCounts} -T {-T} -s
+        {-s}{-p}{-C}{--primary}{--ignoreDup} -t {-t} -g {-g} -a
+        {-a} {other} -o {-o} {in}
+        featureCounts: featureCounts executable (by default will
+        use executable defined under [EXECUTABLES] header)
+        -T: processors to use (by default will use allocated
+        sample space)
+        -s:  strandedness of reads (by default will determine
+        from blastn and seqtk). Can set to 0 (unstranded), 1
+        (stranded), 2 (reversely stranded), or None (default)
+        -p: boolean option that allows for fragments to be
+        counted instead of reads, normally for paired-end reads
+        (by default on). Can turn off by setting to False.
+        -C: boolean option that sets: "Do not count read pairs
+        that have their two ends mapping to different
+        chromosomes or mapping to same chromosome but on
+        different strands." (By default on). Can turn off by
+        setting to False.
+        --primary: boolean option to count primary alignments
+        only (by default on). Can turn off by setting to False.
+        --ignoreDup: boolean option to ignore duplicate reads
+        when read counting. (By default on). Can turn off by
+        setting to False.
+        -t: feature type in GTF annotation (by default "exon")
+        -g: attribute type in GTF annotation (by default
+        "gene_id")
+        -a: path to annotation file (gtf) (by default
+        Reference/{Gtf})
+        -o: ouput counts file (CAUTION: highly discouraged from
+        changing)
+        in: input BAM file (CAUTION: highly discouraged from
+        changing)
+        other: used to specify any other options not already
+        defined
+
+Function 6: FCountsSample.getNiceColumns()
+    Action: Scrapes featureCounts output for gene id, length of
+    gene, and counts
+    Result: A table with only gene name, length, and count
+    Manifest Information: Able to be controlled from manifest
+    under the [fcounts/main] header by setting getNiceColumns
+    to False.
+
+Function 7: FCountsSample.getAlignedColumn()
+    Action: Scrapes featureCounts to get only count column
+    Result: A file with one column that contains count
+    information
+    Manifest Information: Able to be controlled from manifest
+    under the [fcounts/main] header by setting getAlignedColumn
+    to False.
 """)
         raise SystemExit()
     elif helpCommand == 'string':
@@ -1397,24 +1684,23 @@ Further Stage 3 information:
 
 if __name__ == '__main__':
     beginTime = timer()
-    from pprint import pprint
 
     args = docopt(__doc__, version=VERSION, options_first=True)
     argv = [args['<command>']] + args['<args>']
     if args['<command>'] == 'fcounts':
         args.update(docopt(featureCounts.__doc__, argv=argv))
         updatedArgs = updateArgs(args)
-        pprint(updatedArgs)
         featureCounts(updatedArgs)
     elif args['<command>'] == 'string':
         args.update(docopt(stringtie.__doc__, argv=argv))
         print(args)
         updatedArgs = updateArgs(args)
-        exit()
+        exit('Not ready')
         stringtie(updatedArgs)
     elif args['<command>'] == 'kall':
         args.update(docopt(kallisto.__doc__, argv=argv))
         updatedArgs = updateArgs(args)
+        exit('Not ready')
         kallisto(updatedArgs)
     elif args['<command>'] == 'mj':
         import makeJSON
