@@ -69,7 +69,6 @@ def getFastq(originalPath):
         fastq = list(uniqueFastq)[0]
 
     if fastq != 'fastq' and fastq != 'fq':
-        print('Unknown fastq extension: {}\nSetting default to "fastq"')
         fastq = 'fastq'
     return fastq
 
@@ -628,7 +627,7 @@ class Experiment:
             Reference_Report.txt in Reference Folder
         '''
         if not self.isReferencePrepared():
-            print("Running Quality Control Check on Reference Data...")
+            print("[ {} ] Running Quality Control Check on Reference Data...".format(now()))
             command = r'''QCofRef.sh {} {}'''.format(self.Reference,
                     self.Genome)
             subprocess.run(command,
@@ -651,7 +650,7 @@ class Experiment:
             Pre-Process Reference Data using blast, hisat2, and samtools
         '''
         if not self.isReferencePrepared():
-            print("Preprocessing Reference Data...")
+            print("[ {} ] Preprocessing Reference Data...".format(now()))
             ppLog = os.path.join(self.Reference, 'Preprocessing.log')
             Context = {
                     "cdna": self.Cdna,
@@ -1063,7 +1062,6 @@ wait
             Calls runDESeq() and runEdgeR()
             to create DESeq2 and edgeR reports
         '''
-        print("R program is running...")
         self.runDESeq()
         self.runEdgeR()
 
@@ -1222,7 +1220,7 @@ wait
     @funTime
     def executeSample(self, number):
         self.makeNotifyFolder2() #TODO Fix makeNotifyFolder1 vs 2
-        print("Pipeline is running for sample_{} on {}...".format(number,os.uname()[1]))
+        print("[ {} ] Pipeline is running for sample_{} on {}...".format(now(), number,os.uname()[1]))
         self.GO(int(number))
 
     @funTime
@@ -1807,8 +1805,8 @@ wait
         Run Stage 3 for Sample #number
         '''
         self.makeNotifyFolder2()
-        print("Pipeline is running for sample_{} on {}...".format(
-            number,os.uname()[1]))
+        print("[ {} ] Pipeline is running for sample_{} on {}...".format(
+            now(),number,os.uname()[1]))
         self.GO(phases, int(number))
 
     @funTime
@@ -2164,7 +2162,7 @@ wait
         Run Stage 3 for Sample #number
         '''
         self.makeNotifyFolder2()
-        print("Pipeline is running for sample_{} on {}...".format(number,os.uname()[1]))
+        print("[ {} ] Pipeline is running for sample_{} on {}...".format(now(), number,os.uname()[1]))
         self.GO(int(number))
 
     @funTime
