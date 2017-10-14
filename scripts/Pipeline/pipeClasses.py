@@ -213,8 +213,10 @@ def makeTimeFile(logPath):
         Initializes log file
     '''
     with open(logPath, 'w') as R:
-        R.write('{:^64}\n'.format('runPipe Runtime File'))
-        R.write('='*64+'\n\n')
+        R.write('{:^105}\n'.format('runPipe Runtime File'))
+        R.write('='*105+'\n\n')
+        R.write('{:^26} # {:^30} # {:^26} # {:^14}\n'.format(
+            'Start Time', 'Command', 'End Time', 'Total Time'))
 
 def unwrap_self_runSample_fc(arg, **kwarg):
     ''' Magic for multiprocessing
@@ -332,7 +334,6 @@ class Experiment:
         if os.path.exists(os.path.join(self.Project, '.init')):
             with open(os.path.join(self.Project, '.init'), 'r') as f:
                 G = f.read()
-            print(G)
             if 'P' in G:
                 return True
         return False
@@ -424,14 +425,12 @@ class Experiment:
             Calls makeJSON.writeJSON() to make JSON file if not already
             provided
         '''
-        print('Making Metadata file; require user input...')
         if os.path.exists(os.path.join(self.Postprocessing, 'Metadata.json')):
             pass
         elif JSFI == None:
             testDirExistence(self.Postprocessing)
             os.chdir(self.Postprocessing)
             makeJSON.writeJSON('Metadata.json')
-        print('Waiting for Pipeline to finish...')
 
     def checkX11(self):
         ''' Arguments:
@@ -559,6 +558,24 @@ class Experiment:
                             check=True,
                             executable="/bin/bash")
 
+    def checkMan(self, default, manifest):
+        """ Arguments:
+             default : 
+            manifest : 
+            Returns:
+                None
+        """
+        return default if manifest == None else manifest
+
+    def checkManBool(self, default, manifest):
+        """ Arguments:
+             default : 
+            manifest : 
+            Returns:
+                None
+        """
+        return default if manifest == None else ""
+
     ###############################################################
     # Stage 1 and 2 Functions
     ###############################################################
@@ -572,7 +589,6 @@ class Experiment:
 
             Calls makeStructure.sh to make Directory Structure
         '''
-        print("Creating Structure...")
         command = r'''makeStructure.sh {} {}'''.format(self.Project,
                 self.Numsamples)
         subprocess.run(command,
@@ -734,9 +750,11 @@ class Experiment:
     @funTime
     def runStage1(self):
         if not self.isStructurePrepared():
+            print('[ {} ] Executing Stage 1...'.format(now()))
             self.makeStructure()
             self.makeSyms()
         else:
+            print('[ {} ] Skipping Stage 1...'.format(now()))
             with open(os.path.join(self.Project,'.init'), 'w') as F:
                 F.write('S')
 
@@ -755,7 +773,6 @@ class Experiment:
     # End of Experiment class
     ################################################################
 
-#@
 class FCountsExperiment(Experiment):
     '''
         Inherit from general experiment class. Can
@@ -988,7 +1005,7 @@ wait
         '''
         os.chdir(self.Postprocessing)
         command = r'''formatFeatures.sh {} {}'''.format(self.Postprocessing,
-                self.Data)
+            self.Data)
         subprocess.run(command,
             shell=True,
             check=True,
@@ -1184,9 +1201,11 @@ wait
     @funTime
     def runStage2(self):
         if not IS_REFERENCE_PREPARED:
+            print('[ {} ] Executing Stage 2...'.format(now()))
             self.qcRef()
             self.ppRef()
         else:
+            print('[ {} ] Skipping Stage 2...'.format(now()))
             with open(os.path.join(self.Project, '.init'), 'r') as F:
                 stuff = F.readlines()[0]
             if 'P' not in stuff:
@@ -1195,7 +1214,7 @@ wait
 
     @funTime
     def runStage3(self):
-        print("Pipeline is running...")
+        print('[ {} ] Executing Stage 3...'.format(now()))
         self.makeNotifyFolder()
         self.GO()
         self.findPipeFinish()
@@ -1210,8 +1229,8 @@ wait
     def runStage4(self):
         while True:
             if self.is3Finished() or self.checkEach():
+                print('[ {} ] Executing Stage 4...'.format(now()))
                 time.sleep(1)
-                print('Preparing for R analysis...')
                 if os.path.isdir(os.path.join(self.Project,'runPipeNotify')):
                     shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
                 self.gatherAllSampleOverrep(1)
@@ -1220,21 +1239,21 @@ wait
                 self.quickFCStats()
                 self.fullH2Stats()
                 self.quickTrimStats()
-                self.createJsonMetadata()
                 self.createNiceCounts()
                 self.createRCounts()
+                self.makeGoodCounts()
+                self.createJsonMetadata()
                 self.createRCols()
                 self.createRProgram()
-                self.makeGoodCounts()
                 break
             else:
                 time.sleep(1)
 
     @funTime
     def runStage5(self):
+        print('[ {} ] Executing Stage 5...'.format(now()))
         self.runRProgram()
 
-#@@
 class StringtieExperiment(Experiment):
     '''
         Inherit from general experiment class. Can
@@ -1466,18 +1485,20 @@ wait
 
             Creates StringtieMerge directory and mergelist.txt
         '''
-        stMergeDir = self.Postprocessing + '/StringtieMerge'
+        stMergeDir = os.path.join(self.Postprocessing, 'StringtieMerge')
         if not os.path.isdir(stMergeDir):
             try:
                 os.mkdir(stMergeDir)
             except:
                 pass
         sampleNames = glob.glob(os.path.join(self.Data,'sample*'))
-        mergeList = '\n'.join([os.path.join(sample,os.path.basename(sample)+'.st.gtf')
-                                for sample in sampleNames])
+        mergeList = '\n'.join(
+            [os.path.join(sample,os.path.basename(sample)+'.st.gtf') 
+                for sample in sampleNames])
         with open(os.path.join(stMergeDir,'mergelist.txt'),'w') as MergeList:
             MergeList.write(mergeList)
 
+    @funTime
     def stringtieMerge(self):
         ''' Arguments:
                 None
@@ -1485,51 +1506,76 @@ wait
                 None
         '''
         self.makeStringtieMergelist()
-        stMergeDir = self.Postprocessing + '/StringtieMerge'
-        mergeList = os.path.join(stMergeDir,'mergelist.txt')
-        logFile = os.path.join(stMergeDir,'StringtieRuntime.log')
+        localArgs = self.GlobalArgs['string/stringtieMerge']
         # Making Command
-        #command = r"stringtie --merge -p {procs} -G {ref}/{gtf} -o {mergedir}/{projectname}.stmerged.gtf {mergelist}"
-        command = r"stringtie --merge -p {procs} -o {mergedir}/{projectname}.stmerged.gtf {mergelist}"
-        context = {
-                "procs": self.Procs,
-                "ref": self.Reference,
-                "gtf": self.Gtf,
-                "mergedir": stMergeDir,
-                "projectname": os.path.basename(self.Project),
-                "mergelist": mergeList
-                }
-        goodCommand = self.redirectSTDERR(command.format(**context), logFile)
+        # TODO Don't know about -G option
+        #command = r"stringtie --merge -p {procs} -G {ref}/{gtf} 
+        # -o {mergedir}/{projectname}.stmerged.gtf {mergelist}"
+        #command = r"stringtie --merge -p {procs}
+        # -o {mergedir}/{projectname}.stmerged.gtf {mergelist}"
+        command = ("""{stringtie} --merge -p {-p} -o {-o} {other} {in}""")
+        Context = {
+            "stringtie": self.checkMan("stringtie",
+                localArgs['stringtie']),
+            "-p": self.checkMan(self.Procs, localArgs['-p']),
+            "-o": self.checkMan(
+                os.path.join(self.Postprocessing,
+                    'StringtieMerge/{}.stmerged.gtf'.format(
+                        os.path.basename(self.Project))),
+                localArgs['-o']),
+            "other": self.checkMan('', localArgs['other']),
+            "in": self.checkMan(
+                os.path.join(self.Postprocessing,
+                    'StringtieMerge/mergelist.txt'),
+                localArgs['in']),
+            #"-G": os.path.join(self.Reference, self.Gtf),
+            }
+        logFile = os.path.join(self.Postprocessing,
+            'StringtieMerge/StringtieRuntime.log')
+        goodCommand = self.redirectSTDERR(command.format(**Context), logFile)
         # Executing
-        os.chdir(stMergeDir)
+        os.chdir(os.path.join(self.Postprocessing, 'StringtieMerge'))
         subprocess.run(goodCommand,
-                            shell=True,
-                            check=True)
+            shell=True,
+            check=True,
+            executable='/bin/bash')
 
+    @funTime
     def compareTranscripts(self):
         ''' Arguments:
                 None
             Returns:
                 None
         '''
-        projectName = os.path.basename(self.Project)
-        stMergeDir = self.Postprocessing + '/StringtieMerge'
-        stMergedFile = os.path.join(stMergeDir,"{}.stmerged.gtf".format(projectName))
-        logFile = os.path.join(stMergeDir,'GFFCompareRuntime.log')
+        localArgs = self.GlobalArgs['string/compareTranscripts']
         # Making Command
-        command = r"gffcompare -r {ref}/{gtf} -G -o {projectname}.merged {stmerged}"
-        context = {
-                "ref": self.Reference,
-                "gtf": self.Gtf,
-                "projectname": projectName,
-                "stmerged": stMergedFile
-                }
-        goodCommand = self.redirectSTDERR(command.format(**context), logFile)
+        #command = r"gffcompare -r {ref}/{gtf} -G
+        # -o {projectname}.merged {stmerged}"
+        command = ("""{gffcompare} -r {-r} {-G} -o {-o} {other} {in}""")
+        Context = {
+            "gffcompare": self.checkMan("gffcompare", localArgs['gffcompare']),
+            "-r": self.checkMan(os.path.join(self.Reference, self.Gtf),
+                localArgs['-r']),
+            "-G": self.checkManBool("-G", localArgs['-G']),
+            "-o": self.checkMan('{}.merged'.format(
+                os.path.basename(self.Project)),
+                localArgs['-o']),
+            "other": self.checkMan('', localArgs['other']),
+            "in": self.checkMan(
+                os.path.join(self.Postprocessing,
+                    'StringtieMerge/{}.stmerged.gtf'.format(
+                        os.path.basename(self.Project))),
+                localArgs['in']),
+            }
+        logFile = os.path.join(self.Postprocessing,
+            'StringtieMerge/GFFCompareRuntime.log')
+        goodCommand = self.redirectSTDERR(command.format(**Context), logFile)
         # Executing
-        os.chdir(stMergeDir)
+        os.chdir(os.path.join(self.Postprocessing, 'StringtieMerge'))
         subprocess.run(goodCommand,
-                            shell=True,
-                            check=True)
+            shell=True,
+            check=True,
+            executable='/bin/bash')
 
     def allSampleLookup(self, fileTemplate):
         ''' Arguments:
@@ -1539,7 +1585,8 @@ wait
         '''
         boolTable = []
         for sample in glob.glob(os.path.join(self.Data,'*')):
-            if os.path.exists(os.path.join(sample,fileTemplate.format(os.path.basename(sample)))):
+            if os.path.exists(os.path.join(sample,
+                fileTemplate.format(os.path.basename(sample)))):
                 boolTable.append(True)
             else:
                 boolTable.append(False)
@@ -1553,8 +1600,8 @@ wait
         '''
         projectName = os.path.basename(self.Project)
         stMergeDir = self.Postprocessing + '/StringtieMerge'
-        stMergedFile = os.path.join(stMergeDir,"{}.stmerged.gtf".format(projectName))
-
+        stMergedFile = os.path.join(stMergeDir,"{}.stmerged.gtf".format(
+            projectName))
         Status = ' '
         if self.allSampleLookup("{}.st.gtf"):
             Status += 'a'
@@ -1601,7 +1648,9 @@ wait
                 runPhase = nextPhase
             else:
                 if behavior == 'default':
-                    raise SystemExit('Cannot run --stringtie {}\nPlease run --stringtie {} first for all samples'.format(stringtiePhases,nextPhase))
+                    raise SystemExit(('Cannot run --stringtie '+
+                        '{}\nPlease run --stringtie {} first'+
+                        ' for all samples').format(stringtiePhases,nextPhase))
         elif nextPhase in stringtiePhases:
             runPhase = nextPhase
         else:
@@ -1618,9 +1667,18 @@ wait
             To be run in between sample stringtie part 2a and 2c.
             Requires results from phase a for each sample.
         '''
-        self.makeStringtieMergelist()
-        self.stringtieMerge()
-        self.compareTranscripts()
+        if self.GlobalArgs['string/main']['stringtieMerge']:
+            self.stringtieMerge()
+        else:
+            with open(os.path.join(self.Postprocessing,
+                'StringtieMerge/StringtieRuntime.log'), 'a') as F:
+                F.write('stringtieMerge() skipped due to manifest\n')
+        if self.GlobalArgs['string/main']['compareTranscripts']:
+            self.compareTranscripts()
+        else:
+            with open(os.path.join(self.Postprocessing,
+                'StringtieMerge/GFFCompareRuntime.log'), 'a') as F:
+                F.write('compareTranscripts() skipped due to manifest\n')
 
     ########################################################
     # Gathering Data (for stringtie)
@@ -1634,14 +1692,15 @@ wait
 
             Gathers stringtie results into Postprocessing
         '''
-        resultsDirectory = os.path.join(self.Postprocessing, 'StringtieResults')
+        resultsDirectory = os.path.join(self.Postprocessing,'StringtieResults')
         if not os.path.isdir(resultsDirectory):
             try:
                 os.mkdir(resultsDirectory)
             except:
                 pass
         for sample in glob.glob(os.path.join(self.Data,'sample*')):
-            sampleResults = os.path.join(resultsDirectory, os.path.basename(sample))
+            sampleResults = os.path.join(resultsDirectory,
+                os.path.basename(sample))
             if not os.path.isdir(sampleResults):
                 try:
                     os.mkdir(sampleResults)
@@ -1649,21 +1708,24 @@ wait
                     pass
             for ctab in glob.glob(os.path.join(sample, '*ctab')):
                 try:
-                    os.symlink(ctab, os.path.join(sampleResults, os.path.basename(ctab)))
+                    os.symlink(ctab, os.path.join(sampleResults,
+                        os.path.basename(ctab)))
                 except FileExistsError:
                     print('Symbolic link failed since' + 
-                            ' {} already exists in StringtieResults'.format(ctab))
+                        ' {} already exists in StringtieResults'.format(ctab))
             goodSampleGtf = os.path.join(sample, '{}.good.st.gtf'.format(
-                                                os.path.basename(sample)))
+                os.path.basename(sample)))
             if os.path.exists(goodSampleGtf):
                 try:
                     os.symlink(goodSampleGtf,
-                                os.path.join(sampleResults, os.path.basename(goodSampleGtf)))
+                        os.path.join(sampleResults,
+                            os.path.basename(goodSampleGtf)))
                 except FileExistsError:
                     print('Symbolic link failed since' + 
-                            ' {} already exists in StringtieResults'.format(ctab))
+                        ' {} already exists in StringtieResults'.format(ctab))
 
-    def createBallgownCols(self, jsonName='Metadata.json', columnName='Cols.dat'):
+    def createBallgownCols(self, jsonName='Metadata.json',
+            columnName='Cols.dat'):
         ''' Arguments:
                 None
             Returns:
@@ -1675,7 +1737,8 @@ wait
         colFile = os.path.join(self.Postprocessing, columnName)
         makeCols.makeStringtieCols(makeCols.readJSON(jsonFile), colFile)
 
-    def createBallgownScript(self, jsonName='Metadata.json', programName='runBallgown.r'):
+    def createBallgownScript(self, jsonName='Metadata.json',
+            programName='runBallgown.r'):
         ''' Arguments:
                 None
             Returns:
@@ -1685,8 +1748,8 @@ wait
         '''
         jsonFile = os.path.join(self.Postprocessing, jsonName)
         programFile = os.path.join(self.Postprocessing, programName)
-        makeBallgownScript.createRBallgownScript(makeCols.readJSON(jsonFile),
-                                                 programFile)
+        makeBallgownScript.createRBallgownScript(
+            makeCols.readJSON(jsonFile), programFile)
 
     @funTime
     def runBallgownAnalysis(self):
@@ -1698,31 +1761,41 @@ wait
             Executes Ballgown R script
         '''
         os.chdir(self.Postprocessing)
-        ballgownCommand = r'''{ time -p Rscript "runBallgown.r"; } > runBallgownTime.log 2>&1'''
+        ballgownCommand = (r'''{ time -p Rscript "runBallgown.r"; }'''+
+            ''' > runBallgownTime.log 2>&1''')
         subprocess.run(ballgownCommand,
-                            shell=True,
-                            check=True)
+            shell=True,
+            check=True,
+            executable='/bin/bash')
 
     ################################################################
     # Stage Run Functions
     ################################################################
 
+    @funTime
     def runStage2(self):
         if not IS_REFERENCE_PREPARED:
+            print('[ {} ] Executing Stage 2...'.format(now()))
             self.qcRef()
             self.ppRef()
         else:
-            with open(os.path.join(self.Project, '.init'), 'a') as F:
-                F.write('P')
+            print('[ {} ] Skipping Stage 2...'.format(now()))
+            with open(os.path.join(self.Project, '.init'), 'r') as F:
+                stuff = F.readlines()[0]
+            if 'P' not in stuff:
+                with open(os.path.join(self.Project, '.init'), 'a') as F:
+                    F.write('P')
 
+    @funTime
     def runStage3(self, phases):
-        print("Pipeline is running...")
+        print('[ {} ] Executing Stage 3...'.format(now()))
         self.makeNotifyFolder()
         self.GO(phases)
-        stringtieStatus = self.runStringtiePhase(phases, behavior='non-default')
+        stringtieStatus = self.runStringtiePhase(phases,behavior='non-default')
         if stringtieStatus == 'DONE' or stringtieStatus == 'c':
             self.findPipeFinish()
 
+    @funTime
     def executeSample(self, number, phases):
         ''' Arguments:
                 number = int; sample number
@@ -1734,32 +1807,35 @@ wait
         Run Stage 3 for Sample #number
         '''
         self.makeNotifyFolder2()
-        print("Pipeline is running for sample_{} on {}...".format(number,os.uname()[1]))
+        print("Pipeline is running for sample_{} on {}...".format(
+            number,os.uname()[1]))
         self.GO(phases, int(number))
 
+    @funTime
     def runStage4(self):
         while True:
             if self.is3Finished() or self.checkEach():
                 time.sleep(1)
-                print('Preparing for R analysis...')
+                print('[ {} ] Executing Stage 4...'.format(now()))
                 if os.path.isdir(os.path.join(self.Project,'runPipeNotify')):
                     shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
                 self.gatherAllSampleOverrep(1)
                 self.gatherAllSampleOverrep(2)
                 self.fullH2Stats()
                 self.quickTrimStats()
-                self.createJsonMetadata()
                 self.organizeStringtieOutput()
+                self.createJsonMetadata()
                 self.createBallgownCols()
                 self.createBallgownScript()
                 break
             else:
                 time.sleep(1)
 
+    @funTime
     def runStage5(self):
+        print('[ {} ] Executing Stage 5...'.format(now()))
         self.runBallgownAnalysis()
 
-#@@@
 class KallistoExperiment(Experiment):
     '''
         Inherit from general experiment class. Can
@@ -1971,11 +2047,11 @@ wait
                     }
             goodCommand = self.redirectSTDERR(command.format(**context), logFile)
             # Executing
-            print('Building kallisto index...')
             os.chdir(self.Reference)
             subprocess.run(goodCommand,
-                                shell=True,
-                                check=True)
+                shell=True,
+                check=True,
+                executable='/bin/bash')
             with open(os.path.join(self.Reference, 'KaliIndexBuilt'),'w') as F:
                 F.write('True')
 
@@ -2001,8 +2077,9 @@ wait
             if not os.path.isdir(sampleResults):
                 try:
                     subprocess.run(linkCommand,
-                                        shell=True,
-                                        check=True)
+                        shell=True,
+                        check=True,
+                        executable='/bin/bash')
                 except:
                     pass
 
@@ -2044,31 +2121,40 @@ wait
         os.chdir(self.Postprocessing)
         sleuthCommand = r'''{ time -p Rscript "runSleuth.r"; } > runSleuthTime.log 2>&1'''
         subprocess.run(sleuthCommand,
-                            shell=True,
-                            check=True,
-                            executable="/bin/bash")
+            shell=True,
+            check=True,
+            executable="/bin/bash")
 
     ################################################################
     # Stage Run Functions
     ################################################################
 
+    @funTime
     def runStage2(self):
     #TODO Check if statement
         if self.needToBuildKaliIndex():
+            print('[ {} ] Building Kallisto Index...'.format(now()))
             self.buildKallistoIndex()
         if not IS_REFERENCE_PREPARED:
+            print('[ {} ] Executing Stage 2...'.format(now()))
             self.qcRef()
             self.ppRef()
         else:
-            with open(os.path.join(self.Project, '.init'), 'a') as F:
-                F.write('P')
+            print('[ {} ] Skipping Stage 2...'.format(now()))
+            with open(os.path.join(self.Project, '.init'), 'r') as F:
+                stuff = F.readlines()[0]
+            if 'P' not in stuff:
+                with open(os.path.join(self.Project, '.init'), 'a') as F:
+                    F.write('P')
 
+    @funTime
     def runStage3(self):
-        print("Pipeline is running...")
+        print('[ {} ] Executing Stage 3...'.format(now()))
         self.makeNotifyFolder()
         self.GO()
         self.findPipeFinish()
 
+    @funTime
     def executeSample(self, number):
         ''' Arguments:
                 number = int; sample number
@@ -2081,31 +2167,35 @@ wait
         print("Pipeline is running for sample_{} on {}...".format(number,os.uname()[1]))
         self.GO(int(number))
 
+    @funTime
     def runStage4(self):
         while True:
             if self.is3Finished() or self.checkEach():
                 time.sleep(1)
-                print('Preparing for R analysis...')
+                print('[ {} ] Executing Stage 4...'.format(now()))
                 if os.path.isdir(os.path.join(self.Project,'runPipeNotify')):
                     shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
                 self.gatherAllSampleOverrep(1)
                 self.gatherAllSampleOverrep(2)
                 self.quickTrimStats()
-                self.createJsonMetadata()
                 self.organizeKallistoOutput()
+                self.createJsonMetadata()
                 self.createSleuthCols()
                 self.createSleuthScript()
                 break
             else:
                 time.sleep(1)
 
+    @funTime
     def runStage5(self):
+        print('[ {} ] Executing Stage 5...'.format(now()))
         self.runSleuthAnalysis()
 
 
 ################################################################
 # Defining Sample Class
 ################################################################
+
 class Sample:
     '''
     For a specific sample: run analyses
@@ -2229,19 +2319,6 @@ class Sample:
             Used to identify specific function output and times
         '''
         self.writeToLog('\n{:20} started at {}\n{}\n'.format('Subcommand', now(),command))
-
-    def initializeLog(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Initializes sample log
-        '''
-        os.chdir(self.samplePath)
-        with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'w') as LOG:
-            LOG.write('\t\tRuntime Log for {}\n'.format(sampleName))
-            LOG.write('----------------------------------------\n\n')
 
     def isFinished(self):
         ''' Arguments:
@@ -2518,16 +2595,17 @@ class Sample:
                 self.sampleName)))
             LOG.write('='*64+'\n\n')
         self.writeFunctionHeader('runPart1')
-        if self.GlobalArgs['fcounts/main']['runQCheck']:
+        command = self.GlobalArgs['<command>']
+        if self.GlobalArgs['{}/main'.format(command)]['runQCheck']:
             self.runQCheck(1, self.Read1, self.Read2)
         else:
             self.writeToLog('runQCheck # 1 skipped due to manifest\n')
-        if self.GlobalArgs['fcounts/main']['runTrimmomatic']:
+        if self.GlobalArgs['{}/main'.format(command)]['runTrimmomatic']:
             self.runTrimmomatic(self.Read1, self.Read2)
         else:
             self.writeToLog('runTrimmomatic skipped due to manifest\n')
-        if (self.GlobalArgs['fcounts/main']['runQCheck'] and 
-            self.GlobalArgs['fcounts/main']['runTrimmomatic']):
+        if (self.GlobalArgs['{}/main'.format(command)]['runQCheck'] and 
+            self.GlobalArgs['{}/main'.format(command)]['runTrimmomatic']):
             self.runQCheck(2, 'read1.P.trim.{}.gz'.format(self.Fastq),
                 'read2.P.trim.{}.gz'.format(self.Fastq))
         else:
@@ -2953,7 +3031,8 @@ class FCountsSample(Sample):
             Returns:
                 None
 
-            Scrapes featureCounts output for gene id, length of gene, and count
+            Scrapes featureCounts output for gene id, length of
+            gene, and count
         '''
         self.writeFunctionHeader('getNiceColumns')
         # Making Command
@@ -3003,13 +3082,15 @@ class FCountsSample(Sample):
                 None
 
             Runs Pipeline sequentially
-            Note: Does not include Quality control steps: Fastqc and trimmomatic
+            Note: Does not include Quality control steps: 
+                Fastqc and trimmomatic
         '''
         os.chdir(self.samplePath)
         with open(os.path.join(self.samplePath,
             'Runtime.{}.log'.format(self.sampleName)), 'a') as LOG:
             LOG.write('='*64+'\n')
-            LOG.write('{:^64}\n'.format('Runtime Log Part 2 - {}'.format(self.sampleName)))
+            LOG.write('{:^64}\n'.format('Runtime Log Part 2 - {}'.format(
+                self.sampleName)))
             LOG.write('='*64+'\n\n')
         self.writeFunctionHeader('runPart2')
         if self.GlobalArgs['fcounts/main']['runSeqtk']:
@@ -3093,61 +3174,84 @@ class StringtieSample(Sample):
             Runs hisat2 on data
         '''
         self.writeFunctionHeader('runHisat')
-        strandedVar = self.findStranded()
-        if strandedVar == 0:
+        localArgs = self.GlobalArgs['string/runHisat']
+        if localArgs['--rna-strandedness'] == None:
+            try:
+                strandedVar = self.findStranded()
+            except subprocess.CalledProcessError:
+                if localArgs['--rna-strandedness'] == None:
+                    raise SystemExit('findStranded() error; must specify'+
+                        ' --rna-strandedness in [string/runHisat] manifest'+
+                        ' header')
+            if strandedVar == 0:
+                FR = ''
+            elif strandedVar == 1:
+                FR = ' --rna-strandness FR'
+            else:
+                FR = ' --rna-strandness RF'
+        elif localArgs['--rna-strandedness'] == False:
             FR = ''
-        elif strandedVar == 1:
-            FR = ' --rna-strandness FR'
         else:
-            FR = ' --rna-strandness RF'
+            FR = ' --rna-strandedness {}'.format(
+                localArgs['--rna-strandedness'])
+        if localArgs['--phred'] == None:
+            try:
+                Phred = str(self.getPhred())
+            except IndexError:
+                if localArgs['--phred'] == None:
+                    raise SystemExit('getPhred() error; must specify'+
+                        ' --phred in [fcounts/runHisat] manifest'+
+                        ' header')
+        else:
+            Phred = localArgs['--phred']
+        if localArgs['-1'] == None:
+            if not os.path.exists(os.path.join(self.samplePath,
+                "read1.P.trim.{}.gz".format(self.Fastq))):
+                raise SystemExit('FileNotExistsError: must specify'+
+                    ' -1 and -2 in [fcounts/runHisat] manifest'+
+                    ' header; this problem may arise if trimmomatic'+
+                    ' was skipped')
         # Making Command
-        command = r"""hisat2 -k 5 -p {numProcs}{FRoRF} --dta --phred{phred} --known-splicesite-infile {ref}/splice_sites.txt -x {ref}/{basename} -1 read1.P.trim.{fastq}.gz -2 read2.P.trim.{fastq}.gz -S aligned.{sample}.sam"""
-        Phred = self.getPhred()
-        context = {
-                "numProcs": self.Procs,
-                "phred": str(Phred),
-                "ref": self.Reference,
-                "basename": self.Basename,
-                "fastq": self.Fastq,
-                "sample": self.sampleName,
-                "FRoRF": FR
-                }
-        goodCommand = self.formatCommand(command.format(**context))
+        #command = r"""hisat2 -k 5 -p {numProcs}{FRoRF} --dta 
+        # --phred{phred} --known-splicesite-infile {ref}/splice_sites.txt
+        # -x {ref}/{basename} -1 read1.P.trim.{fastq}.gz 
+        # -2 read2.P.trim.{fastq}.gz -S aligned.{sample}.sam"""
+        command = ("""{hisat2} -k {-k} -p {-p}{--rna-strandedness}"""+
+            """ {--dta} --phred{--phred} {other}"""+
+            """ --known-splicesite-infile {--known-splicesite-infile}"""+
+            """ -x {-x} -1 {-1} -2 {-2} -S {-S}""")
+        Context = {
+            "hisat2": self.checkMan("hisat2", localArgs['hisat2']),
+            "-k": self.checkMan("5", localArgs['-k']),
+            "-p": self.checkMan(self.Procs, localArgs['-p']),
+            "--rna-strandedness": FR,
+            "--dta": self.checkManBool("--dta", localArgs['--dta']),
+            "--phred": self.checkMan(Phred, localArgs['--phred']),
+            "other": self.checkMan("", localArgs['other']),
+            "--known-splicesite-infile": self.checkMan(
+                os.path.join(self.Reference,'splice_sites.txt'),
+                localArgs['--known-splicesite-infile']),
+            "-x": self.checkMan(os.path.join(self.Reference,self.Basename),
+                localArgs['-x']),
+            "-1": self.checkMan(
+                "read1.P.trim.{}.gz".format(self.Fastq),
+                localArgs['-1']),
+            "-2": self.checkMan(
+                "read2.P.trim.{}.gz".format(self.Fastq),
+                localArgs['-2']),
+            "-S": self.checkMan(
+                "aligned.{}.sam".format(self.sampleName),
+                localArgs['-S']),
+            }
+        goodCommand = self.formatCommand(command.format(**Context))
         # Executing
         self.writeFunctionCommand(goodCommand)
         os.chdir(self.samplePath)
         subprocess.run(goodCommand,
-                            shell=True,
-                            check=True)
+            shell=True,
+            check=True,
+            executable='/bin/bash')
         self.writeFunctionTail('runHisat')
-
-    def runCompression(self):
-        ''' Arguments:
-                None
-            Returns:
-                None
-
-            Compresses output of hisat2 with samtools
-        '''
-        self.writeFunctionHeader('runCompression')
-        # Making Command
-        command = r"samtools view -bT {ref}/{genome} -@{procs} aligned.{sample}.sam -o aligned.{sample}.bam"
-        context = {
-                "ref": self.Reference,
-                "genome": self.Genome,
-                "procs": self.Procs,
-                "sample": self.sampleName,
-                }
-        goodCommand = self.formatCommand(command.format(**context))
-        # Executing
-        os.chdir(self.samplePath)
-        self.writeFunctionCommand(goodCommand)
-        subprocess.run(goodCommand,
-                            shell=True,
-                            check=True)
-        os.chdir(self.samplePath)
-        os.remove('aligned.{}.sam'.format(self.sampleName))
-        self.writeFunctionTail('runCompression')
 
     ########################################################
     # Stringtie
@@ -3162,22 +3266,33 @@ class StringtieSample(Sample):
             Assemble gene transcripts using Reference GTF
         '''
         self.writeFunctionHeader('assembleTranscripts')
+        localArgs = self.GlobalArgs['string/assembleTranscripts']
         # Making Command
-        #command = r"stringtie -p {procs} -G {ref}/{gtf} -o {sample}.st.gtf -l {sample} aligned.{sample}.bam"
-        command = r"stringtie -p {procs} -o {sample}.st.gtf -l {sample} aligned.{sample}.bam"
-        context = {
-                "procs": self.Procs,
-                "ref": self.Reference,
-                "gtf": self.Gtf,
-                "sample": self.sampleName,
-                }
-        goodCommand = self.formatCommand(command.format(**context))
+        # TODO Not sure about -G argument
+        #command = r"stringtie -p {procs} -G {ref}/{gtf} -o {sample}.st.gtf
+        # -l {sample} aligned.{sample}.bam"
+        #command = r"stringtie -p {procs} -o {sample}.st.gtf 
+        # -l {sample} aligned.{sample}.bam"
+        command = ("""{stringtie} -p {-p} -o {-o} -l {-l} {other} {in}""")
+        Context = {
+            "stringtie": self.checkMan("stringtie", localArgs['stringtie']),
+            "-p": self.checkMan(self.Procs, localArgs['-p']),
+            "-o": self.checkMan('{}.st.gtf'.format(self.sampleName),
+                localArgs['-o']),
+            "-l": self.checkMan(self.sampleName, localArgs['-l']),
+            "other": self.checkMan("", localArgs['other']),
+            "in": self.checkMan("aligned.{}.bam".format(self.sampleName),
+                localArgs['in']),
+            #"-G": os.path.join(self.Reference, self.Gtf)
+            }
+        goodCommand = self.formatCommand(command.format(**Context))
         # Executing
-        os.chdir(self.samplePath)
         self.writeFunctionCommand(goodCommand)
+        os.chdir(self.samplePath)
         subprocess.run(goodCommand,
-                            shell=True,
-                            check=True)
+            shell=True,
+            check=True,
+            executable='/bin/bash')
         self.writeFunctionTail('assembleTranscripts')
 
     def estimateTranscriptAbundances(self):
@@ -3190,23 +3305,35 @@ class StringtieSample(Sample):
             transcript abundances and create a table counts
         '''
         self.writeFunctionHeader('estimateTranscriptAbundances')
-        projectName = os.path.basename(self.Project)
-        stMergeDir = self.Postprocessing + '/StringtieMerge'
-        stMergedFile = os.path.join(stMergeDir,"{}.stmerged.gtf".format(projectName))
+        localArgs = self.GlobalArgs['string/estimateTranscriptAbundances']
         # Making Command
-        command = r"stringtie -e -B -p {procs} -G {stmerged} -o {sample}.good.st.gtf aligned.{sample}.bam"
-        context = {
-                "procs": self.Procs,
-                "stmerged": stMergedFile,
-                "sample": self.sampleName
-                }
-        goodCommand = self.formatCommand(command.format(**context))
+        #command = r"stringtie -e -B -p {procs} -G {stmerged} 
+        # -o {sample}.good.st.gtf aligned.{sample}.bam"
+        command = ("""{stringtie} {-e} {-B} -p {-p} -G {-G} -o {-o}"""+
+            """ {other} {in}""")
+        Context = {
+            "stringtie": self.checkMan("stringtie", localArgs['stringtie']),
+            "-e": self.checkManBool("-e", localArgs['-e']),
+            "-B": self.checkManBool("-B", localArgs['-B']),
+            "-p": self.checkMan(self.Procs, localArgs['-p']),
+            "-G": self.checkMan(os.path.join(self.Postprocessing,
+                'StringtieMerge/{}.stmerged.gtf'.format(
+                    os.path.basename(self.Project))),
+                localArgs['-G']),
+            "-o": self.checkMan('{}.good.st.gtf'.format(self.sampleName),
+                localArgs['-o']),
+            "other": self.checkMan("", localArgs['other']),
+            "in": self.checkMan("aligned.{}.bam".format(self.sampleName),
+                localArgs['in']),
+            }
+        goodCommand = self.formatCommand(command.format(**Context))
         # Executing
-        os.chdir(self.samplePath)
         self.writeFunctionCommand(goodCommand)
+        os.chdir(self.samplePath)
         subprocess.run(goodCommand,
-                            shell=True,
-                            check=True)
+            shell=True,
+            check=True,
+            executable='/bin/bash')
         self.writeFunctionTail('estimateTranscriptAbundances')
 
     def runAltCompression(self):
@@ -3217,23 +3344,32 @@ class StringtieSample(Sample):
 
             Compresses output of hisat2 with samtools
         '''
-        self.writeFunctionHeader('runCompression')
+        self.writeFunctionHeader('runAltCompression')
+        localArgs = self.GlobalArgs['string/runAltCompression']
         # Making Command
-        command = r"samtools sort -@ {procs} -o aligned.{sample}.bam aligned.{sample}.sam"
-        context = {
-                "procs": self.Procs,
-                "sample": self.sampleName,
-                }
-        goodCommand = self.formatCommand(command.format(**context))
+        #command = r"samtools sort -@ {procs} -o aligned.{sample}.bam
+        # aligned.{sample}.sam"
+        command = ("""{samtools} sort -@ {-@} -o {-o} {other} {in}""")
+        Context = {
+            "samtools": self.checkMan("samtools", localArgs['samtools']),
+            "-@": self.checkMan(self.Procs, localArgs['-@']),
+            "-o": self.checkMan('aligned.{}.bam'.format(self.sampleName),
+                localArgs['-o']),
+            "other": self.checkMan("", localArgs['other']),
+            "in": self.checkMan("aligned.{}.sam".format(self.sampleName),
+                localArgs['in']),
+            }
+        goodCommand = self.formatCommand(command.format(**Context))
         # Executing
-        os.chdir(self.samplePath)
         self.writeFunctionCommand(goodCommand)
-        subprocess.run(goodCommand,
-                            shell=True,
-                            check=True)
         os.chdir(self.samplePath)
-        os.remove('aligned.{}.sam'.format(self.sampleName))
-        self.writeFunctionTail('runCompression')
+        subprocess.run(goodCommand,
+            shell=True,
+            check=True,
+            executable='/bin/bash')
+        os.remove(os.path.join(self.samplePath,
+            'aligned.{}.sam'.format(self.sampleName)))
+        self.writeFunctionTail('runAltCompression')
 
     ########################################################
     # Run Sample
@@ -3247,19 +3383,38 @@ class StringtieSample(Sample):
 
             Runs Pipeline sequentially
         '''
-        self.writeFunctionHeader('stringtiePart2a')
         os.chdir(self.samplePath)
-        with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'a') as LOG:
-            LOG.write('\t\tRuntime Log Part 2 for {}\n'.format(self.sampleName))
-            LOG.write('----------------------------------------\n')
-            LOG.write('Part 2a\n')
-            LOG.write('----------------------------------------\n\n')
-        self.runSeqtk()
-        self.runBlastn()
-        self.runHisat()
-        self.runAltCompression()
-        self.assembleTranscripts()
+        with open(os.path.join(self.samplePath,
+            'Runtime.{}.log'.format(self.sampleName)), 'a') as LOG:
+            LOG.write('='*64+'\n')
+            LOG.write('{:^64}\n'.format('Runtime Log Part 2 - {}'.format(
+                self.sampleName)))
+            LOG.write('='*64+'\n\n')
+        self.writeFunctionHeader('stringtiePart2a')
+        if self.GlobalArgs['string/main']['runSeqtk']:
+            self.runSeqtk()
+        else:
+            self.writeToLog('runSeqtk skipped due to manifest\n')
+        if self.GlobalArgs['string/main']['runBlastn']:
+            self.runBlastn()
+        else:
+            self.writeToLog('runBlastn skipped due to manifest\n')
+        if self.GlobalArgs['string/main']['runHisat']:
+            self.runHisat()
+        else:
+            self.writeToLog('runHisat skipped due to manifest\n')
+        if self.GlobalArgs['string/main']['runAltCompression']:
+            self.runAltCompression()
+        else:
+            self.writeToLog('runAltCompression skipped due to manifest\n')
+        if self.GlobalArgs['string/main']['assembleTranscripts']:
+            self.assembleTranscripts()
+        else:
+            self.writeToLog('assembleTranscripts skipped due to manifest\n')
         self.writeFunctionTail('stringtiePart2a')
+        self.writeToLog('='*64+'\n')
+        self.writeToLog('{:^64}\n'.format('stringtiePart2b executing'))
+        self.writeToLog('='*64+'\n\n')
 
     def stringtiePart2c(self):
         ''' Arguments:
@@ -3269,17 +3424,20 @@ class StringtieSample(Sample):
 
             Runs Pipeline sequentially
         '''
-        self.writeFunctionHeader('stringtiePart2c')
         os.chdir(self.samplePath)
-        with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'a') as LOG:
-            LOG.write('Part 2c\n')
-            LOG.write('----------------------------------------\n\n')
-        self.estimateTranscriptAbundances()
+        self.writeFunctionHeader('stringtiePart2c')
+        if self.GlobalArgs['string/main']['estimateTranscriptAbundances']:
+            self.estimateTranscriptAbundances()
+        else:
+            self.writeToLog('estimateTranscriptAbundances skipped due'+
+                ' to manifest\n')
         self.writeFunctionTail('stringtiePart2c')
-        with open(self.Project + '/runPipeNotify/{}'.format('done'+self.sampleName), 'w') as N:
-            N.write('{} is done'.format(self.samplePath))
-        with open(self.samplePath + '/.done', 'w') as N:
-            N.write('{} is done'.format(self.samplePath))
+        if os.path.exists(os.path.join(self.samplePath, "i_data.ctab")):
+            with open(os.path.join(self.Project,
+                'runPipeNotify/{}'.format('done'+self.sampleName)), 'w') as N:
+                N.write('{} is done'.format(self.samplePath))
+            with open(os.path.join(self.samplePath, '.done'), 'w') as N:
+                N.write('{} is done'.format(self.samplePath))
 
     def runParts(self,stringtiePhase=None):
         ''' Arguments:
@@ -3330,26 +3488,54 @@ class KallistoSample(Sample):
 
         '''
         self.writeFunctionHeader('runKallisto')
-        kallistoOutputDir = os.path.join(self.samplePath, 'KallistoOutput.{}'.format(
-                                                            self.sampleName))
-        strandedVar = self.findStranded()
-        if strandedVar == 0:
+        localArgs = self.GlobalArgs['kall/runKallisto']
+        # fr, rf, False, or None
+        if localArgs['stranded'] == None:
+            try:
+                strandedVar = self.findStranded()
+            except subprocess.CalledProcessError:
+                if localArgs['stranded'] == None:
+                    raise SystemExit('findStranded() error; must specify'+
+                        ' stranded in [kall/runHisat] manifest'+
+                        ' header')
+            if strandedVar == 0:
+                FR = ''
+            elif strandedVar == 1:
+                FR = ' --fr-stranded'
+            else:
+                FR = ' --rf-stranded'
+        elif localArgs['stranded'] == False:
             FR = ''
-        elif strandedVar == 1:
-            FR = ' --fr-stranded'
         else:
-            FR = ' --rf-stranded'
+            FR = ' --{}-stranded'.format(localArgs['--rna-strandedness'])
+        kallistoOutputDir = os.path.join(self.samplePath,
+            'KallistoOutput.{}'.format(self.sampleName))
         # Making Command
-        command = r"kallisto quant -i {transcriptindex} -o {outputdir} --threads {procs}{FRoRF} -b 100 <( zcat read1.P.trim.{fastq}.gz ) <( zcat read2.P.trim.{fastq}.gz )" 
-        context = {
-                "transcriptindex": os.path.join(self.Reference, '{}.kali.cdna.fa.idx'.format(
-                                                                            self.Basename)),
-                "outputdir": kallistoOutputDir,
-                "fastq": self.Fastq,
-                "FRoRF": FR,
-                "procs": self.Procs
-                }
-        goodCommand = self.formatCommand(command.format(**context))
+        #command = r"kallisto quant -i {transcriptindex} -o {outputdir}
+        # --threads {procs}{FRoRF} -b 100
+        # <( zcat read1.P.trim.{fastq}.gz ) <( zcat read2.P.trim.{fastq}.gz )"
+        command = ("""{kallisto} quant -i {-i} -o {-o}"""+
+            """ --threads {--threads}{stranded} -b {-b} {other}"""+
+            """ <( zcat {read1} ) <( zcat {read2} )""")
+        Context = {
+            "kallisto": self.checkMan("kallisto", localArgs['kallisto']),
+            "-i": self.checkMan(
+                os.path.join(self.Reference,
+                    '{}.kali.cdna.fa.idx'.format(self.Basename)),
+                localArgs['-i']),
+            "-o": self.checkMan(kallistoOutputDir, localArgs['-o']),
+            "--threads": self.checkMan(self.Procs, localArgs['--threads']),
+            "stranded": FR,
+            "-b": self.checkMan('100', localArgs['-b']),
+            "other": self.checkMan("", localArgs['other']),
+            "read1": self.checkMan(
+                "read1.P.trim.{}.gz".format(self.Fastq),
+                localArgs['read1']),
+            "read2": self.checkMan(
+                "read2.P.trim.{}.gz".format(self.Fastq),
+                localArgs['read2']),
+            }
+        goodCommand = self.formatCommand(command.format(**Context))
         # Executing
         if not os.path.isdir(kallistoOutputDir):
             try:
@@ -3359,9 +3545,9 @@ class KallistoSample(Sample):
         os.chdir(self.samplePath)
         self.writeFunctionCommand(goodCommand)
         subprocess.run(goodCommand,
-                            shell=True,
-                            check=True,
-                            executable="/bin/bash")
+            shell=True,
+            check=True,
+            executable="/bin/bash")
         self.writeFunctionTail('runKallisto')
 
     ########################################################
@@ -3378,17 +3564,33 @@ class KallistoSample(Sample):
             Note: Does not include Quality control steps: Fastqc and trimmomatic
         '''
         os.chdir(self.samplePath)
-        with open('{}/Runtime.{}.log'.format(self.samplePath, self.sampleName), 'a') as LOG:
-            LOG.write('\t\tRuntime Log Part 2 for {}\n'.format(self.sampleName))
-            LOG.write('----------------------------------------\n\n')
-        self.runSeqtk()
-        self.runBlastn()
-        self.runKallisto()
-        self.writeFunctionTail('runPart2')
-        with open(self.Project + '/runPipeNotify/{}'.format('done'+self.sampleName), 'w') as N:
-            N.write('{} is done'.format(self.samplePath))
-        with open(self.samplePath + '/.done', 'w') as N:
-            N.write('{} is done'.format(self.samplePath))
+        with open(os.path.join(self.samplePath,
+            'Runtime.{}.log'.format(self.sampleName)), 'a') as LOG:
+            LOG.write('='*64+'\n')
+            LOG.write('{:^64}\n'.format('Runtime Log Part 2 - {}'.format(
+                self.sampleName)))
+            LOG.write('='*64+'\n\n')
+        self.writeFunctionHeader('runPart2Kallisto')
+        if self.GlobalArgs['kall/main']['runSeqtk']:
+            self.runSeqtk()
+        else:
+            self.writeToLog('runSeqtk skipped due to manifest\n')
+        if self.GlobalArgs['kall/main']['runBlastn']:
+            self.runBlastn()
+        else:
+            self.writeToLog('runBlastn skipped due to manifest\n')
+        if self.GlobalArgs['kall/main']['runKallisto']:
+            self.runKallisto()
+        else:
+            self.writeToLog('runKallisto skipped due to manifest\n')
+        self.writeFunctionTail('runPart2Kallisto')
+        if os.path.exists(os.path.join(self.samplePath,
+            "Runtime.{}.log".format(self.sampleName))):
+            with open(os.path.join(self.Project,
+                'runPipeNotify/{}'.format('done'+self.sampleName)), 'w') as N:
+                N.write('{} is done'.format(self.samplePath))
+            with open(os.path.join(self.samplePath, '.done'), 'w') as N:
+                N.write('{} is done'.format(self.samplePath))
 
     def runParts(self):
         ''' Arguments:

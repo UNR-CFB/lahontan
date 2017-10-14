@@ -25,7 +25,6 @@ Available runPipe commands:
     fo          Finds optimal execution path for batch execution
     prepref     Pre-processes reference data
     gendef      Generate a default input file
-    readin      Test
 
 See 'runPipe help <command>' for more information on a specific 
 command'''
@@ -723,9 +722,7 @@ Options:
     cpuLimit = checkMaxCPU(arguments)
     testFile(expandPath(arguments['<input>']))
     testFile(expandPath(arguments['--use-blacklist']))
-    StringtieClass = pipeClasses.StringtieExperiment(expandPath(arguments['<input>']),
-                                                     maxCPU=cpuLimit, 
-                                                     blacklist=expandPath(arguments['--use-blacklist']))
+    StringtieClass = pipeClasses.StringtieExperiment(arguments)
     # Make batch file if necessary
     makeBatch(StringtieClass, arguments)
     setGlobalLog(StringtieClass)
@@ -797,9 +794,7 @@ Options:
     cpuLimit = checkMaxCPU(arguments)
     testFile(expandPath(arguments['<input>']))
     testFile(expandPath(arguments['--use-blacklist']))
-    KallistoClass = pipeClasses.KallistoExperiment(expandPath(arguments['<input>']),
-                                                   maxCPU=cpuLimit, 
-                                                   blacklist=expandPath(arguments['--use-blacklist']))
+    KallistoClass = pipeClasses.KallistoExperiment(arguments)
     # Make batch file if necessary
     makeBatch(KallistoClass, arguments)
     setGlobalLog(KallistoClass)
@@ -1134,7 +1129,7 @@ input file'''
                 ))
         # string/main/stringtieMerge
         # stringtie --merge -p {procs} -o {mergedir}/{projectname}.stmerged.gtf {other} {mergelist}
-        config['string/makeStringtieMergelist'] = OD((
+        config['string/stringtieMerge'] = OD((
                 ('stringtie', '${EXECUTABLES:stringtie}'),
                 ('-p', 'None'),
                 ('-o', 'None'),
@@ -1693,14 +1688,11 @@ if __name__ == '__main__':
         featureCounts(updatedArgs)
     elif args['<command>'] == 'string':
         args.update(docopt(stringtie.__doc__, argv=argv))
-        print(args)
         updatedArgs = updateArgs(args)
-        exit('Not ready')
         stringtie(updatedArgs)
     elif args['<command>'] == 'kall':
         args.update(docopt(kallisto.__doc__, argv=argv))
         updatedArgs = updateArgs(args)
-        exit('Not ready')
         kallisto(updatedArgs)
     elif args['<command>'] == 'mj':
         import makeJSON
@@ -1723,9 +1715,6 @@ if __name__ == '__main__':
     elif args['<command>'] == 'gendef':
         args.update(docopt(generateDefaultInputFile.__doc__, argv=argv))
         generateDefaultInputFile(args)
-    elif args['<command>'] == 'readin':
-        args.update(docopt(readInputFile.__doc__, argv=argv))
-        readInputFile(args)
     elif args['<command>'] == 'help':
         moreHelp(args)
     elif args['<command>'] == None:
@@ -1734,4 +1723,4 @@ if __name__ == '__main__':
         raise SystemExit("{} is not a runPipe command. See runPipe help".format(args['<command>']))
 
     timeused = str(time.strftime('%H:%M:%S', time.gmtime(timer() - beginTime)))
-    print('Total time elapsed: {}'.format(timeused))
+    print('[ {} ] Total time elapsed: {}'.format(pipeClasses.now(), timeused))
