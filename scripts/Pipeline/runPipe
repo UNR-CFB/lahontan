@@ -26,7 +26,7 @@ Available runPipe commands:
     prepref     Pre-processes reference data
     gendef      Generate a default input file
 
-See 'runPipe help <command>' for more information on a specific 
+See 'runPipe help <command>' for more information on a specific
 command'''
 VERSION = 'runPipe version 1.1\n'
 
@@ -85,7 +85,7 @@ def makeGlobalVars(arguments):
             None
 
         Creates global variables NOCONFIRM, JSFI, and IS_REFERENCE_PREPARED
-        for runPipe, pipeClasses.py, and pipeUtils.py
+        for runPipe and pipeClasses.py
     '''
     # Global Variables to be used in scripts
     global NOCONFIRM
@@ -102,6 +102,25 @@ def makeGlobalVars(arguments):
     pipeClasses.JSFI = JSFI
     pipeClasses.NOCONFIRM = NOCONFIRM
     pipeClasses.IS_REFERENCE_PREPARED = IS_REFERENCE_PREPARED
+
+def qcRef(referenceDir, genome):
+    """ Arguments:
+            referenceDir : location of a reference directory
+            genome : location of genome file with '.dna.' in name
+        Returns:
+            None
+    """
+    print(("[ {} ] Running Quality Control"+
+        " Check on Reference Data...").format(pipeClasses.now()))
+    command = r'''QCofRef.sh {} {}'''.format(referenceDir, genome)
+    subprocess.run(command,
+        shell=True,
+        check=True,
+        executable="/bin/bash")
+    with open(os.path.join(referenceDir, 'Reference_Report.txt'),
+            'r') as Report:
+        print(Report.read())
+    print('\nSee Reference_Report.txt to view initial Diagnostics')
 
 def ppRef(referenceDir, cdna, basename, gtf, genome, cpulimit=None):
     ''' Arguments:
@@ -183,18 +202,18 @@ def createKallistoIndex(referenceDir, cdna, basename):
     """
     indexCheck = os.path.join(referenceDir, 'KaliIndexBuilt')
     if not os.path.exists(indexCheck):
-        logFile = os.path.join(referenceDir, 'KallistoRuntime.log')        
-        # Making Command                                                     
+        logFile = os.path.join(referenceDir, 'KallistoRuntime.log')
+        # Making Command
         command = r"{{ time -p kallisto index -i {basename}.kali.cdna.fa.idx {cdna}; }} >> {log} 2>&1"
         context = {"cdna": cdna,
                    "basename": basename,
                    "log": logFile}
         goodCommand = command.format(**context)
-        # Executing                                                          
-        print('Building kallisto index...')                                  
+        # Executing
+        print('Building kallisto index...')
         os.chdir(referenceDir)
         subprocess.run(goodCommand,
-                       shell=True,                                      
+                       shell=True,
                        check=True,
                        executable="/bin/bash")
         with open(indexCheck,'w') as F:
@@ -354,7 +373,7 @@ def checkdashr(ExperimentClass, arguments):
     if arguments['--runsample']:
         samples = arguments['--runsample'].split(',')
         possibleSamples = [str(a+1) for a in range(ExperimentClass.Numsamples)]
-        runsampleUsage = ('Invalid argument to --runsample: {}'.format(arguments['--runsample']) + 
+        runsampleUsage = ('Invalid argument to --runsample: {}'.format(arguments['--runsample']) +
                             'Possible arguments: {}'.format(str(possibleSamples)))
         if len(set(samples)) != len(samples):
             raise SystemExit(runsampleUsage)
@@ -397,7 +416,7 @@ def checkdashp(arguments):
     """
     # Handling string --phase
     possiblePhases = ['a','b','c','ab','bc','abc']
-    stringtieUsage = ('Invalid argument to --phase: {}'.format(arguments['--phase']) + 
+    stringtieUsage = ('Invalid argument to --phase: {}'.format(arguments['--phase']) +
                         'Possible arguments: {}'.format(str(possiblePhases)))
     if arguments['--phase'] not in possiblePhases:
         raise SystemExit(stringtieUsage)
@@ -429,7 +448,7 @@ def stage2ReadyToExecute(ExperimentClass):
     for sample in glob.glob(os.path.join(dataPath,'sample_*')):
         if len(glob.glob(os.path.join(sample,'*'))) < 2:
             raise SystemExit('Symbolic links to Original data missing')
-    for ref in [os.path.join(ExperimentClass.Reference, f) for f 
+    for ref in [os.path.join(ExperimentClass.Reference, f) for f
             in [ExperimentClass.Gtf, ExperimentClass.Cdna, ExperimentClass.Genome]]:
         testFile(ref)
     return True
@@ -479,7 +498,7 @@ def stage5FCReadyToExecute(FCountsClass):
         Returns:
             None
     """
-    if (not os.path.exists(os.path.join(FCountsClass.Postprocessing, 'makeEdge.r')) or 
+    if (not os.path.exists(os.path.join(FCountsClass.Postprocessing, 'makeEdge.r')) or
         not os.path.exists(os.path.join(FCountsClass.Postprocessing, 'makeReport.r'))):
         return False
     return True
@@ -509,7 +528,7 @@ def readInputFile(arguments):
             arguments : dictionary; CLI arguments from docopt
         Returns:
             config : dict; arguments from input manifest
-        
+
         Reads input manifest and stores into a dictionary
     """
     inputFile = expandPath(arguments['<input>'])
@@ -517,7 +536,7 @@ def readInputFile(arguments):
     config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation(),
             dict_type=OD)
     config.optionxform = str
-    config.BOOLEAN_STATES = {'True': True, 
+    config.BOOLEAN_STATES = {'True': True,
             'False': False,
             'true': True,
             'false': False,
@@ -531,7 +550,7 @@ def updateArgs(arguments):
             arguments : dictionary; CLI arguments from docopt
         Returns:
             updatedArgs : dict; containing necessary adjustments from manifest
-        
+
         Combines command line arguments and manifest arguments
         Note: command line arguments take precedence i.e. if command line argument
         specified, use command line argument, else default to manifest
@@ -585,6 +604,130 @@ def updateArgs(arguments):
     os.remove('.tmprunPipeDefaults.ini')
     return updatedArgs
 
+def generatePreprefInput(arguments):
+    """ Arguments:
+            arguments : dictionary; CLI arguments from docopt
+        Returns:
+            None
+    """
+    ############################################################
+    # Setup
+    ############################################################
+    RNASEQDIR = os.path.expandvars('$RNASEQDIR')
+    config = configparser.ConfigParser(
+            interpolation=configparser.ExtendedInterpolation(),
+            dict_type=OD)
+    config.optionxform = str
+    config.BOOLEAN_STATES = {
+        'True': True,
+        'False': False,
+        'true': True,
+        'false': False,
+        'None': False,
+        'none': False}
+    pwd = os.path.abspath(os.curdir)
+    ############################################################
+    # Locations
+    ############################################################
+    config['locations'] = OD((
+            ('Reference', pwd),
+            ))
+    ############################################################
+    # Mode
+    ############################################################
+    config['mode'] = OD((
+        ('prepref', 'True')
+        ))
+    ############################################################
+    # Main
+    ############################################################
+    config['prepref'] = OD((
+        ('--qualitycheck', 'False'),
+        ('--preprocess', 'False'),
+        ('--kallisto', 'False'),
+        ('--onlykallisto', 'False'),
+        ('--maxcpu', 'None'),
+        ))
+    ############################################################
+    # Executables
+    ############################################################
+    config['EXECUTABLES'] = OD((
+            ('kallisto', '${rnaseqdir}/kallisto'),
+            ('makeblastdb', '${rnaseqdir}/ncbi-blast/bin/makeblastdb'),
+            ('extract_splice_sites.py', '${rnaseqdir}/hisat2/extract_splice_sites.py'),
+            ('extract_exons.py', '${rnaseqdir}/hisat2/extract_exons.py'),
+            ('hisat2-build', '${rnaseqdir}/hisat2/hisat2-build'),
+            ('samtools', '${rnaseqdir}/samtools/bin/samtools'),
+            ))
+    ############################################################
+    # PREPREF
+    ############################################################
+    config['prepref/main'] = OD((
+            ('qcRef', 'True'),
+            ('createKallistoIndex', 'True'),
+            ('makeBlastdb', 'True'),
+            ('extractSpliceSites', 'True'),
+            ('extractExons', 'True'),
+            ('hisatBuild', 'True'),
+            ('samtoolsFaidx', 'True'),
+            ))
+    # prepref/main/createKallistoIndex
+    # kallisto index -i {basename}.kali.cdna.fa.idx {other} {cdna}
+    config['prepref/createKallistoIndex'] = OD((
+        ('kallisto', '${EXECUTABLES:kallisto'),
+        ('-i', 'None'),
+        ('other', 'None'),
+        ('cdna', 'None'),
+        ))
+    # prepref/main/makeBlastdb
+    # makeblastdb -in {cdna} -dbtype nucl {other} -out {basename}.cdna.all
+    config['prepref/makeBlastdb'] = OD((
+        ('makeblastdb', '${EXECUTABLES:makeblastdb'),
+        ('-in', 'None'),
+        ('-dbtype', 'None'),
+        ('other', 'None'),
+        ('-out', 'None'),
+        ))
+    # prepref/main/extractSpliceSites
+    # extract_splice_sites.py {other} {gtf} > splice_sites.txt
+    config['prepref/extractSpliceSites'] = OD((
+        ('extract_splice_sites.py', '${EXECUTABLES:extract_splice_sites.py'),
+        ('other', 'None'),
+        ('gtf', 'None'),
+        ('out', 'None'),
+        ))
+    # prepref/main/extractExons
+    # extract_exons.py {other} {gtf} > known_exons.txt
+    config['prepref/extractExons'] = OD((
+        ('extract_exons.py', '${EXECUTABLES:extract_exons.py'),
+        ('other', 'None'),
+        ('gtf', 'None'),
+        ('out', 'None'),
+        ))
+    # prepref/main/hisatBuild
+    # hisat2-build -p {cpu} --ss splice_sites.txt 
+    # --exon known_exons.txt {other} {genome} {basename}
+    config['prepref/hisatBuild'] = OD((
+        ('hisat2-build', '${EXECUTABLES:hisat2-build'),
+        ('-p', 'None'),
+        ('-ss', 'None'),
+        ('--exon', 'None'),
+        ('other', 'None'),
+        ('genome', 'None'),
+        ('basename', 'None'),
+        ))
+    # prepref/main/samtoolsFaidx
+    # samtools faidx {genome} {other}
+    config['prepref/samtoolsFaidx'] = OD((
+        ('samtools', '${EXECUTABLES:samtools'),
+        ('genome', 'None'),
+        ('other', 'None'),
+        ))
+    ############################################################
+    with open(arguments['--filename'], 'w') as configfile:
+        config.write(configfile)
+    ############################################################
+
 ################################################################
 # Usage Functions
 ################################################################
@@ -621,7 +764,7 @@ Options:
     --batchjson <pathtoJSON>
         Uses json file already created to make batch file
     --edger
-        Runs edgeR analysis only. Default is to run both 
+        Runs edgeR analysis only. Default is to run both
     --deseq
         Runs DESeq2 analysis only. Default is to run both
     --noconfirm
@@ -630,7 +773,7 @@ Options:
         Trimmomatic blacklist used for quality control
     --use-reference
         Use Reference data that has already been prepared.
-        Put path to already prepared reference data in 
+        Put path to already prepared reference data in
         INPUT file
         Note: Need to run Stage 1 with this argument or add to
         "--makebatch" argument'''
@@ -708,7 +851,7 @@ Options:
         Trimmomatic blacklist used for quality control
     --use-reference
         Use Reference data that has already been prepared.
-        Put path to already prepared reference data in 
+        Put path to already prepared reference data in
         INPUT file
         Note: Need to run Stage 1 with this argument or add to
         "--makebatch" argument
@@ -780,7 +923,7 @@ Options:
         Trimmomatic blacklist used for quality control
     --use-reference
         Use Reference data that has already been prepared.
-        Put path to already prepared reference data in 
+        Put path to already prepared reference data in
         INPUT file
         Note: Need to run Stage 1 with this argument or add to
         "--makebatch" argument
@@ -842,11 +985,23 @@ Options:
 
 def referenceProcessing(arguments):
     '''Usage:
-    runPipe prepref [options] <pathtoReferenceDir>
+    runPipe prepref [options] (-r <referenceDir> | -i <input>)
 
 Options:
     -h, --help
         Show this screen and exit
+    -r <referenceDir>
+        One of the mandatory arguments i.e. must specify either
+        r OR i options.
+        Option value is a path to directory that contains a GTF,
+        cDNA, and reference genome
+    -i <input>
+        One of the mandatory arguments i.e. must specify either
+        r OR i options
+        Option value is a path to input file that must contain
+        at least a path to reference directory
+        Note: a default input file can be generated with:
+            runPipe gendef --mode prepref
     -q, --qualitycheck
         Only run quality check on references. Default behavior
         is to run both quality control and preprocessing
@@ -861,15 +1016,13 @@ Options:
     --maxcpu <CPUs>
         Limit the number of CPU that get used to preprocess
         reference data.
-        Note: default is to use all available
-        
-Mandatory Arguments:
-    <pathtoReferenceDir>
-        Path to directory that contains a GTF, cDNA, and
-        reference genome'''
+        Note: default is to use all available'''
+    # TODO TODO TODO
+    # I just finished the generatePreprefInput(), check if that works
+    #TODO Make sure this function works
     makeGlobalVars(arguments)
     cpuLimit = checkMaxCPU(arguments)
-    referencePath = expandPath(arguments['<pathtoReferenceDir>'])
+    referencePath = expandPath(arguments['<pathtoReference>'])
     if not os.path.isdir(referencePath):
         raise SystemExit('Reference directory does not exist: {}'.format(referencePath))
     Init = os.path.join(referencePath,'.init')
@@ -888,11 +1041,11 @@ Mandatory Arguments:
         createKallistoIndex(referencePath, Cdna, Basename)
         raise SystemExit('Completed Kallisto index; exiting...')
     if arguments['--qualitycheck'] and not arguments['--preprocess']: # only q
-        pipeClasses.pipeUtils.qcReference(referencePath,Genome)
+        qcRef(referencePath,Genome)
     elif not arguments['--qualitycheck'] and arguments['--preprocess']: # only p
         ppRef(referencePath, Cdna, Basename, Gtf, Genome, cpuLimit)
     else: #both
-        pipeClasses.pipeUtils.qcReference(referencePath,Genome)
+        qcRef(referencePath,Genome)
         ppRef(referencePath, Cdna, Basename, Gtf, Genome, cpuLimit)
     if arguments['--kallisto']:
         createKallistoIndex(referencePath, Cdna, Basename)
@@ -912,17 +1065,25 @@ Options:
             fcounts
             string
             kall
+            prepref
         [default: fcounts]
 
 Note: Any options given on command-line will override those in
 input file'''
     ############################################################
+    # If mode is gendef; create different config file
+    ############################################################
+    if arguments['--mode'] == 'prepref':
+        generatePreprefInput(arguments)
+        return None
+    ############################################################
     # Set-Up Config
     ############################################################
-    config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation(),
+    config = configparser.ConfigParser(
+            interpolation=configparser.ExtendedInterpolation(),
             dict_type=OD)
     config.optionxform = str
-    config.BOOLEAN_STATES = {'True': True, 
+    config.BOOLEAN_STATES = {'True': True,
             'False': False,
             'true': True,
             'false': False,
@@ -1337,19 +1498,34 @@ Within the runStage2() method, there are two functions:
             2: ppRef()
 
 Function 1: Experiment.qcRef()
-    Action:
-    Result:
+    Action: Calls the QCofRef.sh shell script which takes as its
+    arguments the path to the reference data and the name of the
+    genome.
+    Result: Certain characteristics of the reference data will
+    be checked such as: the names of the chromosomes in the gtf
+    and genome file, the number of chromosomes in the gtf and
+    genome file, the names of the genes in the cdna and gtf
+    file, the total number of unique genes in the cdna and gtf,
+    and the number of unique gene names in the cdna AND not in
+    the gtf
 
 Function 2: Experiment.ppRef()
-    Action:
-    Result:
+    Action: Prepares the reference data by using various tools
+    such as blast, extract_spice_sites.py, extract_exons.py,
+    hisat2, and samtools
+    Result: A blast database, a file with exon and splice site
+    locations, a hisat2 database, and a genome index will be
+    created in reference directory
 
 Within the runStage3() method, there is one function:
             1: GO()
 
 Function 1: FCountsExperiment.GO()
-    Action:
-    Result:
+    Action: Creates sample classes and executes their runParts
+    method
+    Result: Experiment infrastructures acts as a wrapper around
+    the samples, and executes them individually such that they
+    are independent
 
 Further Stage 3 information:
 
@@ -1711,6 +1887,7 @@ if __name__ == '__main__':
         optPath.main(args)
     elif args['<command>'] == 'prepref':
         args.update(docopt(referenceProcessing.__doc__, argv=argv))
+        print(args)
         referenceProcessing(args)
     elif args['<command>'] == 'gendef':
         args.update(docopt(generateDefaultInputFile.__doc__, argv=argv))

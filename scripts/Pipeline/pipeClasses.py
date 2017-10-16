@@ -627,7 +627,8 @@ class Experiment:
             Reference_Report.txt in Reference Folder
         '''
         if not self.isReferencePrepared():
-            print("[ {} ] Running Quality Control Check on Reference Data...".format(now()))
+            print(("[ {} ] Running Quality Control"+
+                " Check on Reference Data...").format(now()))
             command = r'''QCofRef.sh {} {}'''.format(self.Reference,
                     self.Genome)
             subprocess.run(command,
@@ -635,7 +636,7 @@ class Experiment:
                 check=True,
                 executable="/bin/bash")
             if not NOCONFIRM:
-                with open(os.path.join(self.Reference, 'Reference_Report.txt'), 
+                with open(os.path.join(self.Reference, 'Reference_Report.txt'),
                         'r') as Report:
                     print(Report.read())
                 print('\nSee Reference_Report.txt to view initial Diagnostics')
@@ -647,7 +648,8 @@ class Experiment:
             Returns:
                 None
 
-            Pre-Process Reference Data using blast, hisat2, and samtools
+            Pre-Process Reference Data using blast, hisat2, and
+            samtools
         '''
         if not self.isReferencePrepared():
             print("[ {} ] Preprocessing Reference Data...".format(now()))
@@ -659,11 +661,17 @@ class Experiment:
                     "genome": self.Genome,
                     "cpu": self.Procs
                     }
-            makeBlastdb = """time -p makeblastdb -in {cdna} -dbtype nucl -out {basename}.cdna.all""".format(**Context)
-            extractSpliceSites = """time -p extract_splice_sites.py {gtf} > splice_sites.txt""".format(**Context)
-            extractExons = """time -p extract_exons.py {gtf} > known_exons.txt""".format(**Context)
-            hisatBuild = """time -p hisat2-build -p {cpu} --ss splice_sites.txt --exon known_exons.txt {genome} {basename}""".format(**Context)
-            samtoolsFaidx = """time -p samtools faidx {genome}""".format(**Context)
+            makeBlastdb = ("""time -p makeblastdb -in {cdna} -dbtype nucl"""+
+                """ -out {basename}.cdna.all""").format(**Context)
+            extractSpliceSites = ("""time -p extract_splice_sites.py {gtf}"""+
+                """ > splice_sites.txt""").format(**Context)
+            extractExons = ("""time -p extract_exons.py {gtf} >"""+
+                """ known_exons.txt""").format(**Context)
+            hisatBuild = ("""time -p hisat2-build -p {cpu}"""+
+                """ --ss splice_sites.txt --exon known_exons.txt"""+
+                """ {genome} {basename}""").format(**Context)
+            samtoolsFaidx = ("""time -p samtools faidx"""+
+                """ {genome}""").format(**Context)
             os.chdir(self.Reference)
             with open(ppLog, 'w') as PPlog:
                 PPlog.write('\n{}\n{}'.format(makeBlastdb,'='*50))
@@ -711,7 +719,7 @@ class Experiment:
     def clean(self, thingToClean, sampleName=None):
         ''' Arguments:
                 thingToClean = string:
-                                Reference or Data or Postprocessing or All or Sample
+                    Reference or Data or Postprocessing or All or Sample
                 Note: If thingToClean=Sample, require second argument:
                 *sampleName = string; name of Sample to be cleaned
             Returns:
@@ -720,7 +728,8 @@ class Experiment:
             Cleaning function for Experiment.
             See runPipe --help for help
         '''
-        assert type(thingToClean) == str, '{} is not a valid argument'.format(thingToClean)
+        assert type(thingToClean) == str, '{} is not a valid argument'.format(
+            thingToClean)
         if thingToClean == 'Reference':
             arg = '-r'
         elif thingToClean == 'Data':
@@ -735,13 +744,14 @@ class Experiment:
             arg = sampleName
         else:
             raise SystemExit('Need a valid argument: ' +
-                            'Reference, Data, Postprocessing, All, or Sample')
+                'Reference, Data, Postprocessing, All, or Sample')
         if thingToClean == 'Sample':
-            subprocess.run(['clean.sh','-s',arg, self.Genome, self.Cdna, self.Gtf, self.Reference,
-                            self.Data, self.Postprocessing],check=True)
+            subprocess.run(['clean.sh','-s',arg, self.Genome, self.Cdna,
+                self.Gtf, self.Reference, self.Data, self.Postprocessing],
+                check=True)
         else:
-            subprocess.run(['clean.sh',arg, self.Genome, self.Cdna, self.Gtf, self.Reference,
-                            self.Data, self.Postprocessing],check=True)
+            subprocess.run(['clean.sh',arg, self.Genome, self.Cdna, self.Gtf,
+                self.Reference, self.Data, self.Postprocessing],check=True)
 
     ################################################################
     # Stage Run Functions
