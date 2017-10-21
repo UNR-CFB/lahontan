@@ -557,6 +557,7 @@ class Experiment:
                             check=True,
                             executable="/bin/bash")
 
+    #@staticmethod
     def checkMan(self, default, manifest):
         """ Arguments:
              default : 
@@ -566,6 +567,7 @@ class Experiment:
         """
         return default if manifest == None else manifest
 
+    #@staticmethod
     def checkManBool(self, default, manifest):
         """ Arguments:
              default : 
@@ -903,15 +905,15 @@ wait
             Pstep = bestPath[path]['Procs']
             Sstep = bestPath[path]['Samps']
             for S in range(sampleNum,sampleNum + Sstep):
-                com = 'srun -N1 -c{0} -n1 --exclusive runPipe fcounts --noconfirm{2} --use-blacklist {3} --jsonfile "${{jsonFile}}" --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref,self.Blacklist)
+                com = 'srun -N1 -c{0} -n1 runPipe fcounts --noconfirm{2} --use-blacklist {3} --jsonfile "${{jsonFile}}" --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref,self.Blacklist)
                 command3 += com
             if counter != len(bestPath):
                 command3 += 'wait\n'
             counter += 1
             sampleNum += Sstep
         command4 = 'srun -N1 -c1 -n1 runPipe fcounts --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
-        command5a = 'srun -N1 -c1 -n1 --exclusive runPipe fcounts --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --edger "${{inputFile}}" &'.format(ref)
-        command5b = 'srun -N1 -c1 -n1 --exclusive runPipe fcounts --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --deseq "${{inputFile}}" &'.format(ref)
+        command5a = 'srun -N1 -c1 -n1 runPipe fcounts --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --edger "${{inputFile}}" &'.format(ref)
+        command5b = 'srun -N1 -c1 -n1 runPipe fcounts --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --deseq "${{inputFile}}" &'.format(ref)
         command5 = command5a + '\n' + command5b
         Context = {
                 "NODES": len(cluster),
@@ -1403,16 +1405,16 @@ wait
                 Pstep = bestPath[path]['Procs']
                 Sstep = bestPath[path]['Samps']
                 for S in range(sampleNum,sampleNum + Sstep):
-                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe string --noconfirm{2} --use-blacklist {4} --jsonfile "${{jsonFile}}" --maxcpu {0} -e 3 -r {1} --phase {3} "${{inputFile}}" &\n'.format(Pstep,S,ref,phase,self.Blacklist)
+                    com = 'srun -N1 -c{0} -n1 runPipe string --noconfirm{2} --use-blacklist {4} --jsonfile "${{jsonFile}}" --maxcpu {0} -e 3 -r {1} --phase {3} "${{inputFile}}" &\n'.format(Pstep,S,ref,phase,self.Blacklist)
                     command3 += com
                 if counter != len(bestPath):
                     command3 += 'wait\n'
                 counter += 1
                 sampleNum += Sstep
             return command3
-        command3b = 'srun -N1 -c{1} -n1 --exclusive runPipe string --noconfirm{0} --use-blacklist {2} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 3 --phase b "${{inputFile}}"'.format(ref, max(cluster), self.Blacklist)
+        command3b = 'srun -N1 -c{1} -n1 runPipe string --noconfirm{0} --use-blacklist {2} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 3 --phase b "${{inputFile}}"'.format(ref, max(cluster), self.Blacklist)
         command4 = 'srun -N1 -c1 -n1 runPipe string --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
-        command5 = 'srun -N1 -c{1} -n1 --exclusive runPipe string --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 5 "${{inputFile}}"'.format(ref, max(cluster))
+        command5 = 'srun -N1 -c{1} -n1 runPipe string --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 5 "${{inputFile}}"'.format(ref, max(cluster))
         Context = {
                 "NODES": len(cluster),
                 "CPT": bestPath['Step 1']['Procs'],
@@ -1962,7 +1964,7 @@ wait
                 Pstep = bestPath[path]['Procs']
                 Sstep = bestPath[path]['Samps']
                 for S in range(sampleNum,sampleNum + Sstep):
-                    com = 'srun -N1 -c{0} -n1 --exclusive runPipe kall --noconfirm{2} --use-blacklist {3} --jsonfile "${{jsonFile}}" --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref,self.Blacklist)
+                    com = 'srun -N1 -c{0} -n1 runPipe kall --noconfirm{2} --use-blacklist {3} --jsonfile "${{jsonFile}}" --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref,self.Blacklist)
                     command3 += com
                 if counter != len(bestPath):
                     command3 += 'wait\n'
@@ -1970,7 +1972,7 @@ wait
                 sampleNum += Sstep
             return command3
         command4 = 'srun -N1 -c1 -n1 runPipe kall --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
-        command5 = 'srun -N1 -c{1} -n1 --exclusive runPipe kall --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 5 "${{inputFile}}"'.format(ref, max(cluster))
+        command5 = 'srun -N1 -c{1} -n1 runPipe kall --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 5 "${{inputFile}}"'.format(ref, max(cluster))
         Context = {
                 "NODES": len(cluster),
                 "CPT": bestPath['Step 1']['Procs'],
@@ -2757,9 +2759,9 @@ class Sample:
         # Executing
         os.chdir(self.samplePath)
         subprocess.run(goodCommand1,
-                            shell=True,
-                            check=True,
-                            executable='/bin/bash')
+            shell=True,
+            check=True,
+            executable='/bin/bash')
         # Scraping stranded_classifier.py output
         with open(os.path.join(self.samplePath,
             'Runtime.{}.log'.format(self.sampleName)), 'r') as LOG:
@@ -2987,7 +2989,8 @@ class FCountsSample(Sample):
         # --ignoreDup -t exon -g gene_id -a {ref}/{gtf} 
         # -o aligned.{sample}.counts aligned.{sample}.bam"
         command = ("""{featureCounts} -T {-T}"""+
-            """ -s {-s}{-p}{-C}{--primary}{--ignoreDup} -t {-t} -g {-g}"""+
+            """ -s {-s}{-p}{-C}{--primary}{--ignoreDup}"""+
+            """{--largestOverlap} -t {-t} -g {-g}"""+
             """ -a {-a} {other} -o {-o} {in}""")
         Context = {
                 "featureCounts" : self.checkMan("featureCounts",
@@ -3003,6 +3006,8 @@ class FCountsSample(Sample):
                                     localArgs['--primary']),
                 "--ignoreDup"   : self.checkManBool(" --ignoreDup",
                                     localArgs['--ignoreDup']),
+                "--largestOverlap": self.checkManBool(" --largestOverlap",
+                                    localArgs['--largestOverlap']),
                 "-t"            : self.checkMan("exon",
                                     localArgs['-t']),
                 "-g"            : self.checkMan("gene_id",

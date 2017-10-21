@@ -78,6 +78,24 @@ def expandPath(path):
     """
     return os.path.abspath(os.path.expandvars(path))
 
+def checkMan(default, manifest):
+    """ Arguments:
+         default :
+        manifest :
+        Returns:
+            None
+    """
+    return default if manifest == None else manifest
+
+def checkManBool(default, manifest):
+    """ Arguments:
+         default :
+        manifest :
+        Returns:
+            None
+    """
+    return default if manifest == None else ""
+
 def makeGlobalVars(arguments):
     ''' Arguments:
             arguments : dictionary; CLI arguments from docopt
@@ -122,7 +140,7 @@ def qcRef(referenceDir, genome):
         print(Report.read())
     print('\nSee Reference_Report.txt to view initial Diagnostics')
 
-def ppRef(referenceDir, cdna, basename, gtf, genome, cpulimit=None):
+def ppRef(referenceDir, cdna, basename, gtf, genome, cpulimit, args):
     ''' Arguments:
             referenceDir : location of a reference directory
             cdna : location of a CDNA file with a '.cdna.' in the name
@@ -139,62 +157,136 @@ def ppRef(referenceDir, cdna, basename, gtf, genome, cpulimit=None):
     if cpulimit == None:
         cpulimit = os.cpu_count()
     ppLog = os.path.join(referenceDir, 'Preprocessing.log')
-    Context = {
-            "cdna": cdna,
-            "basename": basename,
-            "gtf": gtf,
-            "genome": genome,
-            "cpu": cpulimit
-            }
-    makeBlastdb = """time -p makeblastdb -in {cdna} -dbtype nucl -out {basename}.cdna.all""".format(**Context)
-    extractSpliceSites = """time -p extract_splice_sites.py {gtf} > splice_sites.txt""".format(**Context)
-    extractExons = """time -p extract_exons.py {gtf} > known_exons.txt""".format(**Context)
-    hisatBuild = """time -p hisat2-build -p {cpu} --ss splice_sites.txt --exon known_exons.txt {genome} {basename}""".format(**Context)
-    samtoolsFaidx = """time -p samtools faidx {genome}""".format(**Context)
+    #makeBlastdb = """time -p makeblastdb -in {cdna} -dbtype nucl 
+    # -out {basename}.cdna.all""".format(**Context)
+    makeBlastdb = ("""time -p {makeblastdb} -in {-in} -dbtype {-dbtype}"""+
+        """ {other} -out {-out}""").format(
+            **{
+            "makeblastdb": checkMan("makeblastdb",
+                args["prepref/makeBlastdb"]['makeblastdb']),
+            "-in": checkMan(cdna, args["prepref/makeBlastdb"]['-in']),
+            "-dbtype": checkMan('nucl',
+                args["prepref/makeBlastdb"]['-dbtype']),
+            "other": checkMan('', args["prepref/makeBlastdb"]['other']),
+            "-out": checkMan("{}.cdna.all".format(basename),
+                args["prepref/makeBlastdb"]['-out'])
+            })
+    #extractSpliceSites = """time -p extract_splice_sites.py {gtf} > 
+    # splice_sites.txt""".format(**Context)
+    pprint(makeBlastdb)
+    pprint(args["prepref/extractSpliceSites"])
+    extractSpliceSites = ("""time -p {extract_splice_sites} {other}"""+
+        """ {gtf} > {out}""").format(
+            **{
+            "extract_splice_sites": checkMan("extract_splice_sites.py",
+                args["prepref/extractSpliceSites"]['extract_splice_sites.py']),
+            "other": checkMan('', args["prepref/extractSpliceSites"]['other']),
+            "gtf": checkMan(gtf, args["prepref/extractSpliceSites"]['gtf']),
+            "out": checkMan("splice_sites.txt", args["prepref/extractSpliceSites"]['out'])
+            })
+    #extractExons = """time -p extract_exons.py {gtf} > 
+    # known_exons.txt""".format(**Context)
+    extractExons = ("""time -p {extract_exons} {other} {gtf} >"""+
+        """ {out}""").format(
+            **{
+            "extract_exons": checkMan("extract_exons.py",
+                args["prepref/extractExons"]['extract_exons.py']),
+            "other": checkMan('', args["prepref/extractExons"]['other']),
+            "gtf": checkMan(gtf, args["prepref/extractExons"]['gtf']),
+            "out": checkMan("known_exons.txt",
+                args["prepref/extractExons"]['out'])
+            })
+    #hisatBuild = """time -p hisat2-build -p {cpu} --ss splice_sites.txt 
+    # --exon known_exons.txt {genome} {basename}""".format(**Context)
+    hisatBuild = ("""time -p {hisat2-build} -p {-p} --ss {--ss}"""+
+        """ --exon {--exon} {other} {genome} {basename}""").format(
+            **{
+            "hisat2-build": checkMan("hisat2-build",
+                args["prepref/hisatBuild"]['hisat2-build']),
+            "-p": checkMan(cpulimit, args["prepref/hisatBuild"]['-p']),
+            "--ss": checkMan("splice_sites.txt",
+                args["prepref/hisatBuild"]['--ss']),
+            "--exon": checkMan("known_exons.txt",
+                args["prepref/hisatBuild"]['--exon']),
+            "other": checkMan('', args["prepref/hisatBuild"]['other']),
+            "genome": checkMan(genome, args["prepref/hisatBuild"]['genome']),
+            "basename": checkMan(basename,
+                args["prepref/hisatBuild"]['basename']),
+            })
+    #samtoolsFaidx = """time -p samtools faidx {genome}""".format(**Context)
+    samtoolsFaidx = ("""time -p {samtools} faidx {other} {genome}""").format(
+            **{
+            "samtools": checkMan("samtools",
+                args["prepref/samtoolsFaidx"]['samtools']),
+            "other": checkMan('', args["prepref/samtoolsFaidx"]['other']),
+            "genome": checkMan(genome,
+                args["prepref/samtoolsFaidx"]['genome']),
+            })
     os.chdir(referenceDir)
-    print("Preprocessing Data...")
+    print("[ {} ] Preprocessing Data...".format(pipeClasses.now()))
     with open(ppLog, 'w') as PPlog:
-        PPlog.write('\n{}\n{}'.format(makeBlastdb,'='*50))
-        subprocess.run(makeBlastdb,
-                            shell=True,
-                            check=True,
-                            executable="/bin/bash",
-                            stdout=PPlog,
-                            stderr=subprocess.STDOUT)
-        PPlog.write('\n{}\n{}'.format(extractSpliceSites,'='*50))
-        subprocess.run(extractSpliceSites,
-                            shell=True,
-                            check=True,
-                            executable="/bin/bash",
-                            stdout=PPlog,
-                            stderr=subprocess.STDOUT)
-        PPlog.write('\n{}\n{}'.format(extractExons,'='*50))
-        subprocess.run(extractExons,
-                            shell=True,
-                            check=True,
-                            executable="/bin/bash",
-                            stdout=PPlog,
-                            stderr=subprocess.STDOUT)
-        PPlog.write('\n{}\n{}'.format(hisatBuild,'='*50))
-        subprocess.run(hisatBuild,
-                            shell=True,
-                            check=True,
-                            executable="/bin/bash",
-                            stdout=PPlog,
-                            stderr=subprocess.STDOUT)
-        PPlog.write('\n{}\n{}'.format(samtoolsFaidx,'='*50))
-        subprocess.run(samtoolsFaidx,
-                            shell=True,
-                            check=True,
-                            executable="/bin/bash",
-                            stdout=PPlog,
-                            stderr=subprocess.STDOUT)
+        if args['prepref/main']['makeBlastdb']:
+            PPlog.write('\n{}\n{}'.format(makeBlastdb,'='*50))
+            subprocess.run(makeBlastdb,
+                shell=True,
+                check=True,
+                executable="/bin/bash",
+                stdout=PPlog,
+                stderr=subprocess.STDOUT)
+        else:
+            print('makeBlastdb skipped due to manifest\n')
+            PPlog.write('makeBlastdb skipped due to manifest\n')
+        if args['prepref/main']['extractSpliceSites']:
+            PPlog.write('\n{}\n{}'.format(extractSpliceSites,'='*50))
+            subprocess.run(extractSpliceSites,
+                shell=True,
+                check=True,
+                executable="/bin/bash",
+                stdout=PPlog,
+                stderr=subprocess.STDOUT)
+        else:
+            print('extractSpliceSites skipped due to manifest\n')
+            PPlog.write('extractSpliceSites skipped due to manifest\n')
+        if args['prepref/main']['extractExons']:
+            PPlog.write('\n{}\n{}'.format(extractExons,'='*50))
+            subprocess.run(extractExons,
+                shell=True,
+                check=True,
+                executable="/bin/bash",
+                stdout=PPlog,
+                stderr=subprocess.STDOUT)
+        else:
+            print('extractExons skipped due to manifest\n')
+            PPlog.write('extractExons skipped due to manifest\n')
+        if args['prepref/main']['hisatBuild']:
+            PPlog.write('\n{}\n{}'.format(hisatBuild,'='*50))
+            subprocess.run(hisatBuild,
+                shell=True,
+                check=True,
+                executable="/bin/bash",
+                stdout=PPlog,
+                stderr=subprocess.STDOUT)
+        else:
+            print('hisatBuild skipped due to manifest\n')
+            PPlog.write('hisatBuild skipped due to manifest\n')
+        if args['prepref/main']['samtoolsFaidx']:
+            PPlog.write('\n{}\n{}'.format(samtoolsFaidx,'='*50))
+            subprocess.run(samtoolsFaidx,
+                shell=True,
+                check=True,
+                executable="/bin/bash",
+                stdout=PPlog,
+                stderr=subprocess.STDOUT)
+        else:
+            print('samtoolsFaidx skipped due to manifest\n')
+            PPlog.write('samtoolsFaidx skipped due to manifest\n')
 
-def createKallistoIndex(referenceDir, cdna, basename):
+def createKallistoIndex(referenceDir, cdna, basename, arguments):
     """ Arguments:
             referenceDir : location of a reference directory
             cdna : location of a CDNA file with a '.cdna.' in the name
             basename : basename of files; typically species name
+            arguments : dictionary; CLI arguments from docopt
         Returns:
             None
 
@@ -202,20 +294,29 @@ def createKallistoIndex(referenceDir, cdna, basename):
     """
     indexCheck = os.path.join(referenceDir, 'KaliIndexBuilt')
     if not os.path.exists(indexCheck):
+        localArgs = arguments['prepref/createKallistoIndex']
         logFile = os.path.join(referenceDir, 'KallistoRuntime.log')
         # Making Command
-        command = r"{{ time -p kallisto index -i {basename}.kali.cdna.fa.idx {cdna}; }} >> {log} 2>&1"
-        context = {"cdna": cdna,
-                   "basename": basename,
-                   "log": logFile}
-        goodCommand = command.format(**context)
+        #{{ time -p kallisto index -i {basename}.kali.cdna.fa.idx
+        # {cdna}; }} >> {log} 2>&1"
+        command = ("""{{ time -p {kallisto} index -i {-i} {other} {cdna};"""+
+            """ }} >> {log} 2>&1""")
+        Context = {
+            "kallisto": checkMan("kallisto", localArgs['kallisto']),
+            "-i": checkMan("{}.kali.cdna.fa.idx".format(basename),
+                localArgs['-i']),
+            "other": checkMan('', localArgs['other']),
+            "cdna": checkMan(cdna, localArgs['cdna']),
+            "log": logFile,
+            }
+        goodCommand = command.format(**Context)
         # Executing
-        print('Building kallisto index...')
+        print('[ {} ] Building kallisto index...'.format(pipeClasses.now()))
         os.chdir(referenceDir)
         subprocess.run(goodCommand,
-                       shell=True,
-                       check=True,
-                       executable="/bin/bash")
+            shell=True,
+            check=True,
+            executable="/bin/bash")
         with open(indexCheck,'w') as F:
                 F.write('True')
     else:
@@ -531,7 +632,15 @@ def readInputFile(arguments):
 
         Reads input manifest and stores into a dictionary
     """
-    inputFile = expandPath(arguments['<input>'])
+    try:
+        inputFile = expandPath(arguments['<input>'])
+    except KeyError:
+        try:
+            # Mode is prepref -i
+            inputFile = expandPath(arguments['-i'])
+        except TypeError:
+            # Mode is prepref -r
+            inputFile = expandPath(arguments['tmpDefaults'])
     testFile(inputFile)
     config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation(),
             dict_type=OD)
@@ -542,7 +651,7 @@ def readInputFile(arguments):
             'false': False,
             'None': False,
             'none': False}
-    config.read(arguments['<input>'])
+    config.read(inputFile)
     return config
 
 def updateArgs(arguments):
@@ -556,11 +665,12 @@ def updateArgs(arguments):
         specified, use command line argument, else default to manifest
     """
     # Generate a fallback defaults file
-    generateDefaultInputFile({'--filename': '.tmprunPipeDefaults.ini','--mode': arguments['<command>']})
-    FALLBACK = readInputFile({'<input>': '.tmprunPipeDefaults.ini'})
+    tmpDefaults = '.tmprunPipeDefaults.ini'
+    generateDefaultInputFile({'--filename': tmpDefaults,'--mode': arguments['<command>']})
+    FALLBACK = readInputFile({'<input>': tmpDefaults})
     mode = arguments['<command>']
     updatedArgs = {}
-    Manifest = readInputFile(arguments)
+    Manifest = readInputFile({**arguments, 'tmpDefaults': tmpDefaults})
     try:
         manifestArgs = Manifest[mode]
     except KeyError:
@@ -590,7 +700,7 @@ def updateArgs(arguments):
                         updatedArgs[section][option] = True
                     else:
                         updatedArgs[section][option] = Manifest[section].get(option, fallback=FALLBACK[section].get(option))
-                except KeyError:
+                except:
                     if FALLBACK[section].get(option) == 'None':
                         updatedArgs[section][option] = None
                     elif FALLBACK[section].get(option) == 'False':
@@ -601,7 +711,7 @@ def updateArgs(arguments):
                         updatedArgs[section][option] = FALLBACK[section].get(option)
 
     # Remove tmp fallback defaults file
-    os.remove('.tmprunPipeDefaults.ini')
+    os.remove(tmpDefaults)
     return updatedArgs
 
 def generatePreprefInput(arguments):
@@ -636,7 +746,7 @@ def generatePreprefInput(arguments):
     # Mode
     ############################################################
     config['mode'] = OD((
-        ('prepref', 'True')
+        ('prepref', 'True'),
         ))
     ############################################################
     # Main
@@ -652,6 +762,7 @@ def generatePreprefInput(arguments):
     # Executables
     ############################################################
     config['EXECUTABLES'] = OD((
+            ('rnaseqdir', RNASEQDIR),
             ('kallisto', '${rnaseqdir}/kallisto'),
             ('makeblastdb', '${rnaseqdir}/ncbi-blast/bin/makeblastdb'),
             ('extract_splice_sites.py', '${rnaseqdir}/hisat2/extract_splice_sites.py'),
@@ -674,7 +785,7 @@ def generatePreprefInput(arguments):
     # prepref/main/createKallistoIndex
     # kallisto index -i {basename}.kali.cdna.fa.idx {other} {cdna}
     config['prepref/createKallistoIndex'] = OD((
-        ('kallisto', '${EXECUTABLES:kallisto'),
+        ('kallisto', '${EXECUTABLES:kallisto}'),
         ('-i', 'None'),
         ('other', 'None'),
         ('cdna', 'None'),
@@ -682,7 +793,7 @@ def generatePreprefInput(arguments):
     # prepref/main/makeBlastdb
     # makeblastdb -in {cdna} -dbtype nucl {other} -out {basename}.cdna.all
     config['prepref/makeBlastdb'] = OD((
-        ('makeblastdb', '${EXECUTABLES:makeblastdb'),
+        ('makeblastdb', '${EXECUTABLES:makeblastdb}'),
         ('-in', 'None'),
         ('-dbtype', 'None'),
         ('other', 'None'),
@@ -691,7 +802,7 @@ def generatePreprefInput(arguments):
     # prepref/main/extractSpliceSites
     # extract_splice_sites.py {other} {gtf} > splice_sites.txt
     config['prepref/extractSpliceSites'] = OD((
-        ('extract_splice_sites.py', '${EXECUTABLES:extract_splice_sites.py'),
+        ('extract_splice_sites.py', '${EXECUTABLES:extract_splice_sites.py}'),
         ('other', 'None'),
         ('gtf', 'None'),
         ('out', 'None'),
@@ -699,18 +810,18 @@ def generatePreprefInput(arguments):
     # prepref/main/extractExons
     # extract_exons.py {other} {gtf} > known_exons.txt
     config['prepref/extractExons'] = OD((
-        ('extract_exons.py', '${EXECUTABLES:extract_exons.py'),
+        ('extract_exons.py', '${EXECUTABLES:extract_exons.py}'),
         ('other', 'None'),
         ('gtf', 'None'),
         ('out', 'None'),
         ))
     # prepref/main/hisatBuild
-    # hisat2-build -p {cpu} --ss splice_sites.txt 
+    # hisat2-build -p {cpu} --ss splice_sites.txt
     # --exon known_exons.txt {other} {genome} {basename}
     config['prepref/hisatBuild'] = OD((
-        ('hisat2-build', '${EXECUTABLES:hisat2-build'),
+        ('hisat2-build', '${EXECUTABLES:hisat2-build}'),
         ('-p', 'None'),
-        ('-ss', 'None'),
+        ('--ss', 'None'),
         ('--exon', 'None'),
         ('other', 'None'),
         ('genome', 'None'),
@@ -719,7 +830,7 @@ def generatePreprefInput(arguments):
     # prepref/main/samtoolsFaidx
     # samtools faidx {genome} {other}
     config['prepref/samtoolsFaidx'] = OD((
-        ('samtools', '${EXECUTABLES:samtools'),
+        ('samtools', '${EXECUTABLES:samtools}'),
         ('genome', 'None'),
         ('other', 'None'),
         ))
@@ -1017,17 +1128,16 @@ Options:
         Limit the number of CPU that get used to preprocess
         reference data.
         Note: default is to use all available'''
-    # TODO TODO TODO
-    # I just finished the generatePreprefInput(), check if that works
-    #TODO Make sure this function works
-    makeGlobalVars(arguments)
     cpuLimit = checkMaxCPU(arguments)
-    referencePath = expandPath(arguments['<pathtoReference>'])
+    if arguments['-r']:
+        referencePath = expandPath(arguments['-r'])
+    else:
+        referencePath = expandPath(arguments['locations']['Reference'])
     if not os.path.isdir(referencePath):
         raise SystemExit('Reference directory does not exist: {}'.format(referencePath))
     Init = os.path.join(referencePath,'.init')
     if not os.path.exists(Init):
-        Gtf,Cdna,Genome = pipeClasses.pipeUtils.getReferenceVariables(referencePath)
+        Gtf,Cdna,Genome = pipeClasses.getReferenceVariables(referencePath)
         with open(Init,'w') as f:
             f.write('\n'.join([Gtf,Cdna,Genome]))
     else:
@@ -1036,19 +1146,26 @@ Options:
         Gtf = Stuff[0].rstrip('\n')
         Cdna = Stuff[1].rstrip('\n')
         Genome = Stuff[2].rstrip('\n')
-    Basename = pipeClasses.pipeUtils.getBasename(Genome)
+    Basename = str(Genome.split(".")[0])
     if arguments['--onlykallisto']:
-        createKallistoIndex(referencePath, Cdna, Basename)
-        raise SystemExit('Completed Kallisto index; exiting...')
+        createKallistoIndex(referencePath, Cdna, Basename, arguments)
+        print('[ {} ] Completed Kallisto index; exiting...'.format(pipeClasses.now()))
+        return None
     if arguments['--qualitycheck'] and not arguments['--preprocess']: # only q
-        qcRef(referencePath,Genome)
+        if arguments['prepref/main']['qcRef']:
+            qcRef(referencePath,Genome)
+        else:
+            print('qcRef skipped due to manifest\n')
     elif not arguments['--qualitycheck'] and arguments['--preprocess']: # only p
-        ppRef(referencePath, Cdna, Basename, Gtf, Genome, cpuLimit)
+        ppRef(referencePath, Cdna, Basename, Gtf, Genome, cpuLimit, arguments)
     else: #both
-        qcRef(referencePath,Genome)
-        ppRef(referencePath, Cdna, Basename, Gtf, Genome, cpuLimit)
+        if arguments['prepref/main']['qcRef']:
+            qcRef(referencePath,Genome)
+        else:
+            print('qcRef skipped due to manifest\n')
+        ppRef(referencePath, Cdna, Basename, Gtf, Genome, cpuLimit, arguments)
     if arguments['--kallisto']:
-        createKallistoIndex(referencePath, Cdna, Basename)
+        createKallistoIndex(referencePath, Cdna, Basename, arguments)
 
 def generateDefaultInputFile(arguments):
     '''Usage:
@@ -1217,7 +1334,7 @@ input file'''
                 ('other', 'None'),
                 ))
         # fcounts/main/runFeatureCounts
-        # featureCounts -T {procs} -s {stranded} -p -C --primary --ignoreDup -t exon -g gene_id \
+        # featureCounts -T {procs} -s {stranded} -p -C --primary --ignoreDup --largestOverlap -t exon -g gene_id \
         #       -a {ref}/{gtf} -o aligned.{sample}.counts {other} aligned.{sample}.bam
         config['fcounts/runFeatureCounts'] = OD((
                 ('featureCounts', '${EXECUTABLES:featureCounts}'),
@@ -1227,6 +1344,7 @@ input file'''
                 ('-C', 'None'),
                 ('--primary', 'None'),
                 ('--ignoreDup', 'None'),
+                ('--largestOverlap', 'None'),
                 ('-t', 'None'),
                 ('-g', 'None'),
                 ('-a', 'None'),
@@ -1769,8 +1887,8 @@ Function 5: FCountsSample.runFeatureCounts()
     to False. Can also control the execution options under the
     [fcounts/runFeatureCounts] header:
         {featureCounts} -T {-T} -s
-        {-s}{-p}{-C}{--primary}{--ignoreDup} -t {-t} -g {-g} -a
-        {-a} {other} -o {-o} {in}
+        {-s}{-p}{-C}{--primary}{--ignoreDup}{--largestOverlap}
+        -t {-t} -g {-g} -a {-a} {other} -o {-o} {in}
         featureCounts: featureCounts executable (by default will
         use executable defined under [EXECUTABLES] header)
         -T: processors to use (by default will use allocated
@@ -1791,6 +1909,9 @@ Function 5: FCountsSample.runFeatureCounts()
         --ignoreDup: boolean option to ignore duplicate reads
         when read counting. (By default on). Can turn off by
         setting to False.
+        --largestOverlap: boolean option to count gene with
+        largest overlap on read (By default on). Can turn off
+        by setting to False.
         -t: feature type in GTF annotation (by default "exon")
         -g: attribute type in GTF annotation (by default
         "gene_id")
@@ -1887,8 +2008,8 @@ if __name__ == '__main__':
         optPath.main(args)
     elif args['<command>'] == 'prepref':
         args.update(docopt(referenceProcessing.__doc__, argv=argv))
-        print(args)
-        referenceProcessing(args)
+        updatedArgs = updateArgs(args)
+        referenceProcessing(updatedArgs)
     elif args['<command>'] == 'gendef':
         args.update(docopt(generateDefaultInputFile.__doc__, argv=argv))
         generateDefaultInputFile(args)
