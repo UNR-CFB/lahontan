@@ -19,6 +19,7 @@ Available runPipe commands:
     fcounts     For running featureCounts pipeline
     string      For running Stringtie pipeline
     kall        For running kallisto pipeline
+    bowtie2     For running Bowtie pipeline
     mj          Provoke questionnaire to make a Metadata file
     mb          Create trimmomatic blacklist
     clean       Clean any project directories
@@ -585,6 +586,18 @@ def stage3KAReadyToExecute(KAClass):
         return True
     return False
 
+def stage3BTReadyToExecute(BTClass):
+    """ Arguments:
+            BTClass : Bowtie Experiment; instance of a class
+        Returns:
+            boolean : if stage is ready to execute
+    """
+    #TODO update this
+    return True
+    if BTClass.isReferencePrepared():
+        return True
+    return False
+
 def stage4ReadyToExecute(ExperimentClass):
     """ Arguments:
             ExperimentClass : Experiment; instance of a class
@@ -670,7 +683,8 @@ def updateArgs(arguments):
     FALLBACK = readInputFile({'<input>': tmpDefaults})
     mode = arguments['<command>']
     updatedArgs = {}
-    Manifest = readInputFile({**arguments, 'tmpDefaults': tmpDefaults})
+    arguments.update({'tmpDefaults': tmpDefaults})
+    Manifest = readInputFile(arguments)
     try:
         manifestArgs = Manifest[mode]
     except KeyError:
@@ -1074,6 +1088,76 @@ Options:
     if '5' in stagesToExecute and stage5KAReadyToExecute(KallistoClass):
         KallistoClass.runStage5()
 
+def bowtie2(arguments):
+    '''Usage:
+    runPipe bowtie2 [options] <input>
+
+Options:
+    -h, --help
+        Show this screen and exit
+    -e <stage>, --execute <stage>
+        Comma-separated list of stages to be executed.
+        Possible stages include:
+            1: Creating Project Structure
+            2: Preparing Reference Data
+            3: Running actual Pipeline
+            4: Post-processing
+            A: (1,2,3,4); A=all i.e. runs entire pipeline
+    -r <integer>, --runsample <integer>
+        Runs Stage 3 of the pipeline on the sample specified
+        by the integer
+    -j <jsonFile>, --jsonfile <jsonFile>
+        Ignores JSON Metadata file creation and uses specified
+        path to JSON Metadata
+    --maxcpu <CPUs>
+        Limits number of CPUs used by Pipeline. Default is to
+        use all available CPUs
+    --noconfirm
+        Ignore all user prompts except JSON file creation
+    --use-blacklist <blacklist>
+        Trimmomatic blacklist used for quality control
+    --use-reference
+        Use Reference data that has already been prepared.
+        Put path to already prepared reference data in
+        INPUT file
+        Note: Need to run Stage 1 with this argument or add to
+        "--makebatch" argument
+    --makebatch <cluster>
+        Makes batch file to be used with slurm. The argument
+        it takes is a comma-separated list of CPUs on each
+        node in your cluster
+    --batchjson <pathtoJSON>
+        Uses json file already created to make batch file'''
+    makeGlobalVars(arguments)
+    cpuLimit = checkMaxCPU(arguments)
+    testFile(expandPath(arguments['<input>']))
+    testFile(expandPath(arguments['--use-blacklist']))
+    ###################################
+    #TODO Must create bowtie experiment class
+    ###################################
+    Bowtie2Class = pipeClasses.Bowtie2Experiment(arguments)
+    # Make batch file if necessary
+    makeBatch(Bowtie2Class, arguments)
+    setGlobalLog(Bowtie2Class)
+    samplesToExecute = checkdashr(Bowtie2Class, arguments)
+    stagesToExecute = checkdashe(arguments)
+    # Run Stage 1 if necessary
+    if '1' in stagesToExecute and stage1ReadyToExecute(Bowtie2Class):
+        Bowtie2Class.runStage1()
+    # Run Stage 2 if necessary
+    if '2' in stagesToExecute and stage2ReadyToExecute(Bowtie2Class):
+        Bowtie2Class.runStage2()
+    # Run Stage 3 if necessary
+    if '3' in stagesToExecute and stage3BTReadyToExecute(Bowtie2Class):
+        if samplesToExecute == None:
+            Bowtie2Class.runStage3()
+        else:
+            for sample in samplesToExecute:
+                Bowtie2Class.executeSample(sample)
+    # Run Stage 4 if necessary
+    if '4' in stagesToExecute and stage4ReadyToExecute(Bowtie2Class):
+        Bowtie2Class.runStage4()
+
 def cleanup(arguments):
     '''Usage:
     runPipe clean [options] <input>
@@ -1182,6 +1266,7 @@ Options:
             fcounts
             string
             kall
+            bowtie2
             prepref
         [default: fcounts]
 
@@ -1214,12 +1299,13 @@ input file'''
             ('Original', pwd),
             ))
     # MODE
-    if arguments['--mode'] not in ['fcounts', 'string', 'kall']:
+    if arguments['--mode'] not in ['fcounts', 'string', 'kall', 'bowtie2']:
         raise SystemExit('--mode argument is not valid: {}'.format(arguments['--mode']))
     config['mode'] = OD((
             ('fcounts', 'True' if arguments['--mode'] == 'fcounts' else 'False'),
             ('kall', 'True' if arguments['--mode'] == 'kall' else 'False'),
             ('string', 'True' if arguments['--mode'] == 'string' else 'False'),
+            ('bowtie2', 'True' if arguments['--mode'] == 'bowtie2' else 'False'),
             ))
     RNASEQDIR = os.path.expandvars('$RNASEQDIR')
 
@@ -1265,6 +1351,18 @@ input file'''
                 ('--makebatch', 'None'),
                 ('--batchjson', 'None'),
                 ))
+    elif arguments['--mode'] == 'bowtie2':
+        config['bowtie2'] = OD((
+                ('--execute', 'A'),
+                ('--runsample', 'None'),
+                ('--jsonfile', 'None'),
+                ('--maxcpu', 'None'),
+                ('--noconfirm', 'False'),
+                ('--makebatch', 'None'),
+                ('--batchjson', 'None'),
+                ('--use-blacklist', RNASEQDIR+'/Trimmomatic/adapters/TruSeq3-PE.fa'),
+                ('--use-reference', 'False'),
+                ))
 
     ############################################################
     # Executables
@@ -1287,6 +1385,8 @@ input file'''
             ('featureCounts', '${rnaseqdir}/subread/bin/featureCounts'),
             ('stringtie', '${rnaseqdir}/stringtie'),
             ('kallisto', '${rnaseqdir}/kallisto'),
+            ('bowtie2', '${rnaseqdir}/bowtie2'),
+            ('bowtie2-build', '${rnaseqdir}/bowtie2-build'),
             ))
 
     ############################################################
@@ -1461,6 +1561,35 @@ input file'''
                 ('-b', 'None'),
                 ('read1', 'None'),
                 ('read2', 'None'),
+                ('other', 'None'),
+                ))
+
+    ############################################################
+    # Bowtie2
+    ############################################################
+    elif arguments['--mode'] == 'bowtie2':
+        config['bowtie2/main'] = OD((
+                ('runQCheck', 'True'),
+                ('runTrimmomatic', 'True'),
+                ('runSeqtk', 'True'),
+                ('runBlastn', 'True'),
+                ('runBowtie2', 'True'),
+                ('runCompression', 'True'),
+                ))
+        # bowtie2/main/runBowtie2
+        # bowtie2 [options]
+        config['bowtie2/runBowtie2'] = OD((
+                ('bowtie2', '${EXECUTABLES:bowtie2}'),
+                ))
+        # bowtie2/main/runCompression
+        # samtools view -bT {ref}/{genome} -@{procs} {other} aligned.{sample}.sam -o aligned.{sample}.bam
+        config['bowtie2/runCompression'] = OD((
+                ('samtools', '${EXECUTABLES:samtools}'),
+                ('-b', 'None'),
+                ('-T', 'None'),
+                ('-@', 'None'),
+                ('-o', 'None'),
+                ('in', 'None'),
                 ('other', 'None'),
                 ))
 
@@ -1947,6 +2076,9 @@ Function 7: FCountsSample.getAlignedColumn()
     elif helpCommand == 'kall':
         print('''This is kallisto information #TODO''')
         raise SystemExit(kallisto.__doc__)
+    elif helpCommand == 'bowtie':
+        print('''This is bowtie information #TODO''')
+        raise SystemExit(bowtie.__doc__)
     elif helpCommand == 'mj':
         print('''This is makeJSON information #TODO''')
         import makeJSON
@@ -1991,6 +2123,10 @@ if __name__ == '__main__':
         args.update(docopt(kallisto.__doc__, argv=argv))
         updatedArgs = updateArgs(args)
         kallisto(updatedArgs)
+    elif args['<command>'] == 'bowtie2':
+        args.update(docopt(bowtie2.__doc__, argv=argv))
+        updatedArgs = updateArgs(args)
+        bowtie2(updatedArgs)
     elif args['<command>'] == 'mj':
         import makeJSON
         args.update(docopt(makeJSON.__doc__, argv=argv))

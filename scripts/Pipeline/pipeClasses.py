@@ -235,6 +235,12 @@ def unwrap_self_runSample_ka(arg, **kwarg):
              -> multiprocessing won't work if called from a class method'''
     return KallistoExperiment.runSample(*arg, **kwarg)
 
+def unwrap_self_runSample_bt(arg, **kwarg):
+    ''' Magic for multiprocessing
+        i.e. Multiprocessing needs to occur in top level functions.
+             -> multiprocessing won't work if called from a class method'''
+    return Bowtie2Experiment.runSample(*arg, **kwarg)
+
 ################################################################
 # Defining Experiment Class
 ################################################################
@@ -1865,7 +1871,7 @@ class KallistoExperiment(Experiment):
 
             Creates a string representation of class
         '''
-        return 'StringtieExperiment(%r)'%(self.Project)
+        return 'KallistoExperiment(%r)'%(self.Project)
 
     ###############################################################
     # Utilities
@@ -2201,6 +2207,234 @@ wait
         print('[ {} ] Executing Stage 5...'.format(now()))
         self.runSleuthAnalysis()
 
+
+
+class Bowtie2Experiment(Experiment):
+    '''
+        Inherit from featureCounts experiment class. Can
+        apply Bowtie2 specific methods
+    '''
+
+    def __init__(self,globalArgs):
+        Experiment.__init__(self,globalArgs)
+
+    def __repr__(self):
+        ''' Arguments:
+                None
+            Returns:
+                A string representation of class
+                ex: >print(Experiment)
+                        Experiment('/path/to/Project')
+
+            Creates a string representation of class
+        '''
+        return 'Bowtie2Experiment(%r)'%(self.Project)
+
+    ###############################################################
+    # Utilities
+    ###############################################################
+
+    def runSample(self, sample):
+        ''' Arguments:
+                sample =  class instance; a sample to execute
+            Returns:
+                None
+
+            Executes a sample by calling its runParts() method
+        '''
+        if not sample.isFinished():
+            sample.runParts()
+
+    def GO(self, subject=0):
+        ''' Arguments:
+                subject = int; if is 0, then run all available samples;
+                            if any other number, execute it individually
+            Returns:
+                None
+
+            Execute Stage 3 for either a single sample or all samples
+        '''
+        if subject == 0:
+            self.makeNotifyFolder()
+            # Initialize all samples
+            Samples = self.createAllSampleClasses()
+            with multiprocessing.Pool(self.Procs) as p:
+                p.map(unwrap_self_runSample_bt, zip([self]*len(Samples), Samples))
+        else:
+            name = 'sample_{:02g}'.format(subject)
+            if os.path.exists(os.path.join(self.Data, name)):
+                # Initialize only one sample
+                experimentSample = self.createSampleClassNumber(subject)
+                self.runSample(experimentSample)
+
+    def makeBatch(self, cluster, jsonFile=None):
+        ''' Arguments:
+                cluster = list; list of integers that describe number
+                            of CPUs in each node of your cluster
+                *jsonFile = boolean; if optimal path already exists
+                            in a file
+            Returns:
+                None
+
+            Creates Pipeline batch script to be used with slurm
+        '''
+        batch =  """#!/bin/bash
+#SBATCH --nodes={NODES}
+#SBATCH --time=400
+#SBATCH --cpus-per-task={CPT}
+#SBATCH --ntasks={NTASKS}
+#SBATCH --job-name="featureCounts Pipeline"
+#SBATCH --export=PATH,RNASEQDIR,HOME,LC_ALL="en_US.UTF-8"
+
+inputFile='{INPUT}'
+jsonFile='{JSON}'
+
+# Stage 1
+{STAGE1}
+
+wait
+
+# Stage 2
+{STAGE2}
+
+wait
+
+# Stage 3
+{STAGE3}
+wait
+
+# Stage 4
+{STAGE4}
+
+wait
+
+scontrol show job $SLURM_JOB_ID
+wait
+"""
+        if JSFI == None:
+            raise SystemExit('Need to specify a Metadata file with "--jsonfile"\nCan use "runPipe mj" to create a metadata file')
+        numSamps = self.Numsamples
+        if not IS_REFERENCE_PREPARED:
+            ref = ''
+        else:
+            ref = ' --use-reference'
+        command1 = 'srun -N1 -c1 -n1 runPipe bowtie2 --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1 "${{inputFile}}"'.format(ref)
+        command2 = 'srun -N1 -c{1} -n1 runPipe bowtie2 --noconfirm{0} --jsonfile "${{jsonFile}}" --maxcpu {1} --execute 2 "${{inputFile}}"'.format(ref,max(cluster))
+        bestPath = self.getOptimal(cluster,jsonPath=jsonFile)
+        command3,counter,sampleNum = '',1,1
+        for path in sorted(bestPath):
+            Pstep = bestPath[path]['Procs']
+            Sstep = bestPath[path]['Samps']
+            for S in range(sampleNum,sampleNum + Sstep):
+                com = 'srun -N1 -c{0} -n1 runPipe bowtie2 --noconfirm{2} --use-blacklist {3} --jsonfile "${{jsonFile}}" --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref,self.Blacklist)
+                command3 += com
+            if counter != len(bestPath):
+                command3 += 'wait\n'
+            counter += 1
+            sampleNum += Sstep
+        command4 = 'srun -N1 -c1 -n1 runPipe bowtie2 --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
+        Context = {
+                "NODES": len(cluster),
+                "CPT": bestPath['Step 1']['Procs'],
+                "NTASKS": bestPath['Step 1']['Samps'],
+                "INPUT": self.inputPath,
+                "JSON": JSFI,
+                "STAGE1": command1,
+                "STAGE2": command2,
+                "STAGE3": command3,
+                "STAGE4": command4,
+                }
+        batchScript = batch.format(**Context)
+        with open('pipeBatch','w') as f:
+            f.write(batchScript)
+
+    def createAllSampleClasses(self):
+        ''' Arguments:
+                None
+            Returns:
+                experimentSamples = list; list contains Sample Classes
+
+            Creates all Sample Classes and returns them in a list
+        '''
+        numSamples = self.Numsamples
+        # Don't want to oversubscribe computer with multiprocessing
+        sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
+        experimentSamples = [Bowtie2Sample(n, self.GlobalArgs)
+                            for n in range(1,numSamples + 1)]
+        return experimentSamples
+
+    def createSampleClassNumber(self,subject):
+        ''' Arguments:
+                subject = int; the sample to create, default is to create all sample classes
+            Returns:
+                experimentSample = sample instance
+
+            Creates specified sample class
+        '''
+        assert (type(subject) == int 
+                and subject > 0 
+                and subject <= self.Numsamples
+                ), 'Need an int argument as a subject to create'
+        experimentSample = Bowtie2Sample(subject, self.GlobalArgs)
+        return experimentSample
+
+    ################################################################
+    # Stage Run Functions
+    ################################################################
+
+    @funTime
+    def runStage2(self):
+        if not IS_REFERENCE_PREPARED:
+            print('[ {} ] Executing Stage 2...'.format(now()))
+            self.qcRef()
+            self.ppRef()
+        else:
+            print('[ {} ] Skipping Stage 2...'.format(now()))
+            with open(os.path.join(self.Project, '.init'), 'r') as F:
+                stuff = F.readlines()[0]
+            if 'P' not in stuff:
+                with open(os.path.join(self.Project, '.init'), 'a') as F:
+                    F.write('P')
+
+    @funTime
+    def runStage3(self):
+        print('[ {} ] Executing Stage 3...'.format(now()))
+        self.makeNotifyFolder()
+        self.GO()
+        #self.findPipeFinish()
+
+    @funTime
+    def executeSample(self, number):
+        self.makeNotifyFolder2() #TODO Fix makeNotifyFolder1 vs 2
+        print("[ {} ] Pipeline is running for sample_{} on {}...".format(now(), number,os.uname()[1]))
+        self.GO(int(number))
+
+    @funTime
+    def runStage4(self):
+        while True:
+            if self.is3Finished() or self.checkEach():
+                print('[ {} ] Executing Stage 4...'.format(now()))
+                time.sleep(1)
+                if os.path.isdir(os.path.join(self.Project,'runPipeNotify')):
+                    shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
+                self.gatherAllSampleOverrep(1)
+                self.gatherAllSampleOverrep(2)
+                self.fullB2Stats()
+                self.quickTrimStats()
+                self.createJsonMetadata()
+                break
+            else:
+                time.sleep(1)
+
+    @funTime
+    def runAll(self):
+        '''
+        Runs Stage 1 through Stage 5
+        '''
+        self.runStage1()
+        self.runStage2()
+        self.runStage3()
+        self.runStage4()
 
 ################################################################
 # Defining Sample Class
@@ -3618,6 +3852,104 @@ class KallistoSample(Sample):
 
     ########################################################
     # End of KallistoSample class
+    ########################################################
+
+class Bowtie2Sample(Sample):
+
+    def __init__(self,sampleNumber,globalArgs):
+        Sample.__init__(self, sampleNumber, globalArgs)
+
+    def __repr__(self):
+        ''' Arguments:
+                None
+            Returns:
+                String representation print
+                ex: >print(Sample)
+                        Sample(sample_01)
+
+            Returns string representation of class
+        '''
+        return 'Bowtie2Sample(%r)'%(self.sampleName)
+
+    ########################################################
+    # Pipeline
+    ########################################################
+
+    def runBowtie2(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Runs bowtie2 on data
+        '''
+        self.writeFunctionHeader('runBowtie2')
+        localArgs = self.GlobalArgs['bowtie2/runBowtie2']
+        # Making Command
+        #TODO Make Command
+        command = ("""{bowtie2}""")
+        Context = {
+            "bowtie2": self.checkMan("bowtie2", localArgs['bowtie2']),
+            }
+        goodCommand = self.formatCommand(command.format(**Context))
+        # Executing
+        self.writeFunctionCommand(goodCommand)
+        os.chdir(self.samplePath)
+        subprocess.run(goodCommand,
+            shell=True,
+            check=True,
+            executable='/bin/bash')
+        self.writeFunctionTail('runBowtie2')
+
+    ########################################################
+    # Run Sample
+    ########################################################
+
+    def runPart2(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Runs Pipeline sequentially
+            Note: Does not include Quality control steps: 
+                Fastqc and trimmomatic
+        '''
+        os.chdir(self.samplePath)
+        with open(os.path.join(self.samplePath,
+            'Runtime.{}.log'.format(self.sampleName)), 'a') as LOG:
+            LOG.write('='*64+'\n')
+            LOG.write('{:^64}\n'.format('Runtime Log Part 2 - {}'.format(
+                self.sampleName)))
+            LOG.write('='*64+'\n\n')
+        self.writeFunctionHeader('runPart2')
+        if self.GlobalArgs['bowtie2/main']['runSeqtk']:
+            self.runSeqtk()
+        else:
+            self.writeToLog('runSeqtk skipped due to manifest\n')
+        if self.GlobalArgs['bowtie2/main']['runBlastn']:
+            self.runBlastn()
+        else:
+            self.writeToLog('runBlastn skipped due to manifest\n')
+        if self.GlobalArgs['bowtie2/main']['runBowtie2']:
+            self.runBowtie2()
+        else:
+            self.writeToLog('runBowtie skipped due to manifest\n')
+        if self.GlobalArgs['bowtie2/main']['runCompression']:
+            self.runCompression()
+        else:
+            self.writeToLog('runCompression skipped due to manifest\n')
+        self.writeFunctionTail('runPart2')
+        if os.path.exists(os.path.join(self.samplePath,
+            "aligned.{}.counts.one".format(self.sampleName))):
+            with open(os.path.join(self.Project,
+                'runPipeNotify/{}'.format('done'+self.sampleName)), 'w') as N:
+                N.write('{} is done'.format(self.samplePath))
+            with open(os.path.join(self.samplePath, '.done'), 'w') as N:
+                N.write('{} is done'.format(self.samplePath))
+
+    ########################################################
+    # End of BowtieSample class
     ########################################################
 
 #################################################################
