@@ -19,7 +19,7 @@ Available runPipe commands:
     fcounts     For running featureCounts pipeline
     string      For running Stringtie pipeline
     kall        For running kallisto pipeline
-    bowtie2     For running Bowtie pipeline
+    bowtie2     For running Bowtie2 pipeline
     mj          Provoke questionnaire to make a Metadata file
     mb          Create trimmomatic blacklist
     clean       Clean any project directories
@@ -322,6 +322,45 @@ def createKallistoIndex(referenceDir, cdna, basename, arguments):
                 F.write('True')
     else:
         print('Error: Cannot build Kallisto index; already exists')
+
+def createBowtie2Index(referenceDir, genome, basename, arguments):
+    """ Arguments:
+            referenceDir : location of a reference directory
+            genome : location of a DNA file with a '.dna.' in the name
+            basename : basename of files; typically species name
+            arguments : dictionary; CLI arguments from docopt
+        Returns:
+            None
+
+        Handles creating a bowtie2 index without a class structure
+    """
+    indexCheck = os.path.join(referenceDir, 'B2IndexBuilt')
+    if not os.path.exists(indexCheck):
+        localArgs = arguments['prepref/createBowtie2Index']
+        logFile = os.path.join(referenceDir, 'Bowtie2Runtime.log')
+        # Making Command
+        command = ("""{{ time -p {bowtie2-build} --threads {--threads}"""+
+            """ {other} {genome} {basename}; }} >> {log} 2>&1""")
+        Context = {
+            "bowtie2-build": checkMan("bowtie2-build", localArgs['bowtie2-build']),
+            "--threads": checkMan(str(os.cpu_count()), localArgs['--threads']),
+            "other": checkMan('', localArgs['other']),
+            "genome": checkMan(genome, localArgs['genome']),
+            "basename": checkMan(basename, localArgs['basename']),
+            "log": logFile,
+            }
+        goodCommand = command.format(**Context)
+        # Executing
+        print('[ {} ] Building Bowtie2 index...'.format(pipeClasses.now()))
+        os.chdir(referenceDir)
+        subprocess.run(goodCommand,
+            shell=True,
+            check=True,
+            executable="/bin/bash")
+        with open(indexCheck,'w') as F:
+                F.write('True')
+    else:
+        print('Error: Cannot build Bowtie2 index; already exists')
 
 def clean(arguments):
     """ Arguments:
@@ -723,7 +762,6 @@ def updateArgs(arguments):
                         updatedArgs[section][option] = True
                     else:
                         updatedArgs[section][option] = FALLBACK[section].get(option)
-
     # Remove tmp fallback defaults file
     os.remove(tmpDefaults)
     return updatedArgs
@@ -770,6 +808,8 @@ def generatePreprefInput(arguments):
         ('--preprocess', 'False'),
         ('--kallisto', 'False'),
         ('--onlykallisto', 'False'),
+        ('--bowtie2', 'False'),
+        ('--onlybowtie2', 'False'),
         ('--maxcpu', 'None'),
         ))
     ############################################################
@@ -783,6 +823,7 @@ def generatePreprefInput(arguments):
             ('extract_exons.py', '${rnaseqdir}/hisat2/extract_exons.py'),
             ('hisat2-build', '${rnaseqdir}/hisat2/hisat2-build'),
             ('samtools', '${rnaseqdir}/samtools/bin/samtools'),
+            ('bowtie2-build', '${rnaseqdir}/bowtie2'),
             ))
     ############################################################
     # PREPREF
@@ -790,6 +831,7 @@ def generatePreprefInput(arguments):
     config['prepref/main'] = OD((
             ('qcRef', 'True'),
             ('createKallistoIndex', 'True'),
+            ('createBowtie2Index', 'True'),
             ('makeBlastdb', 'True'),
             ('extractSpliceSites', 'True'),
             ('extractExons', 'True'),
@@ -803,6 +845,15 @@ def generatePreprefInput(arguments):
         ('-i', 'None'),
         ('other', 'None'),
         ('cdna', 'None'),
+        ))
+    # prepref/main/createBowtie2Index
+    # bowtie2-build {other} {genome} {basename}
+    config['prepref/createBowtie2Index'] = OD((
+        ('bowtie2-build', '${EXECUTABLES:bowtie2-build}'),
+        ('--threads', 'None'),
+        ('other', 'None'),
+        ('genome', 'None'),
+        ('basename', 'None'),
         ))
     # prepref/main/makeBlastdb
     # makeblastdb -in {cdna} -dbtype nucl {other} -out {basename}.cdna.all
@@ -1132,11 +1183,7 @@ Options:
     cpuLimit = checkMaxCPU(arguments)
     testFile(expandPath(arguments['<input>']))
     testFile(expandPath(arguments['--use-blacklist']))
-    ###################################
-    #TODO Must create bowtie experiment class
-    ###################################
     Bowtie2Class = pipeClasses.Bowtie2Experiment(arguments)
-    # Make batch file if necessary
     makeBatch(Bowtie2Class, arguments)
     setGlobalLog(Bowtie2Class)
     samplesToExecute = checkdashr(Bowtie2Class, arguments)
@@ -1208,6 +1255,11 @@ Options:
         Note: index required if kallisto pipeline to be used
     --onlykallisto
         Build only the kallisto index
+    -b, --bowtie2
+        Additionally build Bowtie2 index
+        Note: index required if Bowtie2 pipeline to be used
+    --onlybowtie2
+        Build only the Bowtie2 index
     --maxcpu <CPUs>
         Limit the number of CPU that get used to preprocess
         reference data.
@@ -1235,6 +1287,10 @@ Options:
         createKallistoIndex(referencePath, Cdna, Basename, arguments)
         print('[ {} ] Completed Kallisto index; exiting...'.format(pipeClasses.now()))
         return None
+    if arguments['--onlybowtie2']:
+        createBowtie2Index(referencePath, Genome, Basename, arguments)
+        print('[ {} ] Completed Bowtie2 index; exiting...'.format(pipeClasses.now()))
+        return None
     if arguments['--qualitycheck'] and not arguments['--preprocess']: # only q
         if arguments['prepref/main']['qcRef']:
             qcRef(referencePath,Genome)
@@ -1250,6 +1306,8 @@ Options:
         ppRef(referencePath, Cdna, Basename, Gtf, Genome, cpuLimit, arguments)
     if arguments['--kallisto']:
         createKallistoIndex(referencePath, Cdna, Basename, arguments)
+    if arguments['--bowtie2']:
+        createBowtie2Index(referencePath, Genome, Basename, arguments)
 
 def generateDefaultInputFile(arguments):
     '''Usage:
@@ -1580,6 +1638,16 @@ input file'''
         # bowtie2 [options]
         config['bowtie2/runBowtie2'] = OD((
                 ('bowtie2', '${EXECUTABLES:bowtie2}'),
+                ("--very-sensitive-local", 'None'),
+                ("-k", '5'),
+                ("-p", 'None'),
+                ("--rna-strandedness", 'None'),
+                ("--phred", 'None'),
+                ("other", 'None'),
+                ("-x", 'None'),
+                ("-1", 'None'),
+                ("-2", 'None'), 
+                ("-S", 'None'), 
                 ))
         # bowtie2/main/runCompression
         # samtools view -bT {ref}/{genome} -@{procs} {other} aligned.{sample}.sam -o aligned.{sample}.bam

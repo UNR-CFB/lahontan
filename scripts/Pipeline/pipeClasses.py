@@ -2208,7 +2208,6 @@ wait
         self.runSleuthAnalysis()
 
 
-
 class Bowtie2Experiment(Experiment):
     '''
         Inherit from featureCounts experiment class. Can
@@ -2233,6 +2232,49 @@ class Bowtie2Experiment(Experiment):
     ###############################################################
     # Utilities
     ###############################################################
+
+    def needToBuildB2Index(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            B2IndexBuilt is a file that gets written right after 
+            Bowtie2 index gets built
+        '''
+        if os.path.exists(os.path.join(self.Reference, 'B2IndexBuilt')):
+            return False
+        else:
+            return True
+
+    @funTime
+    def buildB2Index(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Build Bowtie2 Index and save it in Reference directory
+        '''
+        if self.needToBuildB2Index():
+            logFile = os.path.join(self.Reference, 'Bowtie2Runtime.log')
+            # Making Command
+            command = ("""{bowtie2-build} {other} {genome} {basename}""")                                   
+            Context = {                                                                
+                "bowtie2-build": checkMan("bowtie2-build", localArgs['bowtie2-build']),
+                "other": checkMan('', localArgs['other']),                             
+                "genome": checkMan(genome, localArgs['genome']),                       
+                "basename": checkMan(basename, localArgs['basename']),                 
+                }                                                                      
+            goodCommand = self.redirectSTDERR(command.format(**context), logFile)
+            # Executing
+            os.chdir(self.Reference)
+            subprocess.run(goodCommand,
+                shell=True,
+                check=True,
+                executable='/bin/bash')
+            with open(os.path.join(self.Reference, 'B2IndexBuilt'),'w') as F:
+                F.write('True')
 
     def runSample(self, sample):
         ''' Arguments:
@@ -2378,12 +2420,35 @@ wait
         experimentSample = Bowtie2Sample(subject, self.GlobalArgs)
         return experimentSample
 
+    def fullB2Stats(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Scrapes bowtie2 stats from Runtime logs into one file
+        '''
+        command ="""grep -A 14 'reads; of these:' {runtimelogglob} > {b2log}"""
+        Context = {
+                "runtimelogglob": os.path.join(self.Data,
+                                    'sample_*/Runtime.sample_*.log'),
+                "b2log": os.path.join(self.Postprocessing, 'b2.summary.log')
+                }
+        goodCommand = command.format(**Context)
+        subprocess.run(goodCommand,
+            shell=True,
+            check=True,
+            executable="/bin/bash")
+
     ################################################################
     # Stage Run Functions
     ################################################################
 
     @funTime
     def runStage2(self):
+        if self.needToBuildB2Index():
+            print('[ {} ] Building Bowtie2 Index...'.format(now()))
+            self.buildB2Index()
         if not IS_REFERENCE_PREPARED:
             print('[ {} ] Executing Stage 2...'.format(now()))
             self.qcRef()
@@ -2421,6 +2486,7 @@ wait
                 self.gatherAllSampleOverrep(2)
                 self.fullB2Stats()
                 self.quickTrimStats()
+                print('[ {} ] Optionally create metadata file'.format(now()))
                 self.createJsonMetadata()
                 break
             else:
@@ -2435,6 +2501,7 @@ wait
         self.runStage2()
         self.runStage3()
         self.runStage4()
+
 
 ################################################################
 # Defining Sample Class
@@ -3187,12 +3254,12 @@ class FCountsSample(Sample):
         os.chdir(self.samplePath)
         self.writeFunctionCommand(goodCommand)
         subprocess.run(goodCommand,
-                            shell=True,
-                            check=True,
-                            executable='/bin/bash')
+            shell=True,
+            check=True,
+            executable='/bin/bash')
         os.chdir(self.samplePath)
         os.remove(self.checkMan("aligned.{}.sam".format(self.sampleName),
-                    localArgs['in']))
+            localArgs['in']))
         self.writeFunctionTail('runCompression')
 
     ########################################################
@@ -3885,11 +3952,67 @@ class Bowtie2Sample(Sample):
         '''
         self.writeFunctionHeader('runBowtie2')
         localArgs = self.GlobalArgs['bowtie2/runBowtie2']
+        if localArgs['--rna-strandedness'] == None:
+            try:
+                strandedVar = self.findStranded()
+            except subprocess.CalledProcessError:
+                if localArgs['--rna-strandedness'] == None:
+                    raise SystemExit('findStranded() error; must specify'+
+                        ' --rna-strandedness in [bowtie2/runBowtie2] manifest'+
+                        ' header')
+            if strandedVar == 0:
+                FR = ''
+            elif strandedVar == 1:
+                FR = ' --fr'
+            else:
+                FR = ' --rf'
+        elif localArgs['--rna-strandedness'] == False:
+            FR = ''
+        else:
+            FR = ' --{}'.format(
+                localArgs['--rna-strandedness'])
+        if localArgs['--phred'] == None:
+            try:
+                Phred = str(self.getPhred())
+            except IndexError:
+                if localArgs['--phred'] == None:
+                    raise SystemExit('getPhred() error; must specify'+
+                        ' --phred in [bowtie2/runBowtie2] manifest'+
+                        ' header')
+        else:
+            Phred = localArgs['--phred']
+        if localArgs['-1'] == None:
+            if not os.path.exists(os.path.join(self.samplePath,
+                "read1.P.trim.{}.gz".format(self.Fastq))):
+                raise SystemExit('FileNotExistsError: must specify'+
+                    ' -1 and -2 in [bowtie2/runBowtie2] manifest'+
+                    ' header; this problem may arise if trimmomatic'+
+                    ' was skipped')
         # Making Command
-        #TODO Make Command
-        command = ("""{bowtie2}""")
+        command = ("""{bowtie2} {--very-sensitive-local} -k {-k} -p {-p}"""+
+            """ {--rna-strandedness}"""+
+            """ --phred{--phred} {other}"""+
+            """ -x {-x} -1 {-1} -2 {-2} -S {-S}""")
         Context = {
             "bowtie2": self.checkMan("bowtie2", localArgs['bowtie2']),
+            "--very-sensitive-local": self.checkMan("--very-sensitive-local",
+                localArgs['--very-sensitive-local']),
+            "-k": self.checkMan("5", localArgs['-k']),
+            "-p": self.checkMan(self.Procs, localArgs['-p']),
+            "--rna-strandedness": FR,
+            "--phred": self.checkMan(Phred, localArgs['--phred']),
+            "other": self.checkMan("", localArgs['other']),
+            "-x": self.checkMan(os.path.join(self.Reference,self.Basename),
+                localArgs['-x']),
+            "-1": self.checkMan(
+                "read1.P.trim.{}.gz".format(self.Fastq),
+                localArgs['-1']),
+            "-2": self.checkMan(
+                "read2.P.trim.{}.gz".format(self.Fastq),
+                localArgs['-2']),
+            "-S": self.checkMan(
+                "aligned.b2.{}.sam".format(self.sampleName),
+                localArgs['-S']),
             }
         goodCommand = self.formatCommand(command.format(**Context))
         # Executing
@@ -3900,6 +4023,51 @@ class Bowtie2Sample(Sample):
             check=True,
             executable='/bin/bash')
         self.writeFunctionTail('runBowtie2')
+
+    def runCompression(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Runs samtools compression on data
+        '''
+        self.writeFunctionHeader('runBowtie2')
+        localArgs = self.GlobalArgs['bowtie2/runCompression']
+        # Making Command
+        command = ("""{samtools} view {-b} -T {-T} -@{-@} {other}"""+
+            """ {in} -o {-o}""")
+        Context = {
+                "samtools"  : self.checkMan("samtools",
+                    localArgs['samtools']),
+                "-b"        : self.checkManBool("-b",
+                    localArgs['-b']),
+                "-T"        : self.checkMan(
+                    "{}/{}".format(self.Reference, self.Genome),
+                    localArgs['-T']),
+                "-@"        : self.checkMan(self.Procs,
+                    localArgs['-@']),
+                "other"     : self.checkMan("",
+                    localArgs['other']),
+                "in"        : self.checkMan(
+                    "aligned.b2.{}.sam".format(self.sampleName),
+                    localArgs['in']),
+                "-o"        : self.checkMan(
+                    "aligned.b2.{}.bam".format(self.sampleName),
+                    localArgs['-o']),
+                }
+        goodCommand = self.formatCommand(command.format(**Context))
+        # Executing
+        os.chdir(self.samplePath)
+        self.writeFunctionCommand(goodCommand)
+        subprocess.run(goodCommand,
+            shell=True,
+            check=True,
+            executable='/bin/bash')
+        os.chdir(self.samplePath)
+        os.remove(self.checkMan("aligned.b2.{}.sam".format(self.sampleName),
+            localArgs['in']))
+        self.writeFunctionTail('runCompression')
 
     ########################################################
     # Run Sample
@@ -3947,6 +4115,17 @@ class Bowtie2Sample(Sample):
                 N.write('{} is done'.format(self.samplePath))
             with open(os.path.join(self.samplePath, '.done'), 'w') as N:
                 N.write('{} is done'.format(self.samplePath))
+
+    def runParts(self):
+        ''' Arguments:
+                None
+            Returns:
+                None
+
+            Run QC and Pipeline part sequentially
+        '''
+        self.runPart1()
+        self.runPart2()
 
     ########################################################
     # End of BowtieSample class
