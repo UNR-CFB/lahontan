@@ -1124,7 +1124,7 @@ wait
         numSamples = self.Numsamples
         # Don't want to oversubscribe computer with multiprocessing
         sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
-        experimentSamples = [FCountsSample(n, self.GlobalArgs)
+        experimentSamples = [FCountsSample(n, sampCpuMax, self.GlobalArgs)
                             for n in range(1,numSamples + 1)]
         return experimentSamples
 
@@ -1140,7 +1140,7 @@ wait
                 and subject > 0 
                 and subject <= self.Numsamples
                 ), 'Need an int argument as a subject to create'
-        experimentSample = FCountsSample(subject, self.GlobalArgs)
+        experimentSample = FCountsSample(subject, self.Procs, self.GlobalArgs)
         return experimentSample
 
     def fullFCStats(self):
@@ -1450,7 +1450,7 @@ wait
         numSamples = self.Numsamples
         # Don't want to oversubscribe computer with multiprocessing
         sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
-        experimentSamples = [StringtieSample(n, self.GlobalArgs)
+        experimentSamples = [StringtieSample(n, sampCpuMax, self.GlobalArgs)
                             for n in range(1,numSamples + 1)]
         return experimentSamples
 
@@ -1466,7 +1466,7 @@ wait
                 and subject > 0 
                 and subject <= self.Numsamples
                 ), 'Need an int argument as a subject to create'
-        experimentSample = StringtieSample(subject, self.GlobalArgs)
+        experimentSample = StringtieSample(subject, self.Procs, self.GlobalArgs)
         return experimentSample
 
     def fullH2Stats(self):
@@ -2006,7 +2006,7 @@ wait
         numSamples = self.Numsamples
         # Don't want to oversubscribe computer with multiprocessing
         sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
-        experimentSamples = [KallistoSample(n, self.GlobalArgs)
+        experimentSamples = [KallistoSample(n, sampCpuMax, self.GlobalArgs)
                             for n in range(1,numSamples + 1)]
         return experimentSamples
 
@@ -2022,7 +2022,7 @@ wait
                 and subject > 0 
                 and subject <= self.Numsamples
                 ), 'Need an int argument as a subject to create'
-        experimentSample = KallistoSample(subject, self.GlobalArgs)
+        experimentSample = KallistoSample(subject, self.Procs, self.GlobalArgs)
         return experimentSample
 
     ################################################################
@@ -2054,14 +2054,17 @@ wait
         '''
         # ? What is behavior of kallisto index, will it build failed index? Assume no
         if self.needToBuildKaliIndex():
+            localArgs = self.GlobalArgs['kall/buildKallistoIndex']
             logFile = os.path.join(self.Reference, 'KallistoRuntime.log')
             # Making Command
-            command = r"kallisto index -i {basename}.kali.cdna.fa.idx {cdna}"
-            context = {
-                    "cdna": self.Cdna,
-                    "basename": self.Basename
-                    }
-            goodCommand = self.redirectSTDERR(command.format(**context), logFile)
+            command = ("""{kallisto} index {other} -i {-i} {cdna}""")
+            Context = {                                                                
+                "kallisto": self.checkMan("kallisto", localArgs['kallisto']),
+                "other": self.checkMan('', localArgs['other']),
+                "-i": self.checkMan("{}.kali.cdna.fa.idx".format(self.Basename), localArgs['-i']),
+                "cdna": self.checkMan(self.Cdna, localArgs['cdna']),
+                }
+            goodCommand = self.redirectSTDERR(command.format(**Context), logFile)
             # Executing
             os.chdir(self.Reference)
             subprocess.run(goodCommand,
@@ -2257,16 +2260,18 @@ class Bowtie2Experiment(Experiment):
             Build Bowtie2 Index and save it in Reference directory
         '''
         if self.needToBuildB2Index():
+            localArgs = self.GlobalArgs['bowtie2/buildB2Index']
             logFile = os.path.join(self.Reference, 'Bowtie2Runtime.log')
             # Making Command
-            command = ("""{bowtie2-build} {other} {genome} {basename}""")                                   
+            command = ("""{bowtie2-build} --threads {--threads} {other} {genome} {basename}""")
             Context = {                                                                
-                "bowtie2-build": checkMan("bowtie2-build", localArgs['bowtie2-build']),
-                "other": checkMan('', localArgs['other']),                             
-                "genome": checkMan(genome, localArgs['genome']),                       
-                "basename": checkMan(basename, localArgs['basename']),                 
-                }                                                                      
-            goodCommand = self.redirectSTDERR(command.format(**context), logFile)
+                "bowtie2-build": self.checkMan("bowtie2-build", localArgs['bowtie2-build']),
+                "--threads": self.checkMan(self.Procs, localArgs['--threads']),
+                "other": self.checkMan('', localArgs['other']),
+                "genome": self.checkMan(self.Genome, localArgs['genome']),
+                "basename": self.checkMan(self.Basename, localArgs['basename']),
+                }
+            goodCommand = self.redirectSTDERR(command.format(**Context), logFile)
             # Executing
             os.chdir(self.Reference)
             subprocess.run(goodCommand,
@@ -2401,7 +2406,7 @@ wait
         numSamples = self.Numsamples
         # Don't want to oversubscribe computer with multiprocessing
         sampCpuMax = self.Procs//numSamples if self.Procs//numSamples != 0 else 1
-        experimentSamples = [Bowtie2Sample(n, self.GlobalArgs)
+        experimentSamples = [Bowtie2Sample(n, sampCpuMax, self.GlobalArgs)
                             for n in range(1,numSamples + 1)]
         return experimentSamples
 
@@ -2417,7 +2422,7 @@ wait
                 and subject > 0 
                 and subject <= self.Numsamples
                 ), 'Need an int argument as a subject to create'
-        experimentSample = Bowtie2Sample(subject, self.GlobalArgs)
+        experimentSample = Bowtie2Sample(subject, self.Procs, self.GlobalArgs)
         return experimentSample
 
     def fullB2Stats(self):
@@ -2447,8 +2452,12 @@ wait
     @funTime
     def runStage2(self):
         if self.needToBuildB2Index():
-            print('[ {} ] Building Bowtie2 Index...'.format(now()))
-            self.buildB2Index()
+            if self.GlobalArgs['bowtie2/main']['buildB2Index']:
+                print('[ {} ] Building Bowtie2 Index...'.format(now()))
+                self.buildB2Index()
+            else:
+                print(('[ {} ] Skipping Building Bowtie2'+
+                    ' Index due to manifest...').format(now()))
         if not IS_REFERENCE_PREPARED:
             print('[ {} ] Executing Stage 2...'.format(now()))
             self.qcRef()
@@ -2513,7 +2522,7 @@ class Sample:
     Inherits from Experiment Parent Class
     '''
 
-    def __init__(self,sampleNumber,globalArgs):
+    def __init__(self,sampleNumber,maxCPU,globalArgs):
         ''' Arguments:
                 sampleNumber = int; sample number used for naming
                 globalArgs = dict; contains options from cli and manifest
@@ -2531,8 +2540,8 @@ class Sample:
         self.Read1 = self.getReadNames()[0]
         self.Read2 = self.getReadNames()[1]
         self.logPath = '{}/Runtime.{}.log'.format(self.samplePath, self.sampleName)
-        if globalArgs['--maxcpu'] != None:
-            self.Procs = globalArgs['--maxcpu']
+        if maxCPU != None:
+            self.Procs = maxCPU
 
     ########################################################
     # Utilities
@@ -3108,8 +3117,8 @@ class Sample:
 
 class FCountsSample(Sample):
 
-    def __init__(self,sampleNumber,globalArgs):
-        Sample.__init__(self, sampleNumber, globalArgs)
+    def __init__(self,sampleNumber,maxCPU,globalArgs):
+        Sample.__init__(self, sampleNumber, maxCPU, globalArgs)
 
     def __repr__(self):
         ''' Arguments:
@@ -3460,8 +3469,8 @@ class FCountsSample(Sample):
     ########################################################
 class StringtieSample(Sample):
 
-    def __init__(self,sampleNumber,globalArgs):
-        Sample.__init__(self, sampleNumber, globalArgs)
+    def __init__(self,sampleNumber,maxCPU,globalArgs):
+        Sample.__init__(self, sampleNumber, maxCPU, globalArgs)
 
     def __repr__(self):
         ''' Arguments:
@@ -3775,8 +3784,8 @@ class StringtieSample(Sample):
 
 class KallistoSample(Sample):
 
-    def __init__(self,sampleNumber,globalArgs):
-        Sample.__init__(self, sampleNumber, globalArgs)
+    def __init__(self,sampleNumber,maxCPU,globalArgs):
+        Sample.__init__(self, sampleNumber, maxCPU, globalArgs)
 
     def __repr__(self):
         ''' Arguments:
@@ -3923,8 +3932,8 @@ class KallistoSample(Sample):
 
 class Bowtie2Sample(Sample):
 
-    def __init__(self,sampleNumber,globalArgs):
-        Sample.__init__(self, sampleNumber, globalArgs)
+    def __init__(self,sampleNumber,maxCPU,globalArgs):
+        Sample.__init__(self, sampleNumber,maxCPU, globalArgs)
 
     def __repr__(self):
         ''' Arguments:

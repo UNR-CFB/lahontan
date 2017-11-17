@@ -336,6 +336,9 @@ def createBowtie2Index(referenceDir, genome, basename, arguments):
     """
     indexCheck = os.path.join(referenceDir, 'B2IndexBuilt')
     if not os.path.exists(indexCheck):
+        if arguments['-r']:
+            genome = os.path.join(expandPath(arguments['-r']),genome)
+            basename = os.path.join(expandPath(arguments['-r']),basename)
         localArgs = arguments['prepref/createBowtie2Index']
         logFile = os.path.join(referenceDir, 'Bowtie2Runtime.log')
         # Making Command
@@ -823,7 +826,7 @@ def generatePreprefInput(arguments):
             ('extract_exons.py', '${rnaseqdir}/hisat2/extract_exons.py'),
             ('hisat2-build', '${rnaseqdir}/hisat2/hisat2-build'),
             ('samtools', '${rnaseqdir}/samtools/bin/samtools'),
-            ('bowtie2-build', '${rnaseqdir}/bowtie2'),
+            ('bowtie2-build', '${rnaseqdir}/bowtie2-build'),
             ))
     ############################################################
     # PREPREF
@@ -1601,11 +1604,19 @@ input file'''
     ############################################################
     elif arguments['--mode'] == 'kall':
         config['kall/main'] = OD((
+                ('buildKallistoIndex', 'True'),
                 ('runQCheck', 'True'),
                 ('runTrimmomatic', 'True'),
                 ('runSeqtk', 'True'),
                 ('runBlastn', 'True'),
                 ('runKallisto', 'True'),
+                ))
+        # kall/main/buildKallistoIndex
+        config['kall/buildKallistoIndex'] = OD((
+                ('kallisto', '${EXECUTABLES:kallisto}'),
+                ('other', 'None'),
+                ('-i', 'None'),
+                ('cdna', 'None'),
                 ))
         # kall/main/runKallisto
         # kallisto quant -i {transcriptindex} -o {outputdir} --threads {procs}{FRoRF} -b 100 \
@@ -1627,12 +1638,22 @@ input file'''
     ############################################################
     elif arguments['--mode'] == 'bowtie2':
         config['bowtie2/main'] = OD((
+                ('buildB2Index', 'True'),
                 ('runQCheck', 'True'),
                 ('runTrimmomatic', 'True'),
                 ('runSeqtk', 'True'),
                 ('runBlastn', 'True'),
                 ('runBowtie2', 'True'),
                 ('runCompression', 'True'),
+                ))
+        # bowtie2/main/buildB2Index
+        # bowtie2 [options]
+        config['bowtie2/buildB2Index'] = OD((
+                ('bowtie2-build', '${EXECUTABLES:bowtie2-build}'),
+                ('--threads', 'None'),
+                ("other", 'None'),
+                ('genome', 'None'),
+                ('basename', 'None'),
                 ))
         # bowtie2/main/runBowtie2
         # bowtie2 [options]
