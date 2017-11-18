@@ -105,13 +105,13 @@ pdf('Detailed_PCA.pdf')
 plotPCA(rldAdj,intgroup=c({7_formulalistcomma}))
 dev.off()
 
-# Make ReportingTools Report
-RTReport <- HTMLReport(shortName='RNASeq_Analysis_with_DESeq2',
-                     title='RNASeq analysis of differential expression with DESeq2',
-                     reportDirectory="./ReportingToolsReport")
-publish(ddsAdj,RTReport,pvalueCutoff={8_pvaluecutoff},factor=ddsAdj${9_mf},
-        reportDir="./ReportingToolsReport")
-finish(RTReport)
+## Make ReportingTools Report
+#RTReport <- HTMLReport(shortName='RNASeq_Analysis_with_DESeq2',
+#                     title='RNASeq analysis of differential expression with DESeq2',
+#                     reportDirectory="./ReportingToolsReport")
+#publish(ddsAdj,RTReport,pvalueCutoff={8_pvaluecutoff},factor=ddsAdj${9_mf},
+#        reportDir="./ReportingToolsReport")
+#finish(RTReport)
 
 # Make Detailed regionReport
 dir.create('DetailedReport',showWarnings = FALSE,recursive = TRUE)
