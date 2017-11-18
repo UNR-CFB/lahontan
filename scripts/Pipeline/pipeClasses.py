@@ -2496,7 +2496,7 @@ wait
                 self.fullB2Stats()
                 self.quickTrimStats()
                 print('[ {} ] Optionally create metadata file'.format(now()))
-                self.createJsonMetadata()
+                #self.createJsonMetadata()
                 break
             else:
                 time.sleep(1)
@@ -4118,7 +4118,7 @@ class Bowtie2Sample(Sample):
             self.writeToLog('runCompression skipped due to manifest\n')
         self.writeFunctionTail('runPart2')
         if os.path.exists(os.path.join(self.samplePath,
-            "aligned.{}.counts.one".format(self.sampleName))):
+            "aligned.b2.{}.bam".format(self.sampleName))):
             with open(os.path.join(self.Project,
                 'runPipeNotify/{}'.format('done'+self.sampleName)), 'w') as N:
                 N.write('{} is done'.format(self.samplePath))

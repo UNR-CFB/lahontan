@@ -634,9 +634,7 @@ def stage3BTReadyToExecute(BTClass):
         Returns:
             boolean : if stage is ready to execute
     """
-    #TODO update this
-    return True
-    if BTClass.isReferencePrepared():
+    if BTClass.isReferencePrepared() and not BTClass.needToBuildB2Index():
         return True
     return False
 
