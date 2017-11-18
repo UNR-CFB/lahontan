@@ -174,8 +174,6 @@ def ppRef(referenceDir, cdna, basename, gtf, genome, cpulimit, args):
             })
     #extractSpliceSites = """time -p extract_splice_sites.py {gtf} > 
     # splice_sites.txt""".format(**Context)
-    pprint(makeBlastdb)
-    pprint(args["prepref/extractSpliceSites"])
     extractSpliceSites = ("""time -p {extract_splice_sites} {other}"""+
         """ {gtf} > {out}""").format(
             **{
