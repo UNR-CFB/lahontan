@@ -4,37 +4,39 @@ The program includes a set of tools built around an object-oriented pipeline
 used in qualifying and processing sets of paired-end next-gen RNA sequencing
 data. This pipeline uses trimmomatic and fastqc to perform quality control;
 BLAST to check the strandedness; and a choice of hisat2/featureCounts,
-hisat2/stringtie, or kallisto to analyze and quantify the experimental data.
-This pipeline also provides some automated R scripts to begin a gene expression
-analysis. The pipeline is also compatible with SLURM scheduled clusters for
-parallel execution.
+hisat2/stringtie, bowtie2, or kallisto to analyze and quantify the experimental
+data.  This pipeline also provides some automated R scripts to begin a gene
+expression analysis. The pipeline is compatible with SLURM scheduled clusters
+for parallel execution and standard desktop computers.
 
-Table of Contents                                                                               
-=================                                                                               
-                                                                                                
-   * [Table of Contents](#table-of-contents)                                                    
-   * [Installation](#installation)                                                              
-   * [Built With](#built-with)                                                                  
-   * [Pipeline Specifications](#pipeline-specifications)                                        
-      * [Project Stages](#project-stages)                                                       
-      * [Project Structure](#project-structure)                                                 
-      * [Usage: runPipe [options] [command] [args...]](#usage-runpipe-options-command-args)     
-         * [Available Commands](#available-commands)                                            
-         * [Command Options](#command-options)                                                  
-            * [fcounts](#fcounts)                                                               
-            * [string](#string)                                                                 
-            * [kall](#kall)                                                                     
-            * [mj](#mj)                                                                         
-            * [mb](#mb)                                                                         
-            * [clean](#clean)                                                                   
-            * [fo](#fo)                                                                         
-            * [prepref](#prepref)                                                               
-            * [help](#help)                                                                     
+Table of Contents
+=================
+
+   * [Table of Contents](#table-of-contents)
+   * [Installation](#installation)
+   * [Built With](#built-with)
+   * [Pipeline Specifications](#pipeline-specifications)
+      * [Project Stages](#project-stages)
+      * [Project Structure](#project-structure)
+      * [Usage: runPipe [options] [command] [args...]](#usage-runpipe-options-command-args)
+         * [Available Commands](#available-commands)
+         * [Command Options](#command-options)
+            * [fcounts](#fcounts)
+            * [string](#string)
+            * [kall](#kall)
+            * [bowtie2](#bowtie2)
+            * [mj](#mj)
+            * [mb](#mb)
+            * [clean](#clean)
+            * [fo](#fo)
+            * [prepref](#prepref)
+            * [help](#help)
    * [Creating a Project and Running the Pipeline](#creating-a-project-and-running-the-pipeline)
-      * [Requirements](#requirements)                                                           
-      * [Setup](#setup)                                                                         
-      * [Quick Start](#quick-start)                                                             
-   * [Authors](#authors)                                                                        
+      * [Requirements](#requirements)
+      * [Setup](#setup)
+      * [Quick Start](#quick-start)
+         * [Example Execution](#example-execution)
+   * [Authors](#authors)
 
 # Installation
 
@@ -94,7 +96,7 @@ to the references, then featureCounts will quantify the gene expression. The
 pipeline will then gather the data to create tables which can be used in
 further analysis.
 
-If Stringtie is being used, then hisat2 will be used to align the reads to the 
+If Stringtie is being used, then hisat2 will be used to align the reads to the
 references. After the alignment, Stringtie will build a new reference transcripts
 file which will then be used in estimating the transcript abundances.
 
@@ -169,20 +171,21 @@ can be given to `runPipe` are shown below.
 ### Available Commands
 
 ```
-fcounts     For running featureCounts pipeline  
-string      For running Stringtie pipeline  
-kall        For running kallisto pipeline  
-mj          Provoke questionnaire to make a Metadata file  
-mb          Create trimmomatic blacklist  
-clean       Clean any project directories  
-fo          Finds optimal execution path for batch execution  
+fcounts     For running featureCounts pipeline
+string      For running Stringtie pipeline
+kall        For running kallisto pipeline
+bowtie2     For running Bowtie2 pipeline
+mj          Provoke questionnaire to make a Metadata file
+mb          Create trimmomatic blacklist
+clean       Clean any project directories
+fo          Finds optimal execution path for batch execution
 prepref     Pre-processes reference data
-help        Show extra information
+gendef      Generate a default input file
 ```
 
 For more information about any of the commands, you can add the `-h` option
 to see the available options and any miscellaneous information. You can also give
-the command as an argument to the `help` command.  
+the command as an argument to the `help` command.
 
 For example:
 ```
@@ -245,9 +248,10 @@ An example of an `INPUTFILE`:
 ```
 ExampleInputFile
 -------------------------------------------------------------------------------
-Project="/home/user/ProjectName"
-Reference="/home/user/Reference/ProjectName-Reference"
-Original="/home/user/Data/ProjectName-Data"
+[locations]
+Project = /home/user/ProjectName
+Reference = /home/user/Reference/ProjectName-Reference
+Original = /home/user/Data/ProjectName-Data
 ```
 
 **Options**
@@ -281,7 +285,7 @@ Original="/home/user/Data/ProjectName-Data"
 --batchjson <pathtoJSON>
     Uses json file already created to make batch file
 --edger
-    Runs edgeR analysis only. Default is to run both 
+    Runs edgeR analysis only. Default is to run both
 --deseq
     Runs DESeq2 analysis only. Default is to run both
 --noconfirm
@@ -291,7 +295,7 @@ Original="/home/user/Data/ProjectName-Data"
     [default: $RNASEQDIR/Trimmomatic/adapters/TruSeq3-PE.fa]
 --use-reference
     Use Reference data that has already been prepared.
-    Put path to already prepared reference data in 
+    Put path to already prepared reference data in
     INPUT file
     Note: Need to run Stage 1 with this argument or add to
     "--makebatch" argument
@@ -300,20 +304,20 @@ Original="/home/user/Data/ProjectName-Data"
 **More information about options:**
 
 -e *\<stage\>*, --execute *\<stage\>*
-> Used to specify stage of Pipeline to be ran  
-> *\<stage\>* is a comma-separated list of stages to be executed.  
-> Possible stages include:  
+> Used to specify stage of Pipeline to be ran
+> *\<stage\>* is a comma-separated list of stages to be executed.
+> Possible stages include:
 >> 1 : Creating Project Structure; this includes creating Project directories
->> and making symbolic links to reference and raw data  
+>> and making symbolic links to reference and raw data
 >> 2 : Preparing Reference Data; this includes running Quality Control on the
->> reference data then setting up hisat2 databases  
+>> reference data then setting up hisat2 databases
 >> 3 : Running actual Pipeline; this includes quality control, alignment,
->> compression, and feature counts  
+>> compression, and feature counts
 >> 4 : Preparing for R analysis; this includes creating a 'nice' count file and
->> developing automated R scripts from `Metadata.json`  
+>> developing automated R scripts from `Metadata.json`
 >> 5 : Running R analysis; this involves running DESeq2 and edgeR differential
 >> expression analyses
->> A : (1,2,3,4,5) i.e. runs entire pipeline  
+>> A : (1,2,3,4,5) i.e. runs entire pipeline
 
 > Note: default is to just run `A`
 
@@ -322,28 +326,28 @@ Original="/home/user/Data/ProjectName-Data"
 
 -j *\<jsonFile\>*, --jsonfile *\<jsonFile\>*
 > Ignores JSON Metadata file creation and uses specified path to already
-> created JSON Metadata  
+> created JSON Metadata
 
 --maxcpu *\<CPUs\>*
-> Used to limit number of CPUs used by Pipeline  
-> Note: default is to use all available CPUs  
+> Used to limit number of CPUs used by Pipeline
+> Note: default is to use all available CPUs
 
 --makebatch *\<cluster\>*
-> Used to make batch file for use with slurm  
-> *\<cluster\>* is a comma-separated list of CPUs on each node in your cluster  
+> Used to make batch file for use with slurm
+> *\<cluster\>* is a comma-separated list of CPUs on each node in your cluster
 
 --batchjson *\<pathtoJSON\>*
 > If an optimal path JSON file has been created using `runPipe fo` or another
 > method, use option to skip the calculation of the optimal CPU usage path
 > Note: Option is depended on `--makebatch` i.e. must be added with
-> `--makebatch` or not at all  
+> `--makebatch` or not at all
 
 --edger
-> Runs edgeR analysis only  
+> Runs edgeR analysis only
 > Note: default is to run both edgeR and deseq2 analyses
 
 --deseq
-> Runs deseq2 analysis only  
+> Runs deseq2 analysis only
 > Note: default is to run both edgeR and deseq2 analyses
 
 --noconfirm
@@ -352,9 +356,9 @@ Original="/home/user/Data/ProjectName-Data"
 
 --use-blacklist *\<blacklist\>*
 > Trimmomatic blacklist used for quality control. A new blacklist can be made with
-> `runPipe mb`  
+> `runPipe mb`
 > Note: default is to use `$RNASEQDIR/Trimmomatic/adapters/TruSeq3-PE.fa` where
-> `$RNASEQDIR` is the build directory specified in the installation instructions  
+> `$RNASEQDIR` is the build directory specified in the installation instructions
 
 --use-reference
 > If reference data has already been prepared, use option to skip Stage 2 and
@@ -417,7 +421,7 @@ ballgown in Stage 5.
     [default: $RNASEQDIR/Trimmomatic/adapters/TruSeq3-PE.fa]
 --use-reference
     Use Reference data that has already been prepared.
-    Put path to already prepared reference data in 
+    Put path to already prepared reference data in
     INPUT file
     Note: Need to run Stage 1 with this argument or add to
     "--makebatch" argument
@@ -436,14 +440,14 @@ If you wish to see more information, see the [fcounts](#fcounts) documentation.
 
 -p *\<phase>\*, --phase *\<phase>\*
 > Modifies pipeline to incorporate stringtie and ballgown. Stringtie replaces
-> featureCounts.  
-> Possible phases can be any of: "a","b","c","ab","bc","abc"  
+> featureCounts.
+> Possible phases can be any of: "a","b","c","ab","bc","abc"
 >> a : Phase a refers to mapping sample reads to reference genome, converting
->> mapped reads to .bam format, and then assembling transcripts for each sample  
+>> mapped reads to .bam format, and then assembling transcripts for each sample
 >> b : Phase b refers to merging the transcripts from each sample into one
->> merged .gtf file  
->> c : Phase c refers to estimating the transcript abundances for each sample  
-> Note: If you will be running phase b, you cannot specify a sample to run with --runsample  
+>> merged .gtf file
+>> c : Phase c refers to estimating the transcript abundances for each sample
+> Note: If you will be running phase b, you cannot specify a sample to run with --runsample
 
 #### kall
 **Usage: runPipe kall [options] INPUTFILE**
@@ -485,7 +489,7 @@ for quantifying gene expression.
     [default: $RNASEQDIR/Trimmomatic/adapters/TruSeq3-PE.fa]
 --use-reference
     Use Reference data that has already been prepared.
-    Put path to already prepared reference data in 
+    Put path to already prepared reference data in
     INPUT file
     Note: Need to run Stage 1 with this argument or add to
     "--makebatch" argument
@@ -501,6 +505,62 @@ for quantifying gene expression.
 
 The `kall` command does not add any options compared to the `fcounts` command.
 If you wish to see more information, see the [fcounts](#fcounts) documentation.
+
+#### bowtie2
+**Usage: runPipe bowtie2 [options] INPUTFILE**
+
+Similar to the `fcounts`,`string`, and `kall` commands, `bowtie2` gives the
+pipeline the information it needs so that it uses the bowtie2 aligner. The
+options to the `bowtie2` command are similar to those of `kall`.
+
+**Options**
+
+```
+-h, --help
+    Show this screen and exit
+-e <stage>, --execute <stage>
+    Comma-separated list of stages to be executed.
+    Possible stages include:
+        1: Creating Project Structure
+        2: Preparing Reference Data
+        3: Running actual Pipeline
+        4: Preparing for R analysis
+        5: Running R analysis
+        A: (1,2,3,4,5); A=all i.e. runs entire pipeline
+    [default: A]
+-r <integer>, --runsample <integer>
+    Runs Stage 3 of the pipeline on the sample specified
+    by the integer
+-j <jsonFile>, --jsonfile <jsonFile>
+    Ignores JSON Metadata file creation and uses specified
+    path to JSON Metadata
+--maxcpu <CPUs>
+    Limits number of CPUs used by Pipeline. Default is to
+    use all available CPUs
+--noconfirm
+    Ignore all user prompts except JSON file creation
+--use-blacklist <blacklist>
+    Trimmomatic blacklist used for quality control
+    [default: $RNASEQDIR/Trimmomatic/adapters/TruSeq3-PE.fa]
+--use-reference
+    Use Reference data that has already been prepared.
+    Put path to already prepared reference data in
+    INPUT file
+    Note: Need to run Stage 1 with this argument or add to
+    "--makebatch" argument
+--makebatch <cluster>
+    Makes batch file to be used with slurm. The argument
+    it takes is a comma-separated list of CPUs on each
+    node in your cluster
+--batchjson <pathtoJSON>
+    Uses json file already created to make batch file
+```
+
+**More information about options:**
+
+In the bowtie2 pipeline, the metadata file for into the `--jsonfile` option
+serves only as a reference for the user and offers no use in any of the
+`bowtie2` tools.
 
 #### mj
 **Usage: runPipe mj [options]**
@@ -593,7 +653,7 @@ Metadata.json
 **More information about options:**
 
 -j *\<jsonfile\>*, --jsonfile *\<jsonfile\>*
-> Optional name of JSON file to be saved to  
+> Optional name of JSON file to be saved to
 > Note: default is to save the file to `Metadata.json` in the current directory
 
 #### mb
@@ -612,66 +672,66 @@ TACACTCTTTCCCTACACGACGCTCTTCCGATCT
 GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT
 ```
 
-The blacklist file created by `runPipe mb`, as of runPipe version *TODO* is:
+The blacklist file created by `runPipe mb`, as of runPipe version 1.1 is:
 ```
->PrefixPE/1                                                  
-TACACTCTTTCCCTACACGACGCTCTTCCGATCT                           
->PrefixPE/2                                                  
-GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT                           
->PE1                                                         
-TACACTCTTTCCCTACACGACGCTCTTCCGATCT                           
->PE1_rc                                                      
-AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTA                           
->PE2                                                         
-GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT                           
->PE2_rc                                                      
-AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC                           
->ABISolid3AdapterB                                           
-CCTATCCCCTGTGTGCCTTGGCAGTCTCAGCCTCTCTATGGGCAGTCGGT           
->PCR_Primer1                                                 
-AATGATACGGCGACCACCGAGATCTACACTCTTTCCCTACACGACGCTCTTCCGATCT   
->PCR_Primer1_rc                                              
-AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT   
->PCR_Primer2                                                 
+>PrefixPE/1
+TACACTCTTTCCCTACACGACGCTCTTCCGATCT
+>PrefixPE/2
+GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT
+>PE1
+TACACTCTTTCCCTACACGACGCTCTTCCGATCT
+>PE1_rc
+AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTA
+>PE2
+GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT
+>PE2_rc
+AGATCGGAAGAGCACACGTCTGAACTCCAGTCAC
+>ABISolid3AdapterB
+CCTATCCCCTGTGTGCCTTGGCAGTCTCAGCCTCTCTATGGGCAGTCGGT
+>PCR_Primer1
+AATGATACGGCGACCACCGAGATCTACACTCTTTCCCTACACGACGCTCTTCCGATCT
+>PCR_Primer1_rc
+AGATCGGAAGAGCGTCGTGTAGGGAAAGAGTGTAGATCTCGGTGGTCGCCGTATCATT
+>PCR_Primer2
 CAAGCAGAAGACGGCATACGAGATCGGTCTCGGCATTCCTGCTGAACCGCTCTTCCGATCT
->PCR_Primer2_rc                                              
+>PCR_Primer2_rc
 AGATCGGAAGAGCGGTTCAGCAGGAATGCCGAGACCGATCTCGTATGCCGTCTTCTGCTTG
->FlowCell1                                                   
-TTTTTTTTTTAATGATACGGCGACCACCGAGATCTACAC                      
->FlowCell2                                                   
-TTTTTTTTTTCAAGCAGAAGACGGCATACGA                              
->ConsecutiveA                                                
+>FlowCell1
+TTTTTTTTTTAATGATACGGCGACCACCGAGATCTACAC
+>FlowCell2
+TTTTTTTTTTCAAGCAGAAGACGGCATACGA
+>ConsecutiveA
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
 AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA     
->ConsecutiveT                                                
+AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA
+>ConsecutiveT
 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
 TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
-TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT     
->ConsecutiveC                                                
+TTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTTT
+>ConsecutiveC
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
-CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC     
->ConsecutiveG                                                
+CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
+>ConsecutiveG
 GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
-GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG     
+GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 ```
 
 **Options**
@@ -686,7 +746,7 @@ GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 **More information about options:**
 
 -t *\<newadapterfile\>*, --tofile *\<newadapterfile\>*
-> Optional name of file to be saved to  
+> Optional name of file to be saved to
 > Note: default is to save the file to `CustomBlacklist.fa` in the current directory
 
 #### clean
@@ -721,22 +781,22 @@ INPUTFILE
 **More information about options:**
 
 -c *\<placeToClean\>*, --clean *\<placeToClean\>*
-> Used to clean/reset *\<placeToClean\>*  
-> Possible places include:  
+> Used to clean/reset *\<placeToClean\>*
+> Possible places include:
 >> Reference = removes all files except Genome, cDNA, and gtf in Reference
->> directory  
->> Data = removes all files except raw data file links in Data directory  
+>> directory
+>> Data = removes all files except raw data file links in Data directory
 >> Postprocessing = removes all files except `Metadata.json` if it exists in
->> Postprocessing directory  
+>> Postprocessing directory
 >> All = resets entire Project. This is equivalent to running stage 1 on fresh
->> data  
+>> data
 
 --sampleclean *\<sampleName\>*
-> Used to clean/reset *\<sampleName\>*  
+> Used to clean/reset *\<sampleName\>*
 > Similar to `--clean Data` but instead of cleaning all samples just cleans a
-> single sample directory  
+> single sample directory
 > Note: *\<sampleName\>* will be of the form `sample_#` where #
-> refers to specific sample number  
+> refers to specific sample number
 
 
 #### fo
@@ -769,7 +829,7 @@ run the samples.
 **Mandatory Arguments**
 
 NUMSAMPLES
-> The number of samples in your experiment.  
+> The number of samples in your experiment.
 
 CLUSTER
 > A comma separated list of the number of CPUs on each node in your cluster
@@ -777,19 +837,19 @@ CLUSTER
 **More information about options:**
 
 -t <filename, --tofile *\<filename\>*
-> Optional name of file to be saved to  
-> Note: default behavior is to save to OptimalPath.dat in the current directory  
+> Optional name of file to be saved to
+> Note: default behavior is to save to OptimalPath.dat in the current directory
 
 --maxcpu <CPUs>
-> Limits number of CPUs used in calculating optimal path  
-> Note: Default is to use all available CPUs  
+> Limits number of CPUs used in calculating optimal path
+> Note: Default is to use all available CPUs
 
 -c, --customize
 > If the calculation is too slow, can use this option to specify the path
-> yourself  
+> yourself
 
 #### prepref
-**Usage: runPipe prepref [options] REFERENCEDIR**
+**Usage: runPipe prepref [options] (-r REFERENCEDIR | -i INPUT)**
 
 This command is equivalent to Stage 2 of the pipeline, however the difference
 is that this command is occurring outside of a structured Project environment.
@@ -802,6 +862,18 @@ can't be caught by the pipeline.
 ```
 -h, --help
     Show this screen and exit
+-r <referenceDir>
+    One of the mandatory arguments i.e. must specify either
+    r OR i options.
+    Option value is a path to directory that contains a GTF,
+    cDNA, and reference genome
+-i <input>
+    One of the mandatory arguments i.e. must specify either
+    r OR i options
+    Option value is a path to input file that must contain
+    at least a path to reference directory
+    Note: a default input file can be generated with:
+        runPipe gendef --mode prepref
 -q, --qualitycheck
     Only run quality check on references. Default behavior
     is to run both quality control and preprocessing
@@ -811,6 +883,13 @@ can't be caught by the pipeline.
 -k, --kallisto
     Additionally build kallisto index
     Note: index required if kallisto pipeline to be used
+--onlykallisto
+    Build only the kallisto index
+-b, --bowtie2
+    Additionally build Bowtie2 index
+    Note: index required if Bowtie2 pipeline to be used
+--onlybowtie2
+    Build only the Bowtie2 index
 --maxcpu <CPUs>
     Limit the number of CPU that get used to preprocess
     reference data.
@@ -819,31 +898,292 @@ can't be caught by the pipeline.
 
 **Mandatory Arguments**
 
-REFERENCEDIR
-> The path to a directory that contains a GTF, cDNA, and reference genome
+(-r REFERENCEDIR | -i INPUT)
+> For the `prepref` command, you must use either the `-r` option with the
+> path to a directory that contains a GTF, cDNA, and reference genome OR
+> you must use the `-i` option with a manifest file that includes at least
+> the path to a reference directory that contains a GTF, cDNA, and reference
+> genome
+
+An example of a minimal input file for the `prepref -i` option:
+```
+ExampleInputFile
+-------------------------------------------------------------------------------
+[locations]
+Reference = /home/user/Reference/ProjectName-Reference
+```
+Note the "[locations]" header and the "Reference" variable. These are required
+in every `prepref` input file.
 
 **More information about options:**
 
 -q, --qualitycheck
 > Check the quality of the references by comparing the chromosome names in the
 > genome and gtf, comparing the gene names in the cDNA and gtf, and comparing
-> the number of unique gene names in the cDNA and gtf.  
+> the number of unique gene names in the cDNA and gtf.
 > This option is given if you only want to check the quality without actually
-> preprocessing the references  
+> preprocessing the references
 
 -p, --preprocess
 > Preprocesses the references by building a BLAST database, finding the splice
 > sites, finding the exons, building a hisat2 database, and building a genome
-> index with samtools  
+> index with samtools
 > This option is given if you only want to preprocess the references without
-> actually running a quality check  
+> actually running a quality check
 
 -k, --kallisto
-> Build an index for kallisto analysis  
+> Build an index for kallisto analysis
+
+-b, --bowtie2
+> Build an index for bowtie2 analysis
 
 --maxcpu <CPUs>
-> Limit the number of CPU that get used to preprocess reference data.  
+> Limit the number of CPU that get used to preprocess reference data.
 > Note: default is to use all available
+
+#### gendef
+**Usage: runPipe gendef [options]**
+
+**Options**
+
+```
+-h, --help
+    Show this screen and exit
+-f <filename>, --filename <filename>
+    Name of input file to create
+    [default: default_input.ini]
+-m <mode>, --mode <mode>
+    Type of execution mode, can be:
+        fcounts
+        string
+        kall
+        bowtie2
+        prepref
+    [default: fcounts]
+```
+
+The `gendef` command is used to generate an input file with all default
+parameters filled in. An input file is mandatory for the `fcounts`, `string`,
+`kall`, and `bowtie2` commands. It is optional for the `prepref` command. The
+input files are organized in an INI format. For more information about file
+format and syntax, see the [python
+documentation](https://docs.python.org/3/library/configparser.html#supported-ini-file-structure)
+. To summarize, files consist of sections, each with a section header in square
+brackets, and key-value pairs defined underneath (separated by an "="). To
+leave a comment in a file, you can precede a line with a "#" or ";".
+
+For example, here is an input file that is generated with
+```
+$ runPipe gendef -m fcounts
+```
+
+```
+default_input.ini
+-------------------------------------------------------------------------------
+[locations]
+Project = /home/alberton/rna-seq/scripts/Pipeline/Test
+Reference = /home/alberton/rna-seq/scripts/Pipeline/Test
+Original = /home/alberton/rna-seq/scripts/Pipeline/Test
+
+[mode]
+fcounts = True
+kall = False
+string = False
+bowtie2 = False
+
+[fcounts]
+--execute = A
+--runsample = None
+--jsonfile = None
+--maxcpu = None
+--noconfirm = False
+--makebatch = None
+--batchjson = None
+--edger = False
+--deseq = False
+--use-blacklist = /home/alberton/rna-seq/build/Trimmomatic/adapters/TruSeq3-PE.fa
+--use-reference = False
+
+[EXECUTABLES]
+Rscript = /usr/local/bin/Rscript
+java = /usr/bin/java
+rnaseqdir = /home/alberton/rna-seq/build
+fastqc = ${rnaseqdir}/fastqc
+extract_exons.py = ${rnaseqdir}/hisat2/extract_exons.py
+extract_splice_sites.py = ${rnaseqdir}/hisat2/extract_splice_sites.py
+hisat2 = ${rnaseqdir}/hisat2/hisat2
+hisat2-build = ${rnaseqdir}/hisat2/hisat2-build
+samtools = ${rnaseqdir}/samtools/bin/samtools
+makeblastdb = ${rnaseqdir}/ncbi-blast/bin/makeblastdb
+blastn = ${rnaseqdir}/ncbi-blast/bin/blastn
+seqtk = ${rnaseqdir}/seqtk
+gffcompare = ${rnaseqdir}/gffcompare
+stranded_classifier.py = ${rnaseqdir}/stranded_classifier.py
+featureCounts = ${rnaseqdir}/subread/bin/featureCounts
+stringtie = ${rnaseqdir}/stringtie
+kallisto = ${rnaseqdir}/kallisto
+bowtie2 = ${rnaseqdir}/bowtie2
+bowtie2-build = ${rnaseqdir}/bowtie2-build
+
+[fcounts/main]
+runQCheck = True
+runTrimmomatic = True
+runSeqtk = True
+runBlastn = True
+runHisat = True
+runCompression = True
+runFeatureCounts = True
+getNiceColumns = True
+getAlignedColumn = True
+
+[fcounts/runHisat]
+hisat2 = ${EXECUTABLES:hisat2}
+-k = None
+-p = None
+--rna-strandedness = None
+--dta = None
+--phred = None
+--known-splicesite-infile = None
+-x = None
+-1 = None
+-2 = None
+-S = None
+other = None
+
+[fcounts/runCompression]
+samtools = ${EXECUTABLES:samtools}
+-b = None
+-T = None
+-@ = None
+-o = None
+in = None
+other = None
+
+[fcounts/runFeatureCounts]
+featureCounts = ${EXECUTABLES:featureCounts}
+-T = None
+-s = None
+-p = None
+-C = None
+--primary = None
+--ignoreDup = None
+--largestOverlap = None
+-t = None
+-g = None
+-a = None
+-o = None
+in = None
+other = None
+
+[runQCheck]
+fastqc = ${EXECUTABLES:fastqc}
+-t = None
+-o = None
+read1 = None
+read2 = None
+other = None
+
+[runTrimmomatic]
+java = ${EXECUTABLES:java}
+-jar = None
+-threads = None
+-phred = None
+read1 = None
+read2 = None
+read1pout = None
+read2pout = None
+read1uout = None
+read2uout = None
+blacklist = None
+ILLUMINACLIP = None
+LEADING = None
+TRAILING = None
+SLIDINGWINDOW = None
+MINLEN = None
+other = None
+
+[runSeqtk]
+seqtk = ${EXECUTABLES:seqtk}
+-s = None
+read1 = None
+read2 = None
+read1out = None
+read2out = None
+samples = None
+-A = None
+other = None
+
+[runBlastn]
+blastn = ${EXECUTABLES:blastn}
+read1 = None
+read2 = None
+out1 = None
+out2 = None
+-db = None
+-task = None
+-outfmt = None
+-max_target_seqs = None
+-num_threads = None
+other = None
+```
+
+This input file contains the default behavior of the `fcounts` pipeline.The
+order of the sections does not matter, nor does the order of the keys. The only
+mandatory section in any input file is the "[locations]" section. The default
+behavior of the `gendef` command is to populate the "[locations]" section with
+the path to the current directory. So after creating this file, the only user
+work **required** is to finish the paths in the "[locations]" section. The
+other sections contain keys that change the default behavior of the pipeline
+(**CAUTION**: changing these requires an understanding of the tools involved,
+run `runPipe help fcounts` for more much more detailed information)
+
+Additionally, there are certain reserved values that carry particular
+significance for the input file parser. The reserved value **None** is reserved
+to mean the pipeline will default to its default behavior.  The reserved values
+**True** and **False** mean the pipeline will turn on or off the desired
+option, respectively.  Other options contain special arguments that you can see
+more information about by using the built-in `help` command.
+
+Notice that the default behavior of `gendef` is to default all behavior. Thus,
+the previous input file is equivalent to:
+```
+default_input.ini
+-------------------------------------------------------------------------------
+[locations]
+Project = /home/alberton/rna-seq/scripts/Pipeline/Test
+Reference = /home/alberton/rna-seq/scripts/Pipeline/Test
+Original = /home/alberton/rna-seq/scripts/Pipeline/Test
+```
+
+Finally, a completed input file may look something like:
+```
+default_input.ini
+-------------------------------------------------------------------------------
+[locations]
+Project = /home/alberton/rna-seq/scripts/Pipeline/Test/MyProject
+Reference = /home/alberton/rna-seq/scripts/Pipeline/Test/MyProject-Reference
+Original = /home/alberton/rna-seq/scripts/Pipeline/Test/MyProject-Data
+```
+Notice that the paths to the Project, Reference, and Original directories are
+completed.
+
+**Mandatory Arguments**
+
+There are no mandatory arguments for the `gendef` command, however, the `-m`
+option specifies the type of input file to create, and it will default to
+`fcounts` if not specified.
+
+For example:
+```
+$ runPipe gendef
+```
+will create a `fcounts` input file called `default_input.ini`.
+
+Furthermore:
+```
+$ runPipe gendef -m string -f StringtieInput.ini
+```
+will create a `string` input file called `StringtieInput.ini`.
 
 #### help
 **Usage: runPipe help COMMAND**
@@ -854,13 +1194,14 @@ Used to display additional information about a command. Similar to `runPipe
 **Available Commands**
 
 ```
-fcounts     For running featureCounts pipeline  
-string      For running Stringtie pipeline  
-kall        For running kallisto pipeline  
-mj          Provoke questionnaire to make a Metadata file  
-mb          Create trimmomatic blacklist  
-clean       Clean any project directories  
-fo          Finds optimal execution path for batch execution  
+fcounts     For running featureCounts pipeline
+string      For running Stringtie pipeline
+kall        For running kallisto pipeline
+bowtie2     For running bowtie2 pipeline
+mj          Provoke questionnaire to make a Metadata file
+mb          Create trimmomatic blacklist
+clean       Clean any project directories
+fo          Finds optimal execution path for batch execution
 ```
 
 # Creating a Project and Running the Pipeline
@@ -886,17 +1227,18 @@ $ source $HOME/.bashrc
 ## Setup
 
 It is important that the Input file that you feed into the pipeline follow the
-format specified. There must only be the three variables, `Project`,
-`Reference`, and `Original`, in the file. They must be spelled correctly. Your
-`Project` variable should be defined by a path to a directory that may or may
-not exist, but it must be empty. An example Input file can be seen below:
+format specified. You can use the `gendef` command to create a default input
+file for you, which at that point only requires you to fill in the Project,
+Reference, and Original variable directories. See the [`gendef` documentation](#prepref)
+for more help. An example Input file can be seen below:
 
 ```
 ExampleInputFile
 -------------------------------------------------------------------------------
-Project="/home/user/ProjectName"
-Reference="/home/user/Reference/ProjectName-Reference"
-Original="/home/user/Data/ProjectName-Data"
+[locations]
+Project = /home/user/Projects/ProjectName
+Reference = /home/user/References/ProjectName-Reference
+Original = /home/user/Datas/ProjectName-Data
 ```
 
 Often times your data will be organized in a way that isn't accepted by
@@ -941,9 +1283,12 @@ Example Reference Directory:
 
 ## Quick Start
 
-1. Create an Input file
+1. Create an Input file with `runPipe gendef` for your desired pipeline using
+   the `-m` option. Then fill in the "[locations]" section.
 2. Make sure data and references are following format specified in Setup
-3. Prepare reference data with `runPipe prepref`
+3. Prepare reference data with `runPipe prepref`. If you are using the `kall`
+   or `bowtie2` pipeline, be sure to add the `--kallisto` or `--bowtie2` flag
+   to make sure the appropriate indices get created.
 4. Run `runPipe mj` to make a metadata file
 5. Run `runPipe mb` to make a blacklist file
 6. Decide if you will be running the pipeline with SLURM or not
@@ -976,7 +1321,35 @@ $ runPipe fcounts --jsonfile /path/to/Metadata.json \
 Note: It may be a good idea to hold your input file, metadata file, blacklist
 file, batch file, and optimal path file in the same directory for easy tracking
 
+### Example Execution
+
+Assuming that the data and reference files have been appropriately organized,
+and are located at `/home/user/Data/MyDataFolder` and
+`/home/user/References/MyReferenceFolder`, run the following to obtain a
+default input file:
+```
+$ runPipe gendef -m fcounts -f MyFcountsProject.ini
+```
+At this point complete the "[locations]" section in `MyFcountsProject.ini`. So
+`MyFcountsProject.ini` at minimum contains:
+```
+MyFcountsProject.ini
+-------------------------------------------------------------------------------
+[locations]
+Project = /home/user/Projects/MyProjectFolder
+Reference = /home/user/References/MyReferenceFolder
+Original = /home/user/Datas/MyDataFolder
+```
+Then, execute the following:
+```
+$ runPipe prepref -r /home/user/References/MyReferenceFolder
+$ runPipe mj -j MyMetadata.ini
+$ runPipe mb -t MyBlacklist.ini
+$ runPipe fcounts --use-reference --use-blacklist MyBlacklist.init \
+--jsonfile MyMetadata.ini MyFcountsProject.ini
+```
+
 # Authors
 
-* **Alberto Nava**
-* **Richard Tillett**
+* [**Alberto Nava**](https://github.com/Alberto024)
+* [**Richard Tillett**](https://github.com/rltillett)
