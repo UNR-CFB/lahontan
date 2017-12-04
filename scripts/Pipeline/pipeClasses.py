@@ -184,7 +184,7 @@ def now():
             str; current date and time
     """
     return datetime.now()
-    
+
 def funTime(function):
     ''' Arguments:
             function = str; name of function
@@ -335,7 +335,6 @@ class Experiment:
             The 'P' is added after preProcessingReference has
             completed
         '''
-
         if os.path.exists(os.path.join(self.Project, '.init')):
             with open(os.path.join(self.Project, '.init'), 'r') as f:
                 G = f.read()
@@ -559,9 +558,9 @@ class Experiment:
                 }
         goodCommand = command.format(**Context)
         subprocess.run(goodCommand,
-                            shell=True,
-                            check=True,
-                            executable="/bin/bash")
+            shell=True,
+            check=True,
+            executable="/bin/bash")
 
     #@staticmethod
     def checkMan(self, default, manifest):
@@ -684,39 +683,39 @@ class Experiment:
             with open(ppLog, 'w') as PPlog:
                 PPlog.write('\n{}\n{}'.format(makeBlastdb,'='*50))
                 subprocess.run(makeBlastdb,
-                                    shell=True,
-                                    check=True,
-                                    executable="/bin/bash",
-                                    stdout=PPlog,
-                                    stderr=subprocess.STDOUT)
+                    shell=True,
+                    check=True,
+                    executable="/bin/bash",
+                    stdout=PPlog,
+                    stderr=subprocess.STDOUT)
                 PPlog.write('\n{}\n{}'.format(extractSpliceSites,'='*50))
                 subprocess.run(extractSpliceSites,
-                                    shell=True,
-                                    check=True,
-                                    executable="/bin/bash",
-                                    stdout=PPlog,
-                                    stderr=subprocess.STDOUT)
+                    shell=True,
+                    check=True,
+                    executable="/bin/bash",
+                    stdout=PPlog,
+                    stderr=subprocess.STDOUT)
                 PPlog.write('\n{}\n{}'.format(extractExons,'='*50))
                 subprocess.run(extractExons,
-                                    shell=True,
-                                    check=True,
-                                    executable="/bin/bash",
-                                    stdout=PPlog,
-                                    stderr=subprocess.STDOUT)
+                    shell=True,
+                    check=True,
+                    executable="/bin/bash",
+                    stdout=PPlog,
+                    stderr=subprocess.STDOUT)
                 PPlog.write('\n{}\n{}'.format(hisatBuild,'='*50))
                 subprocess.run(hisatBuild,
-                                    shell=True,
-                                    check=True,
-                                    executable="/bin/bash",
-                                    stdout=PPlog,
-                                    stderr=subprocess.STDOUT)
+                    shell=True,
+                    check=True,
+                    executable="/bin/bash",
+                    stdout=PPlog,
+                    stderr=subprocess.STDOUT)
                 PPlog.write('\n{}\n{}'.format(samtoolsFaidx,'='*50))
                 subprocess.run(samtoolsFaidx,
-                                    shell=True,
-                                    check=True,
-                                    executable="/bin/bash",
-                                    stdout=PPlog,
-                                    stderr=subprocess.STDOUT)
+                    shell=True,
+                    check=True,
+                    executable="/bin/bash",
+                    stdout=PPlog,
+                    stderr=subprocess.STDOUT)
             with open(os.path.join(self.Project, '.init'), 'a') as F:
                 F.write('P')
 
@@ -756,10 +755,15 @@ class Experiment:
         if thingToClean == 'Sample':
             subprocess.run(['clean.sh','-s',arg, self.Genome, self.Cdna,
                 self.Gtf, self.Reference, self.Data, self.Postprocessing],
-                check=True)
+                shell=True,
+                check=True,
+                executable="/bin/bash")
         else:
             subprocess.run(['clean.sh',arg, self.Genome, self.Cdna, self.Gtf,
-                self.Reference, self.Data, self.Postprocessing],check=True)
+                self.Reference, self.Data, self.Postprocessing],
+                shell=True,
+                check=True,
+                executable="/bin/bash")
 
     ################################################################
     # Stage Run Functions
@@ -1160,9 +1164,9 @@ wait
                 }
         goodCommand = command.format(**Context)
         subprocess.run(goodCommand,
-                            shell=True,
-                            check=True,
-                            executable="/bin/bash")
+            shell=True,
+            check=True,
+            executable="/bin/bash")
 
     def quickFCStats(self):
         ''' Arguments:
@@ -1182,9 +1186,9 @@ wait
         goodCommand = command.format(**Context)
         goodFixFormat = fixFormat.format(**Context)
         subprocess.run(goodCommand,
-                            shell=True,
-                            check=True,
-                            executable="/bin/bash")
+            shell=True,
+            check=True,
+            executable="/bin/bash")
         #subprocess.run(goodFixFormat,
         #                    shell=True,
         #                    check=True,
@@ -1206,9 +1210,9 @@ wait
                 }
         goodCommand = command.format(**Context)
         subprocess.run(goodCommand,
-                            shell=True,
-                            check=True,
-                            executable="/bin/bash")
+            shell=True,
+            check=True,
+            executable="/bin/bash")
 
     ################################################################
     # Stage Run Functions
@@ -1269,6 +1273,7 @@ wait
     def runStage5(self):
         print('[ {} ] Executing Stage 5...'.format(now()))
         self.runRProgram()
+
 
 class StringtieExperiment(Experiment):
     '''
@@ -1485,9 +1490,9 @@ wait
                 }
         goodCommand = command.format(**Context)
         subprocess.run(goodCommand,
-                            shell=True,
-                            check=True,
-                            executable="/bin/bash")
+            shell=True,
+            check=True,
+            executable="/bin/bash")
 
     ############################################################
     # Stringtie Utilities
@@ -1851,6 +1856,7 @@ wait
     def runStage5(self):
         print('[ {} ] Executing Stage 5...'.format(now()))
         self.runBallgownAnalysis()
+
 
 class KallistoExperiment(Experiment):
     '''
@@ -2575,9 +2581,12 @@ class Sample:
         hostFile = '{}/host.txt'.format(self.samplePath)
         command = ['hostname']
         with open(hostFile,'w') as host:
-            subprocess.run(command, stdout=host,
-                                    stderr=subprocess.STDOUT,
-                                    check=True)
+            subprocess.run(command, 
+                stdout=host,
+                stderr=subprocess.STDOUT,
+                check=True,
+                shell=True,
+                executable='/bin/bash')
 
     def getReadNames(self):
         ''' Arguments:
@@ -2708,15 +2717,15 @@ class Sample:
         os.chdir(self.samplePath)
         self.writeFunctionCommand(goodCommand1)
         subprocess.run(goodCommand1,
-                            shell=True,
-                            check=True,
-                            executable='/bin/bash')
+            shell=True,
+            check=True,
+            executable='/bin/bash')
         os.chdir(fastqcFolder)
         self.writeFunctionCommand(goodCommand2)
         subprocess.run(goodCommand2,
-                            shell=True,
-                            check=True,
-                            executable='/bin/bash')
+            shell=True,
+            check=True,
+            executable='/bin/bash')
 
     def getPhred(self):
         ''' Arguments:
@@ -2895,9 +2904,9 @@ class Sample:
         os.chdir(self.samplePath)
         self.writeFunctionCommand(goodCommand)
         subprocess.run(goodCommand,
-                            shell=True,
-                            check=True,
-                            executable='/bin/bash')
+            shell=True,
+            check=True,
+            executable='/bin/bash')
 
     def runPart1(self):
         ''' Arguments:
@@ -2976,14 +2985,14 @@ class Sample:
         os.chdir(self.samplePath)
         self.writeFunctionCommand(goodCommand1)
         subprocess.run(goodCommand1,
-                            shell=True,
-                            check=True,
-                            executable='/bin/bash')
+            shell=True,
+            check=True,
+            executable='/bin/bash')
         self.writeFunctionCommand(goodCommand2)
         subprocess.run(goodCommand2,
-                            shell=True,
-                            check=True,
-                            executable='/bin/bash')
+            shell=True,
+            check=True,
+            executable='/bin/bash')
         self.writeFunctionTail('runSeqtk')
 
     def runBlastn(self):
@@ -3039,14 +3048,14 @@ class Sample:
         os.chdir(self.samplePath)
         self.writeFunctionCommand(goodCommand1)
         subprocess.run(goodCommand1,
-                            shell=True,
-                            check=True,
-                            executable='/bin/bash')
+            shell=True,
+            check=True,
+            executable='/bin/bash')
         self.writeFunctionCommand(goodCommand2)
         subprocess.run(goodCommand2,
-                            shell=True,
-                            check=True,
-                            executable='/bin/bash')
+            shell=True,
+            check=True,
+            executable='/bin/bash')
         self.writeFunctionTail('runBlastn')
 
     def findStranded(self):
@@ -3368,8 +3377,9 @@ class FCountsSample(Sample):
         os.chdir(self.samplePath)
         self.writeFunctionCommand(goodCommand)
         subprocess.run(goodCommand,
-                            shell=True,
-                            check=True)
+            shell=True,
+            check=True,
+            executable='/bin/bash')
         self.writeFunctionTail('getNiceColumns')
 
     def getAlignedColumn(self):
@@ -3390,8 +3400,9 @@ class FCountsSample(Sample):
         os.chdir(self.samplePath)
         self.writeFunctionCommand(goodCommand)
         subprocess.run(goodCommand,
-                            shell=True,
-                            check=True)
+            shell=True,
+            check=True,
+            executable='/bin/bash')
         self.writeFunctionTail('getAlignedColumn')
 
     ########################################################
@@ -3467,6 +3478,7 @@ class FCountsSample(Sample):
     ########################################################
     # End of FCountsSample class
     ########################################################
+
 class StringtieSample(Sample):
 
     def __init__(self,sampleNumber,maxCPU,globalArgs):
