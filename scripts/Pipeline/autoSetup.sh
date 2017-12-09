@@ -45,6 +45,19 @@ make
 wait
 ln -sr "${RnaSeq}/src/kallisto/build/src/kallisto" "${RnaSeq}/build/kallisto"
 
+cd "${RnaSeq}/src/bowtie2"
+make
+wait
+ln -sr "${RnaSeq}/src/bowtie2/bowtie2" "${RnaSeq}/build/bowtie2"
+ln -sr "${RnaSeq}/src/bowtie2/bowtie2-align-s" "${RnaSeq}/build/bowtie2-align-s"
+ln -sr "${RnaSeq}/src/bowtie2/bowtie2-align-l" "${RnaSeq}/build/bowtie2-align-l"
+ln -sr "${RnaSeq}/src/bowtie2/bowtie2-build" "${RnaSeq}/build/bowtie2-build"
+ln -sr "${RnaSeq}/src/bowtie2/bowtie2-build-s" "${RnaSeq}/build/bowtie2-build-s"
+ln -sr "${RnaSeq}/src/bowtie2/bowtie2-build-l" "${RnaSeq}/build/bowtie2-build-l"
+ln -sr "${RnaSeq}/src/bowtie2/bowtie2-inspect" "${RnaSeq}/build/bowtie2-inspect"
+ln -sr "${RnaSeq}/src/bowtie2/bowtie2-inspect-s" "${RnaSeq}/build/bowtie2-inspect-s"
+ln -sr "${RnaSeq}/src/bowtie2/bowtie2-inspect-l" "${RnaSeq}/build/bowtie2-inspect-l"
+
 cd "${RnaSeq}/bin/FastQC"
 chmod +x fastqc
 ln -sr "${RnaSeq}/bin/FastQC/fastqc" "${RnaSeq}/build/fastqc"
