@@ -19,3 +19,6 @@
 [submodule "src/GFF/gffcompare"]
 	path = src/GFF/gffcompare
 	url = https://github.com/gpertea/gffcompare.git
+[submodule "src/bowtie2"]
+	path = src/bowtie2
+	url = https://github.com/BenLangmead/bowtie2.git
