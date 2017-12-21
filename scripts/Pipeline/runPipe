@@ -1935,14 +1935,14 @@ Function 2: Sample.runTrimmomatic()
         changing)
         read2: path to read 2 (CAUTION: highly discouraged from
         changing)
-        read1pout: output read 1 (CAUTION: highly discouraged from
-        changing)
-        read2pout: output read 2 (CAUTION: highly discouraged from
-        changing)
-        read1uout: output read 1 (CAUTION: highly discouraged from
-        changing)
-        read2uout: output read 2 (CAUTION: highly discouraged from
-        changing)
+        read1pout: output read 1 (CAUTION: highly discouraged
+        from changing)
+        read2pout: output read 2 (CAUTION: highly discouraged
+        from changing)
+        read1uout: output read 1 (CAUTION: highly discouraged
+        from changing)
+        read2uout: output read 2 (CAUTION: highly discouraged
+        from changing)
         blacklist: blacklist file (Can also specify on
         command-line with --use-blacklist)
         ILLUMINACLIP: trim options (by default: "2:30:10")
@@ -2009,8 +2009,8 @@ Function 2: Sample.runBlastn()
             {-task} -outfmt {-outfmt} -max_target_seqs
             {-max_target_seqs} -num_threads {-num_threads}
             {other}
-        blastn: blastn executable (by default will use executable
-        defined under [EXECUTABLES] header)
+        blastn: blastn executable (by default will use
+        executable defined under [EXECUTABLES] header)
         read1: path to read 1 (CAUTION: highly discouraged from
         changing)
         read2: path to read 2 (CAUTION: highly discouraged from
@@ -2043,8 +2043,8 @@ Function 3: FCountsSample.runHisat()
         --phred{phred} {other} --known-slicesite-infile
         {--known-splicesite-infile} -x {-x} -1 {-1} -2 {-2}
         -S {-S}
-        hisat2: hisat2 executable (by default will use executable
-        defined under [EXECUTABLES] header)
+        hisat2: hisat2 executable (by default will use
+        executable defined under [EXECUTABLES] header)
         -k: alternates per read (by default "5")
         -p: processors to use (by default will use allocated
         sample space)
@@ -2078,8 +2078,8 @@ Function 4: FCountsSample.runCompression()
     False. Can also control the execution options under the
     [fcounts/runCompression] header:
         {samtools} view {-b} -T {-T} -@{-@} {other} {in} -o {-o}
-        samtools: samtools executable (by default will use executable
-        defined under [EXECUTABLES] header)
+        samtools: samtools executable (by default will use
+        executable defined under [EXECUTABLES] header)
         -b: boolean option to output BAM file (by default on).
         Can turn off by setting to False
         -T: path to reference sequence FASTA file (by default
@@ -2244,8 +2244,8 @@ each sample specified on the command line, or all possible by
 default. After creating each sample, each sample's runSample()
 method will be executed.
 
-For the StringtieSample types, the runSample() method executes the
-following commands:
+For the StringtieSample types, the runSample() method executes
+the following commands:
         Part 1:
             1: runQCheck()
             2: runTrimmomatic()
@@ -2330,14 +2330,14 @@ Function 2: Sample.runTrimmomatic()
         changing)
         read2: path to read 2 (CAUTION: highly discouraged from
         changing)
-        read1pout: output read 1 (CAUTION: highly discouraged from
-        changing)
-        read2pout: output read 2 (CAUTION: highly discouraged from
-        changing)
-        read1uout: output read 1 (CAUTION: highly discouraged from
-        changing)
-        read2uout: output read 2 (CAUTION: highly discouraged from
-        changing)
+        read1pout: output read 1 (CAUTION: highly discouraged
+        from changing)
+        read2pout: output read 2 (CAUTION: highly discouraged
+        from changing)
+        read1uout: output read 1 (CAUTION: highly discouraged 
+        from changing)
+        read2uout: output read 2 (CAUTION: highly discouraged
+        from changing)
         blacklist: blacklist file (Can also specify on
         command-line with --use-blacklist)
         ILLUMINACLIP: trim options (by default: "2:30:10")
@@ -2382,10 +2382,10 @@ Function 1: Sample.runSeqtk()
         changing)
         read2: path to read 2 (CAUTION: highly discouraged from
         changing)
-        read1out: output read 1 (CAUTION: highly discouraged from
-        changing)
-        read2out: output read 2 (CAUTION: highly discouraged from
-        changing)
+        read1out: output read 1 (CAUTION: highly discouraged
+        from changing)
+        read2out: output read 2 (CAUTION: highly discouraged
+        from changing)
         samples: number of samples to take (by default: "10000")
         -A: boolean option to force FASTA output (by default is
         on). Can turn off by setting to False
@@ -2407,8 +2407,8 @@ Function 2: Sample.runBlastn()
             {-task} -outfmt {-outfmt} -max_target_seqs
             {-max_target_seqs} -num_threads {-num_threads}
             {other}
-        blastn: blastn executable (by default will use executable
-        defined under [EXECUTABLES] header)
+        blastn: blastn executable (by default will use
+        executable defined under [EXECUTABLES] header)
         read1: path to read 1 (CAUTION: highly discouraged from
         changing)
         read2: path to read 2 (CAUTION: highly discouraged from
@@ -2441,8 +2441,8 @@ Function 3: StringtieSample.runHisat()
         --phred{phred} {other} --known-slicesite-infile
         {--known-splicesite-infile} -x {-x} -1 {-1} -2 {-2}
         -S {-S}
-        hisat2: hisat2 executable (by default will use executable
-        defined under [EXECUTABLES] header)
+        hisat2: hisat2 executable (by default will use
+        executable defined under [EXECUTABLES] header)
         -k: alternates per read (by default "5")
         -p: processors to use (by default will use allocated
         sample space)
@@ -2472,12 +2472,12 @@ Function 4: StringtieSample.runAltCompression()
     Action: Use samtools to compress hisat2 output
     Result: A compressed BAM files with aligned read information
     Manifest Information: Able to be controlled from manifest
-    under the [string/main] header by setting runAltCompression to
-    False. Can also control the execution options under the
+    under the [string/main] header by setting runAltCompression
+    to False. Can also control the execution options under the
     [string/runAltCompression] header:
         {samtools} sort -@ {-@} -o {-o} {other} {in}
-        samtools: samtools executable (by default will use executable
-        defined under [EXECUTABLES] header)
+        samtools: samtools executable (by default will use
+        executable defined under [EXECUTABLES] header)
         -@: processors to use (by default will use allocated
         sample space)
         -o: output file name (CAUTION: highly discouraged from
@@ -2503,8 +2503,8 @@ Function 5: StringtieSample.assembleTranscripts()
         sample space)
         -o: output gtf file (CAUTION: highly discouraged from
         changing)
-        -l: label for output files (CAUTION: highly discouraged from
-        changing)
+        -l: label for output files (CAUTION: highly discouraged
+        from changing)
         in: input BAM file (CAUTION: highly discouraged from
         changing)
         other: used to specify any other options not already
@@ -2513,37 +2513,670 @@ Function 5: StringtieSample.assembleTranscripts()
 Sub-Part B: Merging sample GTFs
 
 Function 6: StringtieExperiment.stringtieMerge()
-    Action: 
-    Result: 
+    Action: Use Stringtie to merge each sample's initial
+    transcripts
+    Result: A single GTF that will be used in subsequent
+    quantification steps
     Manifest Information: Able to be controlled from manifest
     under the [string/main] header by setting
-    assembleTranscripts to False. Can also control the execution
-    options under the [string/assembleTranscripts] header:
+    stringtieMerge to False. Can also control the execution
+    options under the [string/stringtieMerge] header:
+        {stringtie} --merge -p {-p} -o {-o} {other} {in}
+        stringtie: stringtie executable (by default will
+        use executable defined under [EXECUTABLES] header)
+        -p: processors to use (by default will use allocated
+        sample space)
+        -o: output gtf file (CAUTION: highly discouraged from
+        changing)
+        in: input mergelist file that contains paths to each
+        sample's initial gtf (CAUTION: highly discouraged from
+        changing)
+        other: used to specify any other options not already
+        defined
 
 Function 7: StringtieExperiment.compareTranscipts()
-    Action: 
-    Result: 
+    Action: Compares old GTF to new GTF
+    Result: A file with comparison statistics
     Manifest Information: Able to be controlled from manifest
     under the [string/main] header by setting
-    assembleTranscripts to False. Can also control the execution
-    options under the [string/assembleTranscripts] header:
+    compareTranscripts to False. Can also control the execution
+    options under the [string/compareTranscripts] header:
+        {gffcompare} -r {-r} {-G} -o {-o} {other} {in}
+        gffcompare: gffcompare executable (by default will
+        use executable defined under [EXECUTABLES] header)
+        -r: Old GTF file (CAUTION: highly discouraged from
+        changing)
+        -G: True/False setting
+        -o: output prefix
+        in: New GTF file (CAUTION: highly discouraged from
+        changing)
+        other: used to specify any other options not already
+        defined
 
 Sub-Part C: Re-estimating abundances
 
 Function 7: StringtieSample.estimateTranscriptAbundances()
-    Action: 
-    Result: 
+    Action: Use Stringtie with the new GTF to quantify the gene
+    expression
+    Result: Tables of quantified genes for each sample
     Manifest Information: Able to be controlled from manifest
     under the [string/main] header by setting
-    assembleTranscripts to False. Can also control the execution
-    options under the [string/assembleTranscripts] header:
+    estimateTranscriptAbundances to False. Can also control the
+    execution options under the
+    [string/estimateTranscriptAbundances] header:
+        {stringtie} {-e} {-B} -p {-p} -G {-G} -o {-o} {other} {in}
+        stringtie: stringtie executable (by default will
+        use executable defined under [EXECUTABLES] header)
+        -e: only estimate the abundance with given reference
+        transcripts
+        -B: create ballgown tables
+        -p: processors to use (by default will use allocated
+        sample space)
+        -G: reference annotation file (CAUTION: highly
+        discouraged from changing)
+        -o: output file name for assembled transcripts (CAUTION:
+        highly discouraged from changing)
+        in: input BAM file (CAUTION: highly discouraged from
+        changing)
+        other: used to specify any other options not already
+        defined
 """)
     elif helpCommand == 'kall':
-        print('''This is kallisto information #TODO''')
-        raise SystemExit(kallisto.__doc__)
+        print(kallisto.__doc__)
+        print(
+"""\n################################################################
+                    kallisto Information
+################################################################
+
+The kall API consists of the KallistoExperiment and
+KallistoSample classes located in pipeClasses.py. There are also
+methods and attributes that are inherited from the Experiment
+and Sample Class. Execution of an experiment consists of
+executing the 5 runStage methods of a KallistoExperiment. These
+stages are:
+            1: Creating Project Structure
+            2: Preparing Reference Data
+            3: Running actual Pipeline
+            4: Preparing for R analysis
+            5: Running R analysis
+
+Within the runStage1() method, there are two functions:
+            1: makeStructure()
+            2: makeSyms()
+
+Function 1: Experiment.makeStructure():
+    Action: Calls the makeStructure.sh shell script which takes
+    as its arguments the path to the project and the number of
+    samples
+    Result: After execution, all the main directories of the
+    project should be included -> Project, Data, Original,
+    Postprocessing, Reference, and each of the sample
+    directories
+
+Function 2: Experiment.makeSyms():
+    Action: Calls the makeSyms.sh shell script which takes as
+    its arguments the path to the project, the path to the
+    original data, and the path to the reference data
+    Result: The original data files will have symbolic links in
+    their respective sample directories; if there is a metadata
+    file specified by the '--jsonfile' option, it will be linked
+    in the Postprocessing directory; if the reference data has
+    been prepared and specified by the '--use-reference' option,
+    the entire reference directory will be linked in the
+    Reference directoy, otherwise, just the 3 necessary
+    reference files will be linked -> Gtf, Cdna, and Genome
+
+Within the runStage2() method, there are two functions:
+            1: qcRef()
+            2: ppRef()
+            3: buildKallistoIndex()
+
+Function 1: Experiment.qcRef()
+    Action: Calls the QCofRef.sh shell script which takes as its
+    arguments the path to the reference data and the name of the
+    genome.
+    Result: Certain characteristics of the reference data will
+    be checked such as: the names of the chromosomes in the gtf
+    and genome file, the number of chromosomes in the gtf and
+    genome file, the names of the genes in the cdna and gtf
+    file, the total number of unique genes in the cdna and gtf,
+    and the number of unique gene names in the cdna AND not in
+    the gtf
+
+Function 2: Experiment.ppRef()
+    Action: Prepares the reference data by using various tools
+    such as blast, extract_spice_sites.py, extract_exons.py,
+    hisat2, and samtools
+    Result: A blast database, a file with exon and splice site
+    locations, a hisat2 database, and a genome index will be
+    created in reference directory
+
+Function 3: KallistoExperiment.buildKallistoIndex()
+    Action: If needed, kallisto will build the indexes needed
+    for its analysis in Stage 3
+    Results: A kallisto index
+
+Within the runStage3() method, there is one function:
+            1: GO()
+
+Function 1: KallistoExperiment.GO()
+    Action: Creates sample classes and executes their runParts
+    method
+    Result: Experiment infrastructure acts as a wrapper around
+    the samples, and executes them individually such that they
+    are independent
+
+Further Stage 3 information:
+
+In Stage 3, the GO() method will create execution spaces for
+each sample specified on the command line, or all possible by
+default. After creating each sample, each sample's runSample()
+method will be executed.
+
+For the KallistoSample types, the runSample() method executes
+the following commands:
+        Part 1:
+            1: runQCheck()
+            2: runTrimmomatic()
+            3: runQCheck()
+        Part 2:
+            1: runSeqtk()
+            2: runBlastn()
+            3: runKallisto()
+
+Part 1: Consists of quality control with fastQC and trimmomatic
+
+Function 1: Sample.runQCheck()
+    Action: Runs fastQC on reads and then scrapes the
+    overrepresented sequences from fastQC logs
+    Result: There will be a fastQC folder in each sample
+    directory that contains quality control information
+    Manifest Information: Able to be controlled from manifest
+    under the [kall/main] header by setting runQCheck to
+    False. Can also control the execution options under the
+    [runQCheck] header:
+        {fastqc} -t {-t} -o {-o} {other} {read1} {read2}
+        fastqc: fastQC executable (by default will use
+        executable defined under [EXECUTABLES] header)
+        -t: processors to use (by default will use allocated
+        sample space)
+        -o: output directory (by default will use folder named
+        fastqc{run-number}.{sample-name}) (CAUTION: highly
+        discouraged from changing)
+        other: used to specify any other options not already
+        defined
+        read1: path to read 1 (CAUTION: highly discouraged from
+        changing)
+        read2: path to read 2 (CAUTION: highly discouraged from
+        changing)
+
+Function 2: Sample.runTrimmomatic()
+    Action: Executes trimmomatic on reads
+    Result: Reads will be trimmed
+    Manifest Information: Able to be controlled from manifest
+    under the [kall/main] header by setting runTrimmomatic to
+    False. Can also control the execution options under the
+    [runTrimmomatic] header:
+        {java} -jar {-jar} PE -threads {-threads} -phred{-phred}
+        {other} {read1} {read2} {read1pout} {read1uout}
+        {read2pout} {read2uout}
+        ILLUMINACLIP:{blacklist}:{ILLUMINACLIP}
+        LEADING:{LEADING} TRAILING:{TRAILING}
+        SLIDINGWINDOW:{SLIDINGWINDOW} MINLEN:{MINLEN}
+        java: java executable (by default will use executable
+        defined under [EXECUTABLES] header)
+        -jar: trimmomatic jar file (by default will use
+        $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar)
+        -threads: processors to use (by default will use
+        allocated sample space)
+        -phred: phred version (by default will scrape version
+        from fastQC logs). Can set to 33, 64, or None (for
+        default)
+        other: used to specify any other options not already
+        defined
+        read1: path to read 1 (CAUTION: highly discouraged from
+        changing)
+        read2: path to read 2 (CAUTION: highly discouraged from
+        changing)
+        read1pout: output read 1 (CAUTION: highly discouraged
+        from changing)
+        read2pout: output read 2 (CAUTION: highly discouraged
+        from changing)
+        read1uout: output read 1 (CAUTION: highly discouraged
+        from changing)
+        read2uout: output read 2 (CAUTION: highly discouraged
+        from changing)
+        blacklist: blacklist file (Can also specify on
+        command-line with --use-blacklist)
+        ILLUMINACLIP: trim options (by default: "2:30:10")
+        LEADING: trim options (by default: "5")
+        TRAILING: trim options (by default: "5")
+        SLIDINGWINDOW: trim options (by default: "4:5")
+        MINLEN: trim options (by default: "35")
+
+Function 3: Sample.runQCheck()
+    Action: Runs fastQC on reads and then scrapes the
+    overrepresented sequences from fastQC logs
+    Result: Does the same thing as the previous runQCheck except
+    this run is post-trimmomatic to get a perspective on the
+    changes that trimmomatic made
+    Manifest Information: Able to be controlled from manifest
+    under the [kall/main] header by setting runQCheck to
+    False or runTrimmomatic to False. Control execution options
+    exactly the same as in Function 1.
+
+Part 2: Consists of execution of strandedness check and kallisto
+
+Function 1: Sample.runSeqtk()
+    Action: Execute seqtk on reads to get a representative
+    sample of reads
+    Result: Obtains a representative sample of reads in order to
+    more quickly check strandedness of reads
+    Manifest Information: Able to be controlled from manifest
+    under the [kall/main] header by setting runSeqtk to
+    False. Can also control the execution options under the
+    [runSeqtk] header:
+        {seqtk} sample -s{-s} {read1} {samples} | seqtk seq {-A}
+            {other} - > {read1out}
+        {seqtk} sample -s{-s} {read2} {samples} | seqtk seq {-A}
+            {other} - > {read2out}
+        seqtk: seqtk executable (by default will use executable
+        defined under [EXECUTABLES] header)
+        -s: random seed (by default: "100")
+        read1: path to read 1 (CAUTION: highly discouraged from
+        changing)
+        read2: path to read 2 (CAUTION: highly discouraged from
+        changing)
+        read1out: output read 1 (CAUTION: highly discouraged from
+        changing)
+        read2out: output read 2 (CAUTION: highly discouraged from
+        changing)
+        samples: number of samples to take (by default: "10000")
+        -A: boolean option to force FASTA output (by default is
+        on). Can turn off by setting to False
+        other: used to specify any other options not already
+        defined
+
+Function 2: Sample.runBlastn()
+    Action: Execute blastn on seqtk output
+    Result: Used to gather strandedness information of reads
+    Manifest Information: Able to be controlled from manifest
+    under the [kall/main] header by setting runBlastn to
+    False. Can also control the execution options under the
+    [runBlastn] header:
+        {blastn} -query {read1} -db {-db} -out {out1} -task
+            {-task} -outfmt {-outfmt} -max_target_seqs
+            {-max_target_seqs} -num_threads {-num_threads}
+            {other}
+        {blastn} -query {read2} -db {-db} -out {out2} -task
+            {-task} -outfmt {-outfmt} -max_target_seqs
+            {-max_target_seqs} -num_threads {-num_threads}
+            {other}
+        blastn: blastn executable (by default will use
+        executable defined under [EXECUTABLES] header)
+        read1: path to read 1 (CAUTION: highly discouraged from
+        changing)
+        read2: path to read 2 (CAUTION: highly discouraged from
+        changing)
+        out1: output read 1 (CAUTION: highly discouraged from
+        changing)
+        out2: output read 2 (CAUTION: highly discouraged from
+        changing)
+        -db: path to blast database (by default:
+        Reference/{basename}.cdna.all)
+        -task: task to executed (by default "blastn-short")
+        -outfmt: output format (by default '"6 std sstrand"';
+        notice the double quotes necessary to contain the
+        spaces)
+        -max_target_seqs: max target sequences (by default "1")
+        -num_threads: processors to use (by default will use
+        allocated sample space)
+        other: used to specify any other options not already
+        defined
+
+Function 3: KallistoSample.runKallisto()
+    Action: Uses kallisto to compute equivalence classes for
+    reads and quantifies abundances
+    Result: A directory that contains qunatification tables
+    Manifest Information: Able to be controlled from manifest
+    under the [kall/main] header by setting runKallisto to
+    False. Can also control the execution options under the
+    [kall/runKallisto] header:
+        {kallisto} quant -i {-i} -o {-o}
+        --threads {--threads}{stranded} -b {-b} {other}
+        <( zcat {read1} ) <( zcat {read2} )
+        kallisto: kallisto executable (by default will use
+        executable defined under [EXECUTABLES] header)
+        -i: path to kallisto index build in stage 2 (CAUTION:
+        highly discouraged from changing)
+        -o: Name of output directory (CAUTION: highly
+        discouraged from changing)
+        --threads: processors to use (by default will use
+        allocated sample space)
+        stranded: strandedness of reads (by default will
+        determine from blastn and seqtk) Can set to fr, rf,
+        False, or None. False specifies unstrandedness while
+        None defaults to pipeline findStranded()
+        -b: Number of bootstrap samples (by default will use
+        100)
+        read1: path to read 1 (CAUTION: highly discouraged from
+        changing)
+        read2: path to read 2 (CAUTION: highly discouraged from
+        changing)
+        other: used to specify any other options not already
+        defined
+""")
     elif helpCommand == 'bowtie':
-        print('''This is bowtie information #TODO''')
-        raise SystemExit(bowtie.__doc__)
+        print(bowtie2.__doc__)
+        print(
+"""\n################################################################
+                    bowtie2 Information
+################################################################
+
+The bowtie2 API consists of the Bowtie2Experiment and
+Bowtie2Sample classes located in pipeClasses.py. There are also
+methods and attributes that are inherited from the Experiment
+and Sample Class. Execution of an experiment consists of
+executing the 4 runStage methods of a Bowtie2Experiment. These
+stages are:
+            1: Creating Project Structure
+            2: Preparing Reference Data
+            3: Running actual Pipeline
+            4: Organizing results
+
+Within the runStage1() method, there are two functions:
+            1: makeStructure()
+            2: makeSyms()
+
+Function 1: Experiment.makeStructure():
+    Action: Calls the makeStructure.sh shell script which takes
+    as its arguments the path to the project and the number of
+    samples
+    Result: After execution, all the main directories of the
+    project should be included -> Project, Data, Original,
+    Postprocessing, Reference, and each of the sample
+    directories
+
+Function 2: Experiment.makeSyms():
+    Action: Calls the makeSyms.sh shell script which takes as
+    its arguments the path to the project, the path to the
+    original data, and the path to the reference data
+    Result: The original data files will have symbolic links in
+    their respective sample directories; if there is a metadata
+    file specified by the '--jsonfile' option, it will be linked
+    in the Postprocessing directory; if the reference data has
+    been prepared and specified by the '--use-reference' option,
+    the entire reference directory will be linked in the
+    Reference directoy, otherwise, just the 3 necessary
+    reference files will be linked -> Gtf, Cdna, and Genome
+
+Within the runStage2() method, there are two functions:
+            1: qcRef()
+            2: ppRef()
+            3: buildB2Index()
+
+Function 1: Experiment.qcRef()
+    Action: Calls the QCofRef.sh shell script which takes as its
+    arguments the path to the reference data and the name of the
+    genome.
+    Result: Certain characteristics of the reference data will
+    be checked such as: the names of the chromosomes in the gtf
+    and genome file, the number of chromosomes in the gtf and
+    genome file, the names of the genes in the cdna and gtf
+    file, the total number of unique genes in the cdna and gtf,
+    and the number of unique gene names in the cdna AND not in
+    the gtf
+
+Function 2: Experiment.ppRef()
+    Action: Prepares the reference data by using various tools
+    such as blast, extract_spice_sites.py, extract_exons.py,
+    hisat2, and samtools
+    Result: A blast database, a file with exon and splice site
+    locations, a hisat2 database, and a genome index will be
+    created in reference directory
+
+Function 3: Bowtie2Experiment.buildB2Index()
+    Action: If needed, bowtie2 will build the indexes needed
+    for its analysis in Stage 3
+    Results: A bowtie2 index (similar to hisat2 indexes, except
+    will have .bt2 suffix)
+
+Within the runStage3() method, there is one function:
+            1: GO()
+
+Function 1: Bowtie2Experiment.GO()
+    Action: Creates sample classes and executes their runParts
+    method
+    Result: Experiment infrastructure acts as a wrapper around
+    the samples, and executes them individually such that they
+    are independent
+
+Further Stage 3 information:
+
+In Stage 3, the GO() method will create execution spaces for
+each sample specified on the command line, or all possible by
+default. After creating each sample, each sample's runSample()
+method will be executed.
+
+For the FCountsSample types, the runSample() method executes the
+following commands:
+        Part 1:
+            1: runQCheck()
+            2: runTrimmomatic()
+            3: runQCheck()
+        Part 2:
+            1: runSeqtk()
+            2: runBlastn()
+            3: runBowtie2()
+            4: runCompression()
+
+Part 1: Consists of quality control with fastQC and trimmomatic
+
+Function 1: Sample.runQCheck()
+    Action: Runs fastQC on reads and then scrapes the
+    overrepresented sequences from fastQC logs
+    Result: There will be a fastQC folder in each sample
+    directory that contains quality control information
+    Manifest Information: Able to be controlled from manifest
+    under the [bowtie2/main] header by setting runQCheck to
+    False. Can also control the execution options under the
+    [runQCheck] header:
+        {fastqc} -t {-t} -o {-o} {other} {read1} {read2}
+        fastqc: fastQC executable (by default will use
+        executable defined under [EXECUTABLES] header)
+        -t: processors to use (by default will use allocated
+        sample space)
+        -o: output directory (by default will use folder named
+        fastqc{run-number}.{sample-name}) (CAUTION: highly
+        discouraged from changing)
+        other: used to specify any other options not already
+        defined
+        read1: path to read 1 (CAUTION: highly discouraged from
+        changing)
+        read2: path to read 2 (CAUTION: highly discouraged from
+        changing)
+
+Function 2: Sample.runTrimmomatic()
+    Action: Executes trimmomatic on reads
+    Result: Reads will be trimmed
+    Manifest Information: Able to be controlled from manifest
+    under the [bowtie2/main] header by setting runTrimmomatic to
+    False. Can also control the execution options under the
+    [runTrimmomatic] header:
+        {java} -jar {-jar} PE -threads {-threads} -phred{-phred}
+        {other} {read1} {read2} {read1pout} {read1uout}
+        {read2pout} {read2uout}
+        ILLUMINACLIP:{blacklist}:{ILLUMINACLIP}
+        LEADING:{LEADING} TRAILING:{TRAILING}
+        SLIDINGWINDOW:{SLIDINGWINDOW} MINLEN:{MINLEN}
+        java: java executable (by default will use executable
+        defined under [EXECUTABLES] header)
+        -jar: trimmomatic jar file (by default will use
+        $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar)
+        -threads: processors to use (by default will use
+        allocated sample space)
+        -phred: phred version (by default will scrape version
+        from fastQC logs). Can set to 33, 64, or None (for
+        default)
+        other: used to specify any other options not already
+        defined
+        read1: path to read 1 (CAUTION: highly discouraged from
+        changing)
+        read2: path to read 2 (CAUTION: highly discouraged from
+        changing)
+        read1pout: output read 1 (CAUTION: highly discouraged
+        from changing)
+        read2pout: output read 2 (CAUTION: highly discouraged
+        from changing)
+        read1uout: output read 1 (CAUTION: highly discouraged
+        from changing)
+        read2uout: output read 2 (CAUTION: highly discouraged
+        from changing)
+        blacklist: blacklist file (Can also specify on
+        command-line with --use-blacklist)
+        ILLUMINACLIP: trim options (by default: "2:30:10")
+        LEADING: trim options (by default: "5")
+        TRAILING: trim options (by default: "5")
+        SLIDINGWINDOW: trim options (by default: "4:5")
+        MINLEN: trim options (by default: "35")
+
+Function 3: Sample.runQCheck()
+    Action: Runs fastQC on reads and then scrapes the
+    overrepresented sequences from fastQC logs
+    Result: Does the same thing as the previous runQCheck except
+    this run is post-trimmomatic to get a perspective on the
+    changes that trimmomatic made
+    Manifest Information: Able to be controlled from manifest
+    under the [bowtie2/main] header by setting runQCheck to
+    False or runTrimmomatic to False. Control execution options
+    exactly the same as in Function 1.
+
+Part 2: Consists of execution of bowtie2
+
+Function 1: Sample.runSeqtk()
+    Action: Execute seqtk on reads to get a representative
+    sample of reads
+    Result: Obtains a representative sample of reads in order to
+    more quickly check strandedness of reads
+    Manifest Information: Able to be controlled from manifest
+    under the [bowtie2/main] header by setting runSeqtk to
+    False. Can also control the execution options under the
+    [runSeqtk] header:
+        {seqtk} sample -s{-s} {read1} {samples} | seqtk seq {-A}
+            {other} - > {read1out}
+        {seqtk} sample -s{-s} {read2} {samples} | seqtk seq {-A}
+            {other} - > {read2out}
+        seqtk: seqtk executable (by default will use executable
+        defined under [EXECUTABLES] header)
+        -s: random seed (by default: "100")
+        read1: path to read 1 (CAUTION: highly discouraged from
+        changing)
+        read2: path to read 2 (CAUTION: highly discouraged from
+        changing)
+        read1out: output read 1 (CAUTION: highly discouraged from
+        changing)
+        read2out: output read 2 (CAUTION: highly discouraged from
+        changing)
+        samples: number of samples to take (by default: "10000")
+        -A: boolean option to force FASTA output (by default is
+        on). Can turn off by setting to False
+        other: used to specify any other options not already
+        defined
+
+Function 2: Sample.runBlastn()
+    Action: Execute blastn on seqtk output
+    Result: Used to gather strandedness information of reads
+    Manifest Information: Able to be controlled from manifest
+    under the [bowtie2/main] header by setting runBlastn to
+    False. Can also control the execution options under the
+    [runBlastn] header:
+        {blastn} -query {read1} -db {-db} -out {out1} -task
+            {-task} -outfmt {-outfmt} -max_target_seqs
+            {-max_target_seqs} -num_threads {-num_threads}
+            {other}
+        {blastn} -query {read2} -db {-db} -out {out2} -task
+            {-task} -outfmt {-outfmt} -max_target_seqs
+            {-max_target_seqs} -num_threads {-num_threads}
+            {other}
+        blastn: blastn executable (by default will use
+        executable defined under [EXECUTABLES] header)
+        read1: path to read 1 (CAUTION: highly discouraged from
+        changing)
+        read2: path to read 2 (CAUTION: highly discouraged from
+        changing)
+        out1: output read 1 (CAUTION: highly discouraged from
+        changing)
+        out2: output read 2 (CAUTION: highly discouraged from
+        changing)
+        -db: path to blast database (by default:
+        Reference/{basename}.cdna.all)
+        -task: task to executed (by default "blastn-short")
+        -outfmt: output format (by default '"6 std sstrand"';
+        notice the double quotes necessary to contain the
+        spaces)
+        -max_target_seqs: max target sequences (by default "1")
+        -num_threads: processors to use (by default will use
+        allocated sample space)
+        other: used to specify any other options not already
+        defined
+
+Function 3: Bowtie2Sample.runBowtie2()
+    Action: Executes bowtie2 for alignment of reads to reference
+    genome
+    Result: A SAM file with identified reads
+    Manifest Information: Able to be controlled from manifest
+    under the [bowtie2/main] header by setting runBowtie2 to
+    False. Can also control the execution options under the
+    [bowtie2/runBowtie2] header:
+        {bowtie2} {--very-sensitive-local} -k {-k} -p {-p}
+        {--rna-strandedness} --phred{--phred} {other} -x {-x}
+        -1 {-1} -2 {-2} -S {-S}
+        bowtie2: bowtie2 executable (by default will use
+        executable defined under [EXECUTABLES] header)
+        --very-sensitive-local: true/false setting
+        -k: alternates per read (by default "5")
+        -p: processors to use (by default will use allocated
+        sample space)
+        --rna-strandedness: strandedness of reads (by default
+        will determine from blastn and seqtk) Can set to fr, rf,
+        ff, False, or None. False specifies unstrandedness while
+        None defaults to pipeline findStranded()
+        --phred: phred version (by default will determine from
+        fastQC logs). Can set to 33 or 64
+        -x: path to bowtie2 index (by default will use
+        Reference/{basename})
+        read1: path to read 1 (CAUTION: highly discouraged from
+        changing)
+        read2: path to read 2 (CAUTION: highly discouraged from
+        changing)
+        -S: output SAM file (CAUTION: highly discouraged from
+        changing)
+        other: used to specify any other options not already
+        defined
+
+Function 4: Bowtie2Sample.runCompression()
+    Action: Use samtools to compress bowtie2 output
+    Result: A compressed BAM files with aligned read information
+    Manifest Information: Able to be controlled from manifest
+    under the [bowtie2/main] header by setting runCompression to
+    False. Can also control the execution options under the
+    [bowtie2/runCompression] header:
+        {samtools} view {-b} -T {-T} -@{-@} {other} {in} -o {-o}
+        samtools: samtools executable (by default will use
+        executable defined under [EXECUTABLES] header)
+        -b: boolean option to output BAM file (by default on).
+        Can turn off by setting to False
+        -T: path to reference sequence FASTA file (by default
+        will use Reference/{genome_file})
+        -@: processors to use (by default will use allocated
+        sample space)
+        -o: output file name (CAUTION: highly discouraged from
+        changing)
+        in: input SAM file (CAUTION: highly discouraged from
+        changing)
+        other: used to specify any other options not already
+        defined
+""")
     elif helpCommand == 'mj':
         print('''This is makeJSON information #TODO''')
         import makeJSON

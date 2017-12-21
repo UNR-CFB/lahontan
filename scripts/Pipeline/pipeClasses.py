@@ -3831,7 +3831,7 @@ class KallistoSample(Sample):
             except subprocess.CalledProcessError:
                 if localArgs['stranded'] == None:
                     raise SystemExit('findStranded() error; must specify'+
-                        ' stranded in [kall/runHisat] manifest'+
+                        ' stranded in [kall/runKallisto] manifest'+
                         ' header')
             if strandedVar == 0:
                 FR = ''
