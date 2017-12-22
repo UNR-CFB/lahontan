@@ -1779,7 +1779,7 @@ def moreHelp(arguments):
     try:
         helpCommand = arguments['<args>'][0]
     except IndexError:
-        print(__doc__)
+        raise SystemExit(__doc__)
     if helpCommand == 'fcounts':
         print(featureCounts.__doc__)
         print(
@@ -3407,7 +3407,207 @@ with SLURM or another batch job scheduler.
 ################################################################
 
 This utility is used to prepare the reference data outside of a
-project context.
+project context. It is useful to prepare the reference
+information before running the pipeline as there are typically
+unforeseen difficulties with the reference information that
+cannot be caught by the pipeline. For that reason, it is
+recommended that the prepref utility be used prior to running 
+the pipeline.
+
+When using prepref, there are two modes of execution: by feeding
+a reference directory that contains a GTF, cDNA, and genome file
+with the -r option OR by feeding an input file that contains at
+least the path to the reference directory with the -i option.
+
+For example, if you have a reference directory located at:
+
+/home/alberton/References/Human
+
+then the appropriate execution syntax is:
+
+runPipe prepref -r /home/alberton/References/Human
+
+OR, if you have a manifest file called prepref.ini that contains
+at least:
+
+[locations]
+Reference = /home/alberton/References/Human
+
+then the appropriate execution syntax is:
+
+runPipe prepref -i prepref.ini
+
+Additionally, if you are running the pipeline in fcounts or
+string mode, then no additional flags are needed. If you are
+running the pipeline in kall or bowtie2 mode, then you need to
+add the --kallisto or --bowtie2 flag, respectively. These flags
+will tell the pipeline to build the additional required indexes.
+
+For example, to additionally build the kallisto index:
+
+runPipe prepref --kallisto -i prepref.ini
+
+The advantages of using the manifest file (-i) over the -r
+option is that you are able to control the execution of the
+preparation. This ability is similar to the control possible
+over the 4 main pipeline.
+
+The prepref utility consists of 8 functions:
+        1: qcRef()
+        2: createKallistoIndex()
+        3: createBowtie2Index()
+        4: makeBlastdb()
+        5: extractSpliceSites()
+        6: extractExons()
+        7: hisatBuild()
+        8: samtoolsFaidx()
+
+These can all be controlled in the manifest file:
+
+Function 1: qcRef
+    Action: Perform quality control check on the reference data.
+    Will catch errors in the data such as mismatching names or
+    extra chromosomes in genome file.
+    Result: A file that contains various quality control
+    measures
+    Manifest Information: Able to be controlled from manifest
+    under the [prepref/main] header by setting qcRef to False.
+
+Function 2: createKallistoIndex
+    Action: Use kallisto to build reference index needed for
+    kallisto's read alignment
+    Result: A kallisto index in the Reference directory
+    Manifest Information: Able to be controlled from manifest
+    under the [prepref/main] header by setting
+    createKallistoIndex to False. Can also control the execution
+    options under the [prepref/createKallistoIndex] header:
+        {kallisto} index -i {-i} {other} {cdna}
+        kallisto: kallisto executable (by default will use
+        executable defined under [EXECUTABLES] header)
+        -i: Name of output kallisto index (CAUTION: highly
+        discouraged from changing)
+        cdna: Name of input cDNA file (CAUTION: highly
+        discouraged from changing)
+        other: used to specify any other options not already
+        defined
+
+
+Function 3: createBowtie2Index
+    Action: Use bowtie2 to build reference index needed for
+    bowtie2's read alignment
+    Result: A bowtie2 index in the Reference directory
+    Manifest Information: Able to be controlled from manifest
+    under the [prepref/main] header by setting
+    createBowtie2Index to False. Can also control the execution
+    options under the [prepref/createBowtie2Index] header:
+        {bowtie2-build} --threads {--threads} {other}
+        {genome} {basename}
+        bowtie2-build: bowtie2-build executable (by default
+        will use executable defined under [EXECUTABLES] header)
+        --threads: processors to use (by default will use
+        allocated sample space)
+        genome: Name of input genome file (CAUTION: highly
+        discouraged from changing)
+        basename: Output prefix (CAUTION: highly discouraged
+        from changing)
+        other: used to specify any other options not already
+        defined
+
+Function 4: makeBlastdb
+    Action: Use BLAST tools to make a database that will be used
+    to qualify the read's strandedness
+    Result: A BLAST database in the Reference directory
+    Manifest Information: Able to be controlled from manifest
+    under the [prepref/main] header by setting makeBlastdb to
+    False. Can also control the execution options under the
+    [prepref/makeBlastdb] header:
+        {makeblastdb} -in {-in} -dbtype {-dbtype} {other}
+        -out {-out}
+        makeblastdb: makeblastdb executable (by default
+        will use executable defined under [EXECUTABLES] header)
+        -in: Input cDNA file (CAUTION: highly
+        discouraged from changing)
+        -dbtype: type of database (by default 'nucl')
+        -out: Name of output database file (CAUTION: highly
+        discouraged from changing)
+        other: used to specify any other options not already
+        defined
+
+Function 5: extractSpliceSites
+    Action: Mark the splice sites in the transcript annotation
+    Result: A file that contains splice site locations
+    Manifest Information: Able to be controlled from manifest
+    under the [prepref/main] header by setting
+    extractSpliceSites to False. Can also control the
+    execution options under the
+    [prepref/extractSpliceSites] header:
+        {extract_splice_sites} {other} {gtf} > {out}
+        extract_splice_sites: extract_splice_sites.py
+        executable (by default will use executable defined under
+        [EXECUTABLES] header)
+        gtf: Input GTF file (CAUTION: highly
+        discouraged from changing)
+        out: Output splice site file (CAUTION: highly
+        discouraged from changing)
+        other: used to specify any other options not already
+        defined
+
+Function 6: extractExons
+    Action: Mark the exons in the transcript annotation
+    Result: A file that contains exon locations
+    Manifest Information: Able to be controlled from manifest
+    under the [prepref/main] header by setting extractExons to
+    False. Can also control the execution options under the
+    [prepref/extractExons] header:
+        {extract_exons} {other} {gtf} > {out}
+        extract_exons: extract_exons.py executable (by default
+        will use executable defined under [EXECUTABLES] header)
+        gtf: Input GTF file (CAUTION: highly
+        discouraged from changing)
+        out: Output splice site file (CAUTION: highly
+        discouraged from changing)
+        other: used to specify any other options not already
+        defined
+
+Function 7: hisatBuild
+    Action: Build a hisat2 index that is used for hisat2 read
+    alignment steps
+    Result: A hisat2 database in the Reference directory
+    Manifest Information: Able to be controlled from manifest
+    under the [prepref/main] header by setting hisatBuild to
+    False. Can also control the execution options under the
+    [prepref/hisatBuild] header:
+        {hisat2-build} -p {-p} --ss {--ss} --exon {--exon}
+        {other} {genome} {basename}
+        hisat2-build: hisat2-build executable (by default will
+        use executable defined under [EXECUTABLES] header)
+        -p: processors to use (by default will use allocated
+        sample space)
+        -ss: Input splice site file (CAUTION: highly
+        discouraged from changing)
+        --exon: Input exon file (CAUTION: highly
+        discouraged from changing)
+        genome: Input genome file (CAUTION: highly
+        discouraged from changing)
+        basename: Output prefix (CAUTION: highly
+        discouraged from changing)
+        other: used to specify any other options not already
+        defined
+
+Function 8: samtoolsFaidx
+    Action: Use samtools to build an index of genome
+    Result: A genome index in the Reference directory
+    Manifest Information: Able to be controlled from manifest
+    under the [prepref/main] header by setting samtoolsFaidx to
+    False. Can also control the execution options under the
+    [prepref/samtoolsFaidx] header:
+        time -p {samtools} faidx {other} {genome}
+        samtools: samtools executable (by default will
+        use executable defined under [EXECUTABLES] header)
+        genome: Input genome file (CAUTION: highly
+        discouraged from changing)
+        other: used to specify any other options not already
+        defined
 """)
     elif helpCommand == 'help':
         print('''Usage: runPipe help <command>\n''')
