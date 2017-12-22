@@ -2869,7 +2869,7 @@ class Sample:
         Context = {
                 "java": self.checkMan("java", localArgs['java']),
                 "-jar": self.checkMan(
-                    "$RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar",
+                    "$RNASEQDIR/trimmomatic-0.36.jar",
                     localArgs['-jar']),
                 "-threads": self.checkMan(self.Procs, localArgs['-threads']),
                 "-phred": self.checkMan(Phred, localArgs['-phred']),

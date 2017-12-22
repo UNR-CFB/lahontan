@@ -817,11 +817,11 @@ def generatePreprefInput(arguments):
     config['EXECUTABLES'] = OD((
             ('rnaseqdir', RNASEQDIR),
             ('kallisto', '${rnaseqdir}/kallisto'),
-            ('makeblastdb', '${rnaseqdir}/ncbi-blast/bin/makeblastdb'),
-            ('extract_splice_sites.py', '${rnaseqdir}/hisat2/extract_splice_sites.py'),
-            ('extract_exons.py', '${rnaseqdir}/hisat2/extract_exons.py'),
-            ('hisat2-build', '${rnaseqdir}/hisat2/hisat2-build'),
-            ('samtools', '${rnaseqdir}/samtools/bin/samtools'),
+            ('makeblastdb', '${rnaseqdir}/makeblastdb'),
+            ('extract_splice_sites.py', '${rnaseqdir}/extract_splice_sites.py'),
+            ('extract_exons.py', '${rnaseqdir}/extract_exons.py'),
+            ('hisat2-build', '${rnaseqdir}/hisat2-build'),
+            ('samtools', '${rnaseqdir}/samtools'),
             ('bowtie2-build', '${rnaseqdir}/bowtie2-build'),
             ))
     ############################################################
@@ -1380,7 +1380,7 @@ input file'''
                 ('--batchjson', 'None'),
                 ('--edger', 'False'),
                 ('--deseq', 'False'),
-                ('--use-blacklist', RNASEQDIR+'/Trimmomatic/adapters/TruSeq3-PE.fa'),
+                ('--use-blacklist', RNASEQDIR+'../src/trimmomatic/adapters/TruSeq3-PE.fa'),
                 ('--use-reference', 'False'),
                 ))
     elif arguments['--mode'] == 'string':
@@ -1391,7 +1391,7 @@ input file'''
                 ('--jsonfile', 'None'),
                 ('--maxcpu', 'None'),
                 ('--noconfirm', 'False'),
-                ('--use-blacklist', RNASEQDIR+'/Trimmomatic/adapters/TruSeq3-PE.fa'),
+                ('--use-blacklist', RNASEQDIR+'../src/trimmomatic/adapters/TruSeq3-PE.fa'),
                 ('--use-reference', 'False'),
                 ('--makebatch', 'None'),
                 ('--batchjson', 'None'),
@@ -1403,7 +1403,7 @@ input file'''
                 ('--jsonfile', 'None'),
                 ('--maxcpu', 'None'),
                 ('--noconfirm', 'False'),
-                ('--use-blacklist', RNASEQDIR+'/Trimmomatic/adapters/TruSeq3-PE.fa'),
+                ('--use-blacklist', RNASEQDIR+'../src/trimmomatic/adapters/TruSeq3-PE.fa'),
                 ('--use-reference', 'False'),
                 ('--makebatch', 'None'),
                 ('--batchjson', 'None'),
@@ -1417,7 +1417,7 @@ input file'''
                 ('--noconfirm', 'False'),
                 ('--makebatch', 'None'),
                 ('--batchjson', 'None'),
-                ('--use-blacklist', RNASEQDIR+'/Trimmomatic/adapters/TruSeq3-PE.fa'),
+                ('--use-blacklist', RNASEQDIR+'../src/trimmomatic/adapters/TruSeq3-PE.fa'),
                 ('--use-reference', 'False'),
                 ))
 
@@ -1429,17 +1429,17 @@ input file'''
             ('java', '/usr/bin/java'),
             ('rnaseqdir', RNASEQDIR),
             ('fastqc', '${rnaseqdir}/fastqc'),
-            ('extract_exons.py', '${rnaseqdir}/hisat2/extract_exons.py'),
-            ('extract_splice_sites.py', '${rnaseqdir}/hisat2/extract_splice_sites.py'),
-            ('hisat2', '${rnaseqdir}/hisat2/hisat2'),
-            ('hisat2-build', '${rnaseqdir}/hisat2/hisat2-build'),
-            ('samtools', '${rnaseqdir}/samtools/bin/samtools'),
-            ('makeblastdb', '${rnaseqdir}/ncbi-blast/bin/makeblastdb'),
-            ('blastn', '${rnaseqdir}/ncbi-blast/bin/blastn'),
+            ('extract_exons.py', '${rnaseqdir}/extract_exons.py'),
+            ('extract_splice_sites.py', '${rnaseqdir}/extract_splice_sites.py'),
+            ('hisat2', '${rnaseqdir}/hisat2'),
+            ('hisat2-build', '${rnaseqdir}/hisat2-build'),
+            ('samtools', '${rnaseqdir}/samtools'),
+            ('makeblastdb', '${rnaseqdir}/makeblastdb'),
+            ('blastn', '${rnaseqdir}/blastn'),
             ('seqtk', '${rnaseqdir}/seqtk'),
             ('gffcompare', '${rnaseqdir}/gffcompare'),
             ('stranded_classifier.py', '${rnaseqdir}/stranded_classifier.py'),
-            ('featureCounts', '${rnaseqdir}/subread/bin/featureCounts'),
+            ('featureCounts', '${rnaseqdir}/featureCounts'),
             ('stringtie', '${rnaseqdir}/stringtie'),
             ('kallisto', '${rnaseqdir}/kallisto'),
             ('bowtie2', '${rnaseqdir}/bowtie2'),
@@ -1923,7 +1923,7 @@ Function 2: Sample.runTrimmomatic()
         java: java executable (by default will use executable
         defined under [EXECUTABLES] header)
         -jar: trimmomatic jar file (by default will use
-        $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar)
+        $RNASEQDIR/trimmomatic-0.36.jar)
         -threads: processors to use (by default will use
         allocated sample space)
         -phred: phred version (by default will scrape version
@@ -2317,7 +2317,7 @@ Function 2: Sample.runTrimmomatic()
         java: java executable (by default will use executable
         defined under [EXECUTABLES] header)
         -jar: trimmomatic jar file (by default will use
-        $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar)
+        $RNASEQDIR/trimmomatic-0.36.jar)
         -threads: processors to use (by default will use
         allocated sample space)
         -phred: phred version (by default will scrape version
@@ -2725,7 +2725,7 @@ Function 2: Sample.runTrimmomatic()
         java: java executable (by default will use executable
         defined under [EXECUTABLES] header)
         -jar: trimmomatic jar file (by default will use
-        $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar)
+        $RNASEQDIR/trimmomatic-0.36.jar)
         -threads: processors to use (by default will use
         allocated sample space)
         -phred: phred version (by default will scrape version
@@ -3011,7 +3011,7 @@ Function 2: Sample.runTrimmomatic()
         java: java executable (by default will use executable
         defined under [EXECUTABLES] header)
         -jar: trimmomatic jar file (by default will use
-        $RNASEQDIR/Trimmomatic/trimmomatic-0.36.jar)
+        $RNASEQDIR/trimmomatic-0.36.jar)
         -threads: processors to use (by default will use
         allocated sample space)
         -phred: phred version (by default will scrape version
