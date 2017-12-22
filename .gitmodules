@@ -22,3 +22,6 @@
 [submodule "src/bowtie2"]
 	path = src/bowtie2
 	url = https://github.com/BenLangmead/bowtie2.git
+[submodule "src/hisat2"]
+	path = src/hisat2
+	url = https://github.com/infphilo/hisat2.git
