@@ -29,7 +29,7 @@ Available lahontan commands:
 
 See 'lahontan help <command>' for more information on a specific
 command'''
-VERSION = 'lahontan v1.0\n'
+VERSION = 'lahontan v1.0'
 
 ################################################################
 # Importations

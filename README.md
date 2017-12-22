@@ -1,4 +1,4 @@
-# lahontan
+# Lahontan
 
 Lahontan is a set of tools built around an object-oriented pipeline used in
 qualifying and processing sets of paired-end next-gen RNA sequencing data. This

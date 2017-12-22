@@ -4,12 +4,12 @@ MirrorURL: http://us.archive.ubuntu.com/ubuntu/
 
 ###############################################################
 # Command used to build:
-# sudo singularity build runpipe.simg runpipeRecipe
+# sudo singularity build lahontan.simg Singularity
 ###############################################################
 
 %labels
-    MAINTAINER Alberto
-    VERSION v1.1
+    MAINTAINER Alberto Nava
+    VERSION v1.0
 
 %post
     locale-gen en_US.UTF-8
@@ -27,22 +27,22 @@ MirrorURL: http://us.archive.ubuntu.com/ubuntu/
     R -e 'source("https://bioconductor.org/biocLite.R");biocLite(ask=FALSE);biocLite(c("devtools","DESeq2","edgeR","ReportingTools","regionReport","pachterlab/sleuth","ballgown","DT","pheatmap"));devtools::install_github(c("docopt/docopt.R","alyssafrazee/RSkittleBrewer"))'
     
     echo "Cloning repository..."
-    git clone --recursive https://Alberto024:testpassword1234@github.com/UNR-CFB/rna-seq.git /rna-seq
+    git clone --recursive https://github.com/UNR-CFB/lahontan.git /lahontan
 
     echo "Installing pipeline..."
     cd /rna-seq
-    echo 'export RNASEQDIR=/rna-seq/build' >> $SINGULARITY_ENVIRONMENT
-    /rna-seq/scripts/Pipeline/autoSetup.sh
+    echo 'export RNASEQDIR=/lahontan/build' >> $SINGULARITY_ENVIRONMENT
+    /lahontan/lib/autoSetup.sh
 
 %environment
-    RNASEQDIR=/rna-seq/build
-    PATH="${PATH}:/rna-seq/build:/rna-seq/build/hisat2:/rna-seq/build/ncbi-blast/bin:/rna-seq/build/samtools/bin:/rna-seq/build/subread/bin:/rna-seq/scripts/Pipeline"
+    RNASEQDIR=/lahontan/build
+    PATH="${PATH}:/lahontan/build:/lahontan/build/hisat2:/lahontan/build/ncbi-blast/bin:/lahontan/build/samtools/bin:/lahontan/build/subread/bin:/lahontan/lib"
     LANG=en_US.UTF-8
     LANGUAGE=en_US
     export RNASEQDIR PATH LANG LANGUAGE
 
 %help
-    Go to https://github.com/UNR-CFB/rna-seq for more help OR try "./runpipe.simg -h" for pipeline help
+    Go to https://github.com/UNR-CFB/lahontan for more help OR try "./lahontan.simg -h" for pipeline help
 
 %runscript
-    exec /rna-seq/scripts/Pipeline/runPipe "$@"
+    exec /lahontan/lib/lahontan "$@"
