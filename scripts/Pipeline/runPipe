@@ -2865,7 +2865,7 @@ Function 3: KallistoSample.runKallisto()
         other: used to specify any other options not already
         defined
 """)
-    elif helpCommand == 'bowtie':
+    elif helpCommand == 'bowtie2':
         print(bowtie2.__doc__)
         print(
 """\n################################################################
