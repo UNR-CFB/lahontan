@@ -25,6 +25,3 @@
 [submodule "src/hisat2"]
 	path = src/hisat2
 	url = https://github.com/infphilo/hisat2.git
-[submodule "src/samtools"]
-	path = src/samtools
-	url = https://github.com/samtools/samtools.git
