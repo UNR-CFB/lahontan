@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 '''Usage:
-    runPipe mj [-h | --help] [-j <jsonfile> | --jsonfile <jsonfile>]
+    lahontan mj [-h | --help] [-j <jsonfile> | --jsonfile <jsonfile>]
 
 Options:
     -h, --help

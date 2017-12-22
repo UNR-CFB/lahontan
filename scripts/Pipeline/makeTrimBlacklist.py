@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 '''Usage:
-    runPipe mb [-t <newadapterfile> | --tofile <newadapterfile>]
+    lahontan mb [-t <newadapterfile> | --tofile <newadapterfile>]
 
 Used to create Trimmomatic blacklist called TruSeq3-PE.fa by default.
 Name/path can be specified by -t or --tofile
@@ -13,7 +13,7 @@ Options:
         Where to save new blacklist [default: ./CustomBlacklist.fa]
 
 Example:
-    runPipe mb --tofile ~/rna-seq/build/Trimmomatic/adapters/myBlacklist.fa'''
+    lahontan mb --tofile ~/rna-seq/build/Trimmomatic/adapters/myBlacklist.fa'''
 
 from docopt import docopt
 

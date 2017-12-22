@@ -5,7 +5,7 @@
 ################################################################
 
 '''Usage:
-    runPipe [options] [<command>] [<args>...]
+    lahontan [options] [<command>] [<args>...]
 
 Options:
     -h, --help
@@ -15,7 +15,7 @@ Options:
     --noconfirm
         Ignore all user prompts except JSON file creation
 
-Available runPipe commands:
+Available lahontan commands:
     fcounts     For running featureCounts pipeline
     string      For running Stringtie pipeline
     kall        For running kallisto pipeline
@@ -27,9 +27,9 @@ Available runPipe commands:
     prepref     Pre-processes reference data
     gendef      Generate a default input file
 
-See 'runPipe help <command>' for more information on a specific
+See 'lahontan help <command>' for more information on a specific
 command'''
-VERSION = 'runPipe version 1.1\n'
+VERSION = 'lahontan v1.0\n'
 
 ################################################################
 # Importations
@@ -104,7 +104,7 @@ def makeGlobalVars(arguments):
             None
 
         Creates global variables NOCONFIRM, JSFI, and IS_REFERENCE_PREPARED
-        for runPipe and pipeClasses.py
+        for lahontan and pipeClasses.py
     '''
     # Global Variables to be used in scripts
     global NOCONFIRM
@@ -369,12 +369,12 @@ def clean(arguments):
         Returns:
             None
 
-        Handles runPipe clean command
+        Handles lahontan clean command
     """
     # Handling Cleaning Arguments
     possibleCleanArguments = ['All','Reference','Data','Postprocessing']
     if arguments['--clean']:
-        assert arguments['--clean'] in possibleCleanArguments, 'Invalid Cleaning Argument: Run runPipe.py -h for available arguments'
+        assert arguments['--clean'] in possibleCleanArguments, 'Invalid Cleaning Argument: Run lahontan -h for available arguments'
         PROJ = pipeClasses.Experiment(expandPath(arguments['<input>']))
         if arguments['--clean'] != 'All':
             if arguments['--clean'] == 'Data':
@@ -554,7 +554,7 @@ def checkdashp(arguments):
             executionPhases : list; list of phases to execute for
                               Stringtie
 
-        Checks --phase argument from CLI for runPipe string command
+        Checks --phase argument from CLI for lahontan string command
     """
     # Handling string --phase
     possiblePhases = ['a','b','c','ab','bc','abc']
@@ -716,7 +716,7 @@ def updateArgs(arguments):
         specified, use command line argument, else default to manifest
     """
     # Generate a fallback defaults file
-    tmpDefaults = '.tmprunPipeDefaults.ini'
+    tmpDefaults = '.tmplahontanDefaults.ini'
     generateDefaultInputFile({'--filename': tmpDefaults,'--mode': arguments['<command>']})
     FALLBACK = readInputFile({'<input>': tmpDefaults})
     mode = arguments['<command>']
@@ -909,7 +909,7 @@ def generatePreprefInput(arguments):
 
 def featureCounts(arguments):
     '''Usage:
-    runPipe fcounts [options] <input>
+    lahontan fcounts [options] <input>
 
 Options:
     -h, --help
@@ -990,7 +990,7 @@ Options:
 
 def stringtie(arguments):
     '''Usage:
-    runPipe string [options] <input>
+    lahontan string [options] <input>
 
 Options:
     -h, --help
@@ -1069,7 +1069,7 @@ Options:
 
 def kallisto(arguments):
     '''Usage:
-    runPipe kall [options] <input>
+    lahontan kall [options] <input>
 
 Options:
     -h, --help
@@ -1140,7 +1140,7 @@ Options:
 
 def bowtie2(arguments):
     '''Usage:
-    runPipe bowtie2 [options] <input>
+    lahontan bowtie2 [options] <input>
 
 Options:
     -h, --help
@@ -1206,7 +1206,7 @@ Options:
 
 def cleanup(arguments):
     '''Usage:
-    runPipe clean [options] <input>
+    lahontan clean [options] <input>
 
 Options:
     -h, --help
@@ -1226,7 +1226,7 @@ Options:
 
 def referenceProcessing(arguments):
     '''Usage:
-    runPipe prepref [options] (-r <referenceDir> | -i <input>)
+    lahontan prepref [options] (-r <referenceDir> | -i <input>)
 
 Options:
     -h, --help
@@ -1242,7 +1242,7 @@ Options:
         Option value is a path to input file that must contain
         at least a path to reference directory
         Note: a default input file can be generated with:
-            runPipe gendef --mode prepref
+            lahontan gendef --mode prepref
     -q, --qualitycheck
         Only run quality check on references. Default behavior
         is to run both quality control and preprocessing
@@ -1310,7 +1310,7 @@ Options:
 
 def generateDefaultInputFile(arguments):
     '''Usage:
-    runPipe gendef [options]
+    lahontan gendef [options]
 
 Options:
     -h, --help
@@ -3188,11 +3188,11 @@ Used to create a metadata file for experiment. The JSON metadata
 should contain information about the experiment such as the
 number of samples and the features that each sample holds. The
 metadata file is used in creating comparison groups within the
-R analysis. Without this information, runPipe would have no
+R analysis. Without this information, lahontan would have no
 information with which to automate the creation of the respective
 R scripts.
 
-Provided with runPipe is a command to automate the creation of
+Provided with lahontan is a command to automate the creation of
 a minimal metadata file. The command involves user responses to
 a series of questions about the experiment. Simply answer each
 question and at the conclusion of the survey, the program will
@@ -3220,7 +3220,7 @@ TACACTCTTTCCCTACACGACGCTCTTCCGATCT
 >PrefixPE/2
 GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT
 
-As of runPipe v1.0, the blacklist created by this command is:
+As of lahontan v1.0, the blacklist created by this command is:
 
 >PrefixPE/1
 TACACTCTTTCCCTACACGACGCTCTTCCGATCT
@@ -3330,7 +3330,7 @@ For example, if you wanted to run 12 samples on a cluster that
 contained 3 nodes with 48, 48, and 32 CPUs respectively, then
 the program will produce the following JSON file:
 
-$ runPipe fo 12 48,48,32
+$ lahontan fo 12 48,48,32
 {
     "Step 1": {
         "Procs": 9,
@@ -3338,13 +3338,13 @@ $ runPipe fo 12 48,48,32
     }
 }
 
-This file tells runPipe to create a batch file that executes all
+This file tells lahontan to create a batch file that executes all
 12 samples in parallel with 9 CPUs each.
 
 However, if you wanted to run 12 samples on a single computer with
 32 CPUs, the the program will produce the following JSON file:
 
-$ runPipe fo 12 32
+$ lahontan fo 12 32
 {
     "Step 1": {
         "Procs": 4,
@@ -3356,7 +3356,7 @@ $ runPipe fo 12 32
     }
 }
 
-This file tells runPipe to create a batch file that executes 8
+This file tells lahontan to create a batch file that executes 8
 of the 12 samples in parallel for one step, then after those 8
 samples have completed, to run 4 of the 12 samples in parallel
 with 8 CPUs each.
@@ -3369,7 +3369,7 @@ the number of CPUs per sample.
 
 For example,
 
-$ runPipe fo --customize 12 32
+$ lahontan fo --customize 12 32
 Type 0 to exit
 Total available CPU: 32
 
@@ -3425,7 +3425,7 @@ For example, if you have a reference directory located at:
 
 then the appropriate execution syntax is:
 
-runPipe prepref -r /home/alberton/References/Human
+lahontan prepref -r /home/alberton/References/Human
 
 OR, if you have a manifest file called prepref.ini that contains
 at least:
@@ -3435,7 +3435,7 @@ Reference = /home/alberton/References/Human
 
 then the appropriate execution syntax is:
 
-runPipe prepref -i prepref.ini
+lahontan prepref -i prepref.ini
 
 Additionally, if you are running the pipeline in fcounts or
 string mode, then no additional flags are needed. If you are
@@ -3445,7 +3445,7 @@ will tell the pipeline to build the additional required indexes.
 
 For example, to additionally build the kallisto index:
 
-runPipe prepref --kallisto -i prepref.ini
+lahontan prepref --kallisto -i prepref.ini
 
 The advantages of using the manifest file (-i) over the -r
 option is that you are able to control the execution of the
@@ -3658,7 +3658,7 @@ It is up to the user to make sure any changes to the default
 behavior produces the desired behavior!
 """)
     elif helpCommand == 'help':
-        print('''Usage: runPipe help <command>\n''')
+        print('''Usage: lahontan help <command>\n''')
         print(__doc__[231:-72])
     else:
         print(__doc__)
@@ -3716,7 +3716,7 @@ if __name__ == '__main__':
     elif args['<command>'] == None:
         otherStuff(args)
     else:
-        raise SystemExit("{} is not a runPipe command. See runPipe help".format(args['<command>']))
+        raise SystemExit("{} is not a lahontan command. See lahontan help".format(args['<command>']))
 
     timeused = str(time.strftime('%H:%M:%S', time.gmtime(timer() - beginTime)))
     print('[ {} ] Total time elapsed: {}'.format(pipeClasses.now(), timeused))

@@ -212,7 +212,7 @@ def makeTimeFile(logPath):
         Initializes log file
     '''
     with open(logPath, 'w') as R:
-        R.write('{:^105}\n'.format('runPipe Runtime File'))
+        R.write('{:^105}\n'.format('lahontan Runtime File'))
         R.write('='*105+'\n\n')
         R.write('{:^26} # {:^30} # {:^26} # {:^14}\n'.format(
             'Start Time', 'Command', 'End Time', 'Total Time'))
@@ -352,7 +352,7 @@ class Experiment:
             function has finished analysis on all samples
         '''
         doneGlob = os.path.join(self.Data, 'sample*/.done')
-        notifyFolder = os.path.join(self.Project, 'runPipeNotify')
+        notifyFolder = os.path.join(self.Project, 'lahontanNotify')
         while True:
             if os.path.isdir(notifyFolder):
                 if (len(os.listdir(notifyFolder)) == self.Numsamples or 
@@ -377,7 +377,7 @@ class Experiment:
             function has finished analysis on all samples
         '''
         doneGlob = os.path.join(self.Data, 'sample*/.done')
-        notifyFolder = os.path.join(self.Project, 'runPipeNotify')
+        notifyFolder = os.path.join(self.Project, 'lahontanNotify')
         finished = False
         if os.path.isdir(notifyFolder):
             if (len(os.listdir(notifyFolder)) == self.Numsamples or 
@@ -464,14 +464,14 @@ class Experiment:
 
             Initializes notification folder that is used to determine when
             Pipeline has finished running
-            'runPipeNotify/' in self.Project
+            'lahontanNotify/' in self.Project
         '''
-        runPipeNotify = os.path.join(self.Project, 'runPipeNotify')
-        if not os.path.isdir(runPipeNotify):
-            os.mkdir(runPipeNotify)
+        lahontanNotify = os.path.join(self.Project, 'lahontanNotify')
+        if not os.path.isdir(lahontanNotify):
+            os.mkdir(lahontanNotify)
         else:
-            shutil.rmtree(runPipeNotify)
-            os.mkdir(runPipeNotify)
+            shutil.rmtree(lahontanNotify)
+            os.mkdir(lahontanNotify)
 
     def makeNotifyFolder2(self):
         ''' Arguments:
@@ -481,12 +481,12 @@ class Experiment:
 
             Initializes notification folder that is used to determine when
             Pipeline has finished running
-            'runPipeNotify/' in self.Project
+            'lahontanNotify/' in self.Project
         '''
-        runPipeNotify = os.path.join(self.Project, 'runPipeNotify')
-        if not os.path.isdir(runPipeNotify):
+        lahontanNotify = os.path.join(self.Project, 'lahontanNotify')
+        if not os.path.isdir(lahontanNotify):
             try:
-                os.mkdir(runPipeNotify)
+                os.mkdir(lahontanNotify)
             except:
                 pass
 
@@ -733,7 +733,7 @@ class Experiment:
                 None; cleans directories
 
             Cleaning function for Experiment.
-            See runPipe --help for help
+            See lahontan --help for help
         '''
         assert type(thingToClean) == str, '{} is not a valid argument'.format(
             thingToClean)
@@ -901,29 +901,29 @@ scontrol show job $SLURM_JOB_ID
 wait
 """
         if JSFI == None:
-            raise SystemExit('Need to specify a Metadata file with "--jsonfile"\nCan use "runPipe mj" to create a metadata file')
+            raise SystemExit('Need to specify a Metadata file with "--jsonfile"\nCan use "lahontan mj" to create a metadata file')
         numSamps = self.Numsamples
         if not IS_REFERENCE_PREPARED:
             ref = ''
         else:
             ref = ' --use-reference'
-        command1 = 'srun -N1 -c1 -n1 runPipe fcounts --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1 "${{inputFile}}"'.format(ref)
-        command2 = 'srun -N1 -c{1} -n1 runPipe fcounts --noconfirm{0} --jsonfile "${{jsonFile}}" --maxcpu {1} --execute 2 "${{inputFile}}"'.format(ref,max(cluster))
+        command1 = 'srun -N1 -c1 -n1 lahontan fcounts --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1 "${{inputFile}}"'.format(ref)
+        command2 = 'srun -N1 -c{1} -n1 lahontan fcounts --noconfirm{0} --jsonfile "${{jsonFile}}" --maxcpu {1} --execute 2 "${{inputFile}}"'.format(ref,max(cluster))
         bestPath = self.getOptimal(cluster,jsonPath=jsonFile)
         command3,counter,sampleNum = '',1,1
         for path in sorted(bestPath):
             Pstep = bestPath[path]['Procs']
             Sstep = bestPath[path]['Samps']
             for S in range(sampleNum,sampleNum + Sstep):
-                com = 'srun -N1 -c{0} -n1 runPipe fcounts --noconfirm{2} --use-blacklist {3} --jsonfile "${{jsonFile}}" --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref,self.Blacklist)
+                com = 'srun -N1 -c{0} -n1 lahontan fcounts --noconfirm{2} --use-blacklist {3} --jsonfile "${{jsonFile}}" --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref,self.Blacklist)
                 command3 += com
             if counter != len(bestPath):
                 command3 += 'wait\n'
             counter += 1
             sampleNum += Sstep
-        command4 = 'srun -N1 -c1 -n1 runPipe fcounts --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
-        command5a = 'srun -N1 -c1 -n1 runPipe fcounts --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --edger "${{inputFile}}" &'.format(ref)
-        command5b = 'srun -N1 -c1 -n1 runPipe fcounts --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --deseq "${{inputFile}}" &'.format(ref)
+        command4 = 'srun -N1 -c1 -n1 lahontan fcounts --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
+        command5a = 'srun -N1 -c1 -n1 lahontan fcounts --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --edger "${{inputFile}}" &'.format(ref)
+        command5b = 'srun -N1 -c1 -n1 lahontan fcounts --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 5 --deseq "${{inputFile}}" &'.format(ref)
         command5 = command5a + '\n' + command5b
         Context = {
                 "NODES": len(cluster),
@@ -1251,8 +1251,8 @@ wait
             if self.is3Finished() or self.checkEach():
                 print('[ {} ] Executing Stage 4...'.format(now()))
                 time.sleep(1)
-                if os.path.isdir(os.path.join(self.Project,'runPipeNotify')):
-                    shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
+                if os.path.isdir(os.path.join(self.Project,'lahontanNotify')):
+                    shutil.rmtree(os.path.join(self.Project,'lahontanNotify'))
                 self.gatherAllSampleOverrep(1)
                 self.gatherAllSampleOverrep(2)
                 self.fullFCStats()
@@ -1400,14 +1400,14 @@ scontrol show job $SLURM_JOB_ID
 wait
 """
         if JSFI == None:
-            raise SystemExit('Need to specify a Metadata file with "--jsonfile"\nCan use "runPipe mj" to create a metadata file')
+            raise SystemExit('Need to specify a Metadata file with "--jsonfile"\nCan use "lahontan mj" to create a metadata file')
         numSamps = self.Numsamples
         if not IS_REFERENCE_PREPARED:
             ref = ''
         else:
             ref = ' --use-reference'
-        command1 = 'srun -N1 -c1 -n1 runPipe string --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1 "${{inputFile}}"'.format(ref)
-        command2 = 'srun -N1 -c{1} -n1 runPipe string --noconfirm{0} --jsonfile "${{jsonFile}}" --maxcpu {1} --execute 2 "${{inputFile}}"'.format(ref,max(cluster))
+        command1 = 'srun -N1 -c1 -n1 lahontan string --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1 "${{inputFile}}"'.format(ref)
+        command2 = 'srun -N1 -c{1} -n1 lahontan string --noconfirm{0} --jsonfile "${{jsonFile}}" --maxcpu {1} --execute 2 "${{inputFile}}"'.format(ref,max(cluster))
         bestPath = self.getOptimal(cluster,jsonPath=jsonFile)
         def getStage3(phase):
             # For Phase a and c
@@ -1416,16 +1416,16 @@ wait
                 Pstep = bestPath[path]['Procs']
                 Sstep = bestPath[path]['Samps']
                 for S in range(sampleNum,sampleNum + Sstep):
-                    com = 'srun -N1 -c{0} -n1 runPipe string --noconfirm{2} --use-blacklist {4} --jsonfile "${{jsonFile}}" --maxcpu {0} -e 3 -r {1} --phase {3} "${{inputFile}}" &\n'.format(Pstep,S,ref,phase,self.Blacklist)
+                    com = 'srun -N1 -c{0} -n1 lahontan string --noconfirm{2} --use-blacklist {4} --jsonfile "${{jsonFile}}" --maxcpu {0} -e 3 -r {1} --phase {3} "${{inputFile}}" &\n'.format(Pstep,S,ref,phase,self.Blacklist)
                     command3 += com
                 if counter != len(bestPath):
                     command3 += 'wait\n'
                 counter += 1
                 sampleNum += Sstep
             return command3
-        command3b = 'srun -N1 -c{1} -n1 runPipe string --noconfirm{0} --use-blacklist {2} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 3 --phase b "${{inputFile}}"'.format(ref, max(cluster), self.Blacklist)
-        command4 = 'srun -N1 -c1 -n1 runPipe string --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
-        command5 = 'srun -N1 -c{1} -n1 runPipe string --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 5 "${{inputFile}}"'.format(ref, max(cluster))
+        command3b = 'srun -N1 -c{1} -n1 lahontan string --noconfirm{0} --use-blacklist {2} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 3 --phase b "${{inputFile}}"'.format(ref, max(cluster), self.Blacklist)
+        command4 = 'srun -N1 -c1 -n1 lahontan string --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
+        command5 = 'srun -N1 -c{1} -n1 lahontan string --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 5 "${{inputFile}}"'.format(ref, max(cluster))
         Context = {
                 "NODES": len(cluster),
                 "CPT": bestPath['Step 1']['Procs'],
@@ -1838,8 +1838,8 @@ wait
             if self.is3Finished() or self.checkEach():
                 time.sleep(1)
                 print('[ {} ] Executing Stage 4...'.format(now()))
-                if os.path.isdir(os.path.join(self.Project,'runPipeNotify')):
-                    shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
+                if os.path.isdir(os.path.join(self.Project,'lahontanNotify')):
+                    shutil.rmtree(os.path.join(self.Project,'lahontanNotify'))
                 self.gatherAllSampleOverrep(1)
                 self.gatherAllSampleOverrep(2)
                 self.fullH2Stats()
@@ -1961,14 +1961,14 @@ scontrol show job $SLURM_JOB_ID
 wait
 """
         if JSFI == None:
-            raise SystemExit('Need to specify a Metadata file with "--jsonfile"\nCan use "runPipe mj" to create a metadata file')
+            raise SystemExit('Need to specify a Metadata file with "--jsonfile"\nCan use "lahontan mj" to create a metadata file')
         numSamps = self.Numsamples
         if not IS_REFERENCE_PREPARED:
             ref = ''
         else:
             ref = ' --use-reference'
-        command1 = 'srun -N1 -c1 -n1 runPipe kall --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1 "${{inputFile}}"'.format(ref)
-        command2 = 'srun -N1 -c{1} -n1 runPipe kall --noconfirm{0} --jsonfile "${{jsonFile}}" --maxcpu {1} --execute 2 "${{inputFile}}"'.format(ref,max(cluster))
+        command1 = 'srun -N1 -c1 -n1 lahontan kall --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1 "${{inputFile}}"'.format(ref)
+        command2 = 'srun -N1 -c{1} -n1 lahontan kall --noconfirm{0} --jsonfile "${{jsonFile}}" --maxcpu {1} --execute 2 "${{inputFile}}"'.format(ref,max(cluster))
         bestPath = self.getOptimal(cluster,jsonPath=jsonFile)
         def getStage3():
             command3,counter,sampleNum = '',1,1
@@ -1976,15 +1976,15 @@ wait
                 Pstep = bestPath[path]['Procs']
                 Sstep = bestPath[path]['Samps']
                 for S in range(sampleNum,sampleNum + Sstep):
-                    com = 'srun -N1 -c{0} -n1 runPipe kall --noconfirm{2} --use-blacklist {3} --jsonfile "${{jsonFile}}" --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref,self.Blacklist)
+                    com = 'srun -N1 -c{0} -n1 lahontan kall --noconfirm{2} --use-blacklist {3} --jsonfile "${{jsonFile}}" --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref,self.Blacklist)
                     command3 += com
                 if counter != len(bestPath):
                     command3 += 'wait\n'
                 counter += 1
                 sampleNum += Sstep
             return command3
-        command4 = 'srun -N1 -c1 -n1 runPipe kall --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
-        command5 = 'srun -N1 -c{1} -n1 runPipe kall --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 5 "${{inputFile}}"'.format(ref, max(cluster))
+        command4 = 'srun -N1 -c1 -n1 lahontan kall --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
+        command5 = 'srun -N1 -c{1} -n1 lahontan kall --noconfirm{0} --maxcpu {1} --jsonfile "${{jsonFile}}" --execute 5 "${{inputFile}}"'.format(ref, max(cluster))
         Context = {
                 "NODES": len(cluster),
                 "CPT": bestPath['Step 1']['Procs'],
@@ -2198,8 +2198,8 @@ wait
             if self.is3Finished() or self.checkEach():
                 time.sleep(1)
                 print('[ {} ] Executing Stage 4...'.format(now()))
-                if os.path.isdir(os.path.join(self.Project,'runPipeNotify')):
-                    shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
+                if os.path.isdir(os.path.join(self.Project,'lahontanNotify')):
+                    shutil.rmtree(os.path.join(self.Project,'lahontanNotify'))
                 self.gatherAllSampleOverrep(1)
                 self.gatherAllSampleOverrep(2)
                 self.quickTrimStats()
@@ -2365,27 +2365,27 @@ scontrol show job $SLURM_JOB_ID
 wait
 """
         if JSFI == None:
-            raise SystemExit('Need to specify a Metadata file with "--jsonfile"\nCan use "runPipe mj" to create a metadata file')
+            raise SystemExit('Need to specify a Metadata file with "--jsonfile"\nCan use "lahontan mj" to create a metadata file')
         numSamps = self.Numsamples
         if not IS_REFERENCE_PREPARED:
             ref = ''
         else:
             ref = ' --use-reference'
-        command1 = 'srun -N1 -c1 -n1 runPipe bowtie2 --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1 "${{inputFile}}"'.format(ref)
-        command2 = 'srun -N1 -c{1} -n1 runPipe bowtie2 --noconfirm{0} --jsonfile "${{jsonFile}}" --maxcpu {1} --execute 2 "${{inputFile}}"'.format(ref,max(cluster))
+        command1 = 'srun -N1 -c1 -n1 lahontan bowtie2 --noconfirm{} --jsonfile "${{jsonFile}}" --execute 1 "${{inputFile}}"'.format(ref)
+        command2 = 'srun -N1 -c{1} -n1 lahontan bowtie2 --noconfirm{0} --jsonfile "${{jsonFile}}" --maxcpu {1} --execute 2 "${{inputFile}}"'.format(ref,max(cluster))
         bestPath = self.getOptimal(cluster,jsonPath=jsonFile)
         command3,counter,sampleNum = '',1,1
         for path in sorted(bestPath):
             Pstep = bestPath[path]['Procs']
             Sstep = bestPath[path]['Samps']
             for S in range(sampleNum,sampleNum + Sstep):
-                com = 'srun -N1 -c{0} -n1 runPipe bowtie2 --noconfirm{2} --use-blacklist {3} --jsonfile "${{jsonFile}}" --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref,self.Blacklist)
+                com = 'srun -N1 -c{0} -n1 lahontan bowtie2 --noconfirm{2} --use-blacklist {3} --jsonfile "${{jsonFile}}" --maxcpu {0} -e 3 -r {1} "${{inputFile}}" &\n'.format(Pstep,S,ref,self.Blacklist)
                 command3 += com
             if counter != len(bestPath):
                 command3 += 'wait\n'
             counter += 1
             sampleNum += Sstep
-        command4 = 'srun -N1 -c1 -n1 runPipe bowtie2 --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
+        command4 = 'srun -N1 -c1 -n1 lahontan bowtie2 --noconfirm{0} --jsonfile "${{jsonFile}}" --execute 4 "${{inputFile}}"'.format(ref)
         Context = {
                 "NODES": len(cluster),
                 "CPT": bestPath['Step 1']['Procs'],
@@ -2495,8 +2495,8 @@ wait
             if self.is3Finished() or self.checkEach():
                 print('[ {} ] Executing Stage 4...'.format(now()))
                 time.sleep(1)
-                if os.path.isdir(os.path.join(self.Project,'runPipeNotify')):
-                    shutil.rmtree(os.path.join(self.Project,'runPipeNotify'))
+                if os.path.isdir(os.path.join(self.Project,'lahontanNotify')):
+                    shutil.rmtree(os.path.join(self.Project,'lahontanNotify'))
                 self.gatherAllSampleOverrep(1)
                 self.gatherAllSampleOverrep(2)
                 self.fullB2Stats()
@@ -3459,7 +3459,7 @@ class FCountsSample(Sample):
         if os.path.exists(os.path.join(self.samplePath,
             "aligned.{}.counts.one".format(self.sampleName))):
             with open(os.path.join(self.Project,
-                'runPipeNotify/{}'.format('done'+self.sampleName)), 'w') as N:
+                'lahontanNotify/{}'.format('done'+self.sampleName)), 'w') as N:
                 N.write('{} is done'.format(self.samplePath))
             with open(os.path.join(self.samplePath, '.done'), 'w') as N:
                 N.write('{} is done'.format(self.samplePath))
@@ -3769,7 +3769,7 @@ class StringtieSample(Sample):
         self.writeFunctionTail('stringtiePart2c')
         if os.path.exists(os.path.join(self.samplePath, "i_data.ctab")):
             with open(os.path.join(self.Project,
-                'runPipeNotify/{}'.format('done'+self.sampleName)), 'w') as N:
+                'lahontanNotify/{}'.format('done'+self.sampleName)), 'w') as N:
                 N.write('{} is done'.format(self.samplePath))
             with open(os.path.join(self.samplePath, '.done'), 'w') as N:
                 N.write('{} is done'.format(self.samplePath))
@@ -3922,7 +3922,7 @@ class KallistoSample(Sample):
         if os.path.exists(os.path.join(self.samplePath,
             "Runtime.{}.log".format(self.sampleName))):
             with open(os.path.join(self.Project,
-                'runPipeNotify/{}'.format('done'+self.sampleName)), 'w') as N:
+                'lahontanNotify/{}'.format('done'+self.sampleName)), 'w') as N:
                 N.write('{} is done'.format(self.samplePath))
             with open(os.path.join(self.samplePath, '.done'), 'w') as N:
                 N.write('{} is done'.format(self.samplePath))
@@ -4132,7 +4132,7 @@ class Bowtie2Sample(Sample):
         if os.path.exists(os.path.join(self.samplePath,
             "aligned.b2.{}.bam".format(self.sampleName))):
             with open(os.path.join(self.Project,
-                'runPipeNotify/{}'.format('done'+self.sampleName)), 'w') as N:
+                'lahontanNotify/{}'.format('done'+self.sampleName)), 'w') as N:
                 N.write('{} is done'.format(self.samplePath))
             with open(os.path.join(self.samplePath, '.done'), 'w') as N:
                 N.write('{} is done'.format(self.samplePath))
@@ -4154,4 +4154,4 @@ class Bowtie2Sample(Sample):
 
 #################################################################
 if __name__ == '__main__':
-    raise SystemExit('Please use runPipe\nSee runPipe --help')
+    raise SystemExit('Please use lahontan\nSee lahontan --help')

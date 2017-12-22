@@ -18,7 +18,7 @@ Table of Contents
    * [Pipeline Specifications](#pipeline-specifications)
       * [Project Stages](#project-stages)
       * [Project Structure](#project-structure)
-      * [Usage: runPipe [options] [command] [args...]](#usage-runpipe-options-command-args)
+      * [Usage: lahontan [options] [command] [args...]](#usage-runpipe-options-command-args)
          * [Available Commands](#available-commands)
          * [Command Options](#command-options)
             * [fcounts](#fcounts)
@@ -71,11 +71,11 @@ prepared. This stage is identical for all pipelines.
 Will run a quality check on the reference data and preprocess the reference
 data. This entails building a BLAST database, finding the splice sites, finding
 the exons, building a hisat2 database, and building a genome index with
-samtools. This stage can be identically run with `runPipe prepref` outside of a
+samtools. This stage can be identically run with `lahontan prepref` outside of a
 Project structure and before running a pipeline. Stringtie and featureCounts
 will have an identical Stage 2, but Kallisto requires the construction of its
 own index. If preparing the references beforehand for Kallisto, make sure to
-add the `--kallisto` flag to the `runPipe prepref` command.
+add the `--kallisto` flag to the `lahontan prepref` command.
 
 **Stage 3**
 
@@ -83,7 +83,7 @@ The first step for all pipelines in Stage 3 is to run a quality check on the
 data. This includes using fastQC to create statistics on the quality of the
 data as well as to search for overrepresented sequences. Trimming of the reads
 is done by trimmomatic which trims poor reads as well as any reads in a
-blacklist file. A custom blacklist file can be created by `runPipe mb`, which
+blacklist file. A custom blacklist file can be created by `lahontan mb`, which
 can be fed to a pipeline with the `--use-blacklist` option. After trimming, an
 additional round of fastQC will be performed to check the results of the
 trimming. These quality control steps are identical for all pipelines. Once the
@@ -160,13 +160,13 @@ respective sample which contains its respective raw data files
 * *Postprocessing* = directory where differential expression analysis and other analyses will be saved to
 * *Reference* = directory containing symbolic links pointing to original reference files
 
-## Usage: runPipe [options] [command] [args...]
+## Usage: lahontan [options] [command] [args...]
 
 The pipeline is designed as a series of scripts built around a central
-function, `runPipe`. `runPipe` functions when it is fed a command or argument.
+function, `lahontan`. `lahontan` functions when it is fed a command or argument.
 If it is fed a command, that activates the options available for that command,
 and can subsequently be added after the command. The available commands which
-can be given to `runPipe` are shown below.
+can be given to `lahontan` are shown below.
 
 ### Available Commands
 
@@ -189,12 +189,12 @@ the command as an argument to the `help` command.
 
 For example:
 ```
-$ runPipe fcounts -h
-$ runPipe help fcounts
+$ lahontan fcounts -h
+$ lahontan help fcounts
 ```
-will show information available about the `fcounts` command. `runPipe` also has
+will show information available about the `fcounts` command. `lahontan` also has
 various arguments which can be used to perform an action or change the behavior
-of the pipeline. Shown below are the available options for `runPipe`.
+of the pipeline. Shown below are the available options for `lahontan`.
 
 **Options:**
 
@@ -217,7 +217,7 @@ the description of the option by, `[default: foo]`.
 **More information about options:**
 
 --version
-> Will show the version of `runPipe` currently installed
+> Will show the version of `lahontan` currently installed
 
 --noconfirm
 > Used to avoid any interactive prompts that may be shown which would require
@@ -225,12 +225,12 @@ user intervention
 
 ### Command Options
 
-The commands available to `runPipe` will be described in more detail below.
+The commands available to `lahontan` will be described in more detail below.
 
 #### fcounts
-**Usage: runPipe fcounts [options] INPUTFILE**
+**Usage: lahontan fcounts [options] INPUTFILE**
 
-When `runPipe` is given the `fcounts` command, the pipeline is given the
+When `lahontan` is given the `fcounts` command, the pipeline is given the
 information to use the featureCounts tools and pathway for analysis. If given
 the fcounts command, then a mandatory argument `INPUTFILE` is required. It also
 has various optional arguments which can be given to change the behavior of the
@@ -337,7 +337,7 @@ Original = /home/user/Data/ProjectName-Data
 > *\<cluster\>* is a comma-separated list of CPUs on each node in your cluster
 
 --batchjson *\<pathtoJSON\>*
-> If an optimal path JSON file has been created using `runPipe fo` or another
+> If an optimal path JSON file has been created using `lahontan fo` or another
 > method, use option to skip the calculation of the optimal CPU usage path
 > Note: Option is depended on `--makebatch` i.e. must be added with
 > `--makebatch` or not at all
@@ -356,7 +356,7 @@ Original = /home/user/Data/ProjectName-Data
 
 --use-blacklist *\<blacklist\>*
 > Trimmomatic blacklist used for quality control. A new blacklist can be made with
-> `runPipe mb`
+> `lahontan mb`
 > Note: default is to use `$RNASEQDIR/Trimmomatic/adapters/TruSeq3-PE.fa` where
 > `$RNASEQDIR` is the build directory specified in the installation instructions
 
@@ -367,7 +367,7 @@ Original = /home/user/Data/ProjectName-Data
 > Note: If option is to be used, must be ran from Stage 1
 
 #### string
-**Usage: runPipe string [options] INPUTFILE**
+**Usage: lahontan string [options] INPUTFILE**
 
 Similar to the `fcounts` command, `string` gives the pipeline the information
 it needs so that it uses the Stringtie tools and pathway. The options to the
@@ -450,7 +450,7 @@ If you wish to see more information, see the [fcounts](#fcounts) documentation.
 > Note: If you will be running phase b, you cannot specify a sample to run with --runsample
 
 #### kall
-**Usage: runPipe kall [options] INPUTFILE**
+**Usage: lahontan kall [options] INPUTFILE**
 
 Similar to the `fcounts` and `string` commands, `kall` gives the pipeline the
 information it needs so that it uses the Kallisto tools and pathway. The
@@ -507,7 +507,7 @@ The `kall` command does not add any options compared to the `fcounts` command.
 If you wish to see more information, see the [fcounts](#fcounts) documentation.
 
 #### bowtie2
-**Usage: runPipe bowtie2 [options] INPUTFILE**
+**Usage: lahontan bowtie2 [options] INPUTFILE**
 
 Similar to the `fcounts`,`string`, and `kall` commands, `bowtie2` gives the
 pipeline the information it needs so that it uses the bowtie2 aligner. The
@@ -563,13 +563,13 @@ serves only as a reference for the user and offers no use in any of the
 `bowtie2` tools.
 
 #### mj
-**Usage: runPipe mj [options]**
+**Usage: lahontan mj [options]**
 
 Due to the many different types of experiments which can be run, it is is
 difficult to automate a method for gathering information about the treatments
 and groups applied in an experiment. The treatments and groups of an experiment
 are important in being able to develop any conclusions with the data. The
-`runPipe mj` command provides a questionnaire that requires user feedback about
+`lahontan mj` command provides a questionnaire that requires user feedback about
 the experiment. The important point is to provide enough information about the
 features of the experiment so a sample can be identified by those features.
 
@@ -579,7 +579,7 @@ it with.
 
 For example, a typical experiment might look like:
 ```
-$ runPipe mj
+$ lahontan mj
 What is the name of the project? ProjectName
 How many samples are there? 4
 How many features does each sample have? 2
@@ -657,7 +657,7 @@ Metadata.json
 > Note: default is to save the file to `Metadata.json` in the current directory
 
 #### mb
-**Usage: runPipe mb [options]**
+**Usage: lahontan mb [options]**
 
 This command is used to create a blacklist of reads that qualify as noise and
 which should be trimmed from the data by trimmomatic.
@@ -672,7 +672,7 @@ TACACTCTTTCCCTACACGACGCTCTTCCGATCT
 GTGACTGGAGTTCAGACGTGTGCTCTTCCGATCT
 ```
 
-The blacklist file created by `runPipe mb`, as of runPipe version 1.1 is:
+The blacklist file created by `lahontan mb`, as of lahontan version 1.1 is:
 ```
 >PrefixPE/1
 TACACTCTTTCCCTACACGACGCTCTTCCGATCT
@@ -750,7 +750,7 @@ GGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGGG
 > Note: default is to save the file to `CustomBlacklist.fa` in the current directory
 
 #### clean
-**Usage: runPipe clean [options] INPUTFILE**
+**Usage: lahontan clean [options] INPUTFILE**
 
 This command is used to clean/reset the populated project directories. The
 default behavior is to clean out the entire Project structure to the point
@@ -800,12 +800,12 @@ INPUTFILE
 
 
 #### fo
-**Usage: runPipe fo [options] NUMSAMPLES CLUSTER**
+**Usage: lahontan fo [options] NUMSAMPLES CLUSTER**
 
 It is possible to run the pipeline in a SLURM cluster by creating a batch file
 that contains various `srun` commands given to the SLURM scheduler. However,
 the automated batch file maker needs information on how best to run the samples
-in order to minimize the waste of CPU resources. The `runPipe fo` command
+in order to minimize the waste of CPU resources. The `lahontan fo` command
 offers the ability to create a file that contains information on how best to
 run the samples.
 
@@ -849,7 +849,7 @@ CLUSTER
 > yourself
 
 #### prepref
-**Usage: runPipe prepref [options] (-r REFERENCEDIR | -i INPUT)**
+**Usage: lahontan prepref [options] (-r REFERENCEDIR | -i INPUT)**
 
 This command is equivalent to Stage 2 of the pipeline, however the difference
 is that this command is occurring outside of a structured Project environment.
@@ -873,7 +873,7 @@ can't be caught by the pipeline.
     Option value is a path to input file that must contain
     at least a path to reference directory
     Note: a default input file can be generated with:
-        runPipe gendef --mode prepref
+        lahontan gendef --mode prepref
 -q, --qualitycheck
     Only run quality check on references. Default behavior
     is to run both quality control and preprocessing
@@ -942,7 +942,7 @@ in every `prepref` input file.
 > Note: default is to use all available
 
 #### gendef
-**Usage: runPipe gendef [options]**
+**Usage: lahontan gendef [options]**
 
 **Options**
 
@@ -974,7 +974,7 @@ leave a comment in a file, you can precede a line with a "#" or ";".
 
 For example, here is an input file that is generated with
 ```
-$ runPipe gendef -m fcounts
+$ lahontan gendef -m fcounts
 ```
 
 ```
@@ -1135,7 +1135,7 @@ the path to the current directory. So after creating this file, the only user
 work **required** is to finish the paths in the "[locations]" section. The
 other sections contain keys that change the default behavior of the pipeline
 (**CAUTION**: changing these requires an understanding of the tools involved,
-run `runPipe help fcounts` for more much more detailed information)
+run `lahontan help fcounts` for more much more detailed information)
 
 Additionally, there are certain reserved values that carry particular
 significance for the input file parser. The reserved value **None** is reserved
@@ -1175,20 +1175,20 @@ option specifies the type of input file to create, and it will default to
 
 For example:
 ```
-$ runPipe gendef
+$ lahontan gendef
 ```
 will create a `fcounts` input file called `default_input.ini`.
 
 Furthermore:
 ```
-$ runPipe gendef -m string -f StringtieInput.ini
+$ lahontan gendef -m string -f StringtieInput.ini
 ```
 will create a `string` input file called `StringtieInput.ini`.
 
 #### help
-**Usage: runPipe help COMMAND**
+**Usage: lahontan help COMMAND**
 
-Used to display additional information about a command. Similar to `runPipe
+Used to display additional information about a command. Similar to `lahontan
 <command> --help`
 
 **Available Commands**
@@ -1242,7 +1242,7 @@ Original = /home/user/Datas/ProjectName-Data
 ```
 
 Often times your data will be organized in a way that isn't accepted by
-runPipe.  In order to continue, your `Original` directory must be arranged such
+lahontan.  In order to continue, your `Original` directory must be arranged such
 that each sample read is alphanumerically sorted in a single directory (Note:
 sorted by sample and by read)
 
@@ -1283,28 +1283,28 @@ Example Reference Directory:
 
 ## Quick Start
 
-1. Create an Input file with `runPipe gendef` for your desired pipeline using
+1. Create an Input file with `lahontan gendef` for your desired pipeline using
    the `-m` option. Then fill in the "[locations]" section.
 2. Make sure data and references are following format specified in Setup
-3. Prepare reference data with `runPipe prepref`. If you are using the `kall`
+3. Prepare reference data with `lahontan prepref`. If you are using the `kall`
    or `bowtie2` pipeline, be sure to add the `--kallisto` or `--bowtie2` flag
    to make sure the appropriate indices get created.
-4. Run `runPipe mj` to make a metadata file
-5. Run `runPipe mb` to make a blacklist file
+4. Run `lahontan mj` to make a metadata file
+5. Run `lahontan mb` to make a blacklist file
 6. Decide if you will be running the pipeline with SLURM or not
-    * If yes, then run `runPipe fo` with proper arguments to make optimal path
+    * If yes, then run `lahontan fo` with proper arguments to make optimal path
       file
     * If no, then you can skip this step
     * The following steps will be denoted with a (s) if the step is for SLURM or
       a (w) if the step is without SLURM
 7. (s) Make a batch file by adding the `--makebatch` option to any of the three
    pipeline commands. You should also add the `--batchjson` option with the
-file you made with `runPipe fo`; the `--jsonfile` option with the file you made
-with  `runPipe mj`; the `--use-blacklist` option with the file you made with
-`runPipe mb`; and the `--use-reference` because the reference data has been
+file you made with `lahontan fo`; the `--jsonfile` option with the file you made
+with  `lahontan mj`; the `--use-blacklist` option with the file you made with
+`lahontan mb`; and the `--use-reference` because the reference data has been
 prepared. So an example command to make a featureCounts batch file may look like:
 ```
-$ runPipe fcounts --makebatch 48,48,32 --batchjson /path/to/OptimalPath.dat \
+$ lahontan fcounts --makebatch 48,48,32 --batchjson /path/to/OptimalPath.dat \
 --jsonfile /path/to/Metadata.json --use-blacklist /path/to/CustomBlacklist.fa \
 --use-reference /path/to/INPUT
 ```
@@ -1312,7 +1312,7 @@ $ runPipe fcounts --makebatch 48,48,32 --batchjson /path/to/OptimalPath.dat \
    that the `--jsonfile`, `--use-blacklist`, and `--use-reference` options are
 added to the command. An example command may look like:
 ```
-$ runPipe fcounts --jsonfile /path/to/Metadata.json \
+$ lahontan fcounts --jsonfile /path/to/Metadata.json \
 --use-blacklist /path/to/CustomBlacklist.fa --use-reference --maxcpu 24 \
 /path/to/INPUT
 ```
@@ -1328,7 +1328,7 @@ and are located at `/home/user/Data/MyDataFolder` and
 `/home/user/References/MyReferenceFolder`, run the following to obtain a
 default input file:
 ```
-$ runPipe gendef -m fcounts -f MyFcountsProject.ini
+$ lahontan gendef -m fcounts -f MyFcountsProject.ini
 ```
 At this point complete the "[locations]" section in `MyFcountsProject.ini`. So
 `MyFcountsProject.ini` at minimum contains:
@@ -1342,10 +1342,10 @@ Original = /home/user/Datas/MyDataFolder
 ```
 Then, execute the following:
 ```
-$ runPipe prepref -r /home/user/References/MyReferenceFolder
-$ runPipe mj -j MyMetadata.ini
-$ runPipe mb -t MyBlacklist.ini
-$ runPipe fcounts --use-reference --use-blacklist MyBlacklist.init \
+$ lahontan prepref -r /home/user/References/MyReferenceFolder
+$ lahontan mj -j MyMetadata.ini
+$ lahontan mb -t MyBlacklist.ini
+$ lahontan fcounts --use-reference --use-blacklist MyBlacklist.init \
 --jsonfile MyMetadata.ini MyFcountsProject.ini
 ```
 

@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
 '''Usage:
-    runPipe fo [options] <numsamples> <cluster>
+    lahontan fo [options] <numsamples> <cluster>
 
 Options:
     -h, --help

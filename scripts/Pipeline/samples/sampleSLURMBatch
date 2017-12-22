@@ -10,33 +10,33 @@ inputFile='/home/alberton/biox221/plantINPUT'
 jsonFile='/home/alberton/biox221/plantMetadata.json'
 
 # Stage 1 and 2
-srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 1,2 "${inputFile}"
+srun -N1 -c1 -n1 lahontan --noconfirm --jsonfile "${jsonFile}" --execute 1,2 "${inputFile}"
 
 wait
 
 # Stage 3
-srun -N1 -c6 -n1 --exclusive runPipe.py --noconfirm --maxcpu 6 -e 3 -r 1 "${inputFile}" &
-srun -N1 -c6 -n1 --exclusive runPipe.py --noconfirm --maxcpu 6 -e 3 -r 2 "${inputFile}" &
-srun -N1 -c6 -n1 --exclusive runPipe.py --noconfirm --maxcpu 6 -e 3 -r 3 "${inputFile}" &
-srun -N1 -c6 -n1 --exclusive runPipe.py --noconfirm --maxcpu 6 -e 3 -r 4 "${inputFile}" &
-srun -N1 -c6 -n1 --exclusive runPipe.py --noconfirm --maxcpu 6 -e 3 -r 5 "${inputFile}" &
-srun -N1 -c6 -n1 --exclusive runPipe.py --noconfirm --maxcpu 6 -e 3 -r 6 "${inputFile}" &
-srun -N1 -c6 -n1 --exclusive runPipe.py --noconfirm --maxcpu 6 -e 3 -r 7 "${inputFile}" &
-srun -N1 -c6 -n1 --exclusive runPipe.py --noconfirm --maxcpu 6 -e 3 -r 8 "${inputFile}" &
-srun -N1 -c6 -n1 --exclusive runPipe.py --noconfirm --maxcpu 6 -e 3 -r 9 "${inputFile}" &
-srun -N1 -c6 -n1 --exclusive runPipe.py --noconfirm --maxcpu 6 -e 3 -r 10 "${inputFile}" &
-srun -N1 -c6 -n1 --exclusive runPipe.py --noconfirm --maxcpu 6 -e 3 -r 11 "${inputFile}" &
-srun -N1 -c6 -n1 --exclusive runPipe.py --noconfirm --maxcpu 6 -e 3 -r 12 "${inputFile}" &
+srun -N1 -c6 -n1 --exclusive lahontan --noconfirm --maxcpu 6 -e 3 -r 1 "${inputFile}" &
+srun -N1 -c6 -n1 --exclusive lahontan --noconfirm --maxcpu 6 -e 3 -r 2 "${inputFile}" &
+srun -N1 -c6 -n1 --exclusive lahontan --noconfirm --maxcpu 6 -e 3 -r 3 "${inputFile}" &
+srun -N1 -c6 -n1 --exclusive lahontan --noconfirm --maxcpu 6 -e 3 -r 4 "${inputFile}" &
+srun -N1 -c6 -n1 --exclusive lahontan --noconfirm --maxcpu 6 -e 3 -r 5 "${inputFile}" &
+srun -N1 -c6 -n1 --exclusive lahontan --noconfirm --maxcpu 6 -e 3 -r 6 "${inputFile}" &
+srun -N1 -c6 -n1 --exclusive lahontan --noconfirm --maxcpu 6 -e 3 -r 7 "${inputFile}" &
+srun -N1 -c6 -n1 --exclusive lahontan --noconfirm --maxcpu 6 -e 3 -r 8 "${inputFile}" &
+srun -N1 -c6 -n1 --exclusive lahontan --noconfirm --maxcpu 6 -e 3 -r 9 "${inputFile}" &
+srun -N1 -c6 -n1 --exclusive lahontan --noconfirm --maxcpu 6 -e 3 -r 10 "${inputFile}" &
+srun -N1 -c6 -n1 --exclusive lahontan --noconfirm --maxcpu 6 -e 3 -r 11 "${inputFile}" &
+srun -N1 -c6 -n1 --exclusive lahontan --noconfirm --maxcpu 6 -e 3 -r 12 "${inputFile}" &
 
 wait
 
 # Stage 4
-srun -N1 -c1 -n1 runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 4 "${inputFile}"
+srun -N1 -c1 -n1 lahontan --noconfirm --jsonfile "${jsonFile}" --execute 4 "${inputFile}"
 
 wait
 
 # Stage 5
-srun -N1 -c1 -n1 --exclusive runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &
-srun -N1 -c1 -n1 --exclusive runPipe.py --noconfirm --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &
+srun -N1 -c1 -n1 --exclusive lahontan --noconfirm --jsonfile "${jsonFile}" --execute 5 --edger "${inputFile}" &
+srun -N1 -c1 -n1 --exclusive lahontan --noconfirm --jsonfile "${jsonFile}" --execute 5 --deseq "${inputFile}" &
 
 wait
