@@ -3609,11 +3609,60 @@ Function 8: samtoolsFaidx
         other: used to specify any other options not already
         defined
 """)
+    elif helpCommand == 'gendef':
+        print(generateDefaultInputFile.__doc__)
+        print(
+"""\n################################################################
+            generateDefaultInputFile Information
+################################################################
+
+This utility is used to generate a default manifest input file
+for the fcounts, string, kall, bowtie2, and prepref modes. The
+input file follows standard INI file syntax. For more
+information on the INI format followed, see
+https://docs.python.org/3/library/configparser.html#supported-ini-file-structure
+
+To summarize, files consist of sections that contain a [section]
+header in brackets and a body with key/value entries separated
+by and = or : symbol.
+
+For example:
+
+[locations]
+Project = /home/alberton/Projects/MouseProject
+Reference = /home/alberton/References/MouseReference
+Original = /home/alberton/Data/MouseData
+
+The only required section for each mode is the [locations]
+section that should at minimum contain definitions for the
+Project, Reference, and Original directories. Every other
+section contains optional customization options that change the
+behavior of the pipeline at runtime.
+
+It's important to note that any options listed on the command
+line override any options defined in the manifest file and any
+options defined in the manifest file overrides the default
+behavior of the pipeline. With the gendef utility, a default
+manifest is produced that contains default values for the
+pipeline.
+
+In general, specifying a value of None for an option lets the
+pipeline perform it's default behavior. Specifying a value of
+True/False will turn on/off a behavior. Specifying any other
+value will be interpreted by the corresponding function as if
+the user is infallible, meaning that inputs are not sanitized
+and it is up to the user to make sure that any changes to the
+default behavior produces the desired behavior!
+
+It is up to the user to make sure any changes to the default
+behavior produces the desired behavior!
+""")
     elif helpCommand == 'help':
         print('''Usage: runPipe help <command>\n''')
         print(__doc__[231:-72])
     else:
         print(__doc__)
+    raise SystemExit
 
 ################################################################
 # Reading Command-Line Arguments
