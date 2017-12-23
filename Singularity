@@ -30,13 +30,13 @@ MirrorURL: http://us.archive.ubuntu.com/ubuntu/
     git clone --recursive https://github.com/UNR-CFB/lahontan.git /lahontan
 
     echo "Installing pipeline..."
-    cd /rna-seq
-    echo 'export RNASEQDIR=/lahontan/build' >> $SINGULARITY_ENVIRONMENT
+    cd /lahontan
+    echo 'export RNASEQDIR=/lahontan/bin' >> $SINGULARITY_ENVIRONMENT
     /lahontan/lib/autoSetup.sh
 
 %environment
-    RNASEQDIR=/lahontan/build
-    PATH="${PATH}:/lahontan/build:/lahontan/build/hisat2:/lahontan/build/ncbi-blast/bin:/lahontan/build/samtools/bin:/lahontan/build/subread/bin:/lahontan/lib"
+    RNASEQDIR=/lahontan/bin
+    PATH="${PATH}:/lahontan/bin:/lahontan/lib"
     LANG=en_US.UTF-8
     LANGUAGE=en_US
     export RNASEQDIR PATH LANG LANGUAGE
