@@ -27,19 +27,19 @@ SAMTOOLS_SRC="https://github.com/samtools/samtools/releases/download/1.6/samtool
 cd "${Source}"
 
 wget "${BLAST_SRC}"
-mkdir "${Source}/ncbi-blast" && tar -xzf "${Source}/ncbi-blast-*-x64-linux.tar.gz" -C "${Source}/ncbi-blast" --strip-components 1
+mkdir "${Source}/ncbi-blast" && tar -xzf "${Source}/ncbi-blast-2.7.1+-x64-linux.tar.gz" -C "${Source}/ncbi-blast" --strip-components 1
 
 wget "${TRIM_SRC}"
 unzip "${Source}/Trimmomatic-0.36.zip" && mv "${Source}/Trimmomatic-0.36" "${Source}/trimmomatic"
 
 wget "${FASTQC_SRC}"
-unzip "${Source}/fastqc_v*.zip" && mv "${Source}/FastQC" "${Source}/fastqc"
+unzip "${Source}/fastqc_v0.11.6.zip" && mv "${Source}/FastQC" "${Source}/fastqc"
 
 wget "${FCOUNTS_SRC}"
-mkdir "${Source}/subread" && tar -xzf "${Source}/subread-*-Linux-x86_64.tar.gz" -C "${Source}/subread" --strip-components 1
+mkdir "${Source}/subread" && tar -xzf "${Source}/subread-1.6.0-Linux-x86_64.tar.gz" -C "${Source}/subread" --strip-components 1
 
 wget "${SAMTOOLS_SRC}"
-mkdir "${Source}/samtools" && tar -xjf "${Source}/samtools-*.tar.bz2" -C "${Source}/samtools" --strip-components 1
+mkdir "${Source}/samtools" && tar -xjf "${Source}/samtools-1.6.tar.bz2" -C "${Source}/samtools" --strip-components 1
 
 ################################################################
 # Installing Tools
