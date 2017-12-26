@@ -660,24 +660,37 @@ class Experiment:
         '''
         if not self.isReferencePrepared():
             print("[ {} ] Preprocessing Reference Data...".format(now()))
+            bins = self.GlobalArgs['EXECUTABLES']
             ppLog = os.path.join(self.Reference, 'Preprocessing.log')
             Context = {
                     "cdna": self.Cdna,
                     "basename": self.Basename,
                     "gtf": self.Gtf,
                     "genome": self.Genome,
-                    "cpu": self.Procs
+                    "cpu": self.Procs,
+                    "makeblastdb": self.checkMan("makeblastdb",
+                        bins["makeblastdb"]),
+                    "extract_splice_sites.py": self.checkMan(
+                        "extract_splice_sites.py",
+                        bins["extract_splice_sites.py"]),
+                    "extract_exons.py": self.checkMan(
+                        "extract_exons.py",
+                        bins["extract_exons.py"]),
+                    "hisat2-build": self.checkMan("hisat2-build",
+                        bins["hisat2-build"]),
+                    "samtools": self.checkMan("samtools",
+                        bins["samtools"]),
                     }
-            makeBlastdb = ("""time -p makeblastdb -in {cdna} -dbtype nucl"""+
+            makeBlastdb = ("""time -p {makeblastdb} -in {cdna} -dbtype nucl"""+
                 """ -out {basename}.cdna.all""").format(**Context)
-            extractSpliceSites = ("""time -p extract_splice_sites.py {gtf}"""+
+            extractSpliceSites = ("""time -p {extract_splice_sites.py} {gtf}"""+
                 """ > splice_sites.txt""").format(**Context)
-            extractExons = ("""time -p extract_exons.py {gtf} >"""+
+            extractExons = ("""time -p {extract_exons.py} {gtf} >"""+
                 """ known_exons.txt""").format(**Context)
-            hisatBuild = ("""time -p hisat2-build -p {cpu}"""+
+            hisatBuild = ("""time -p {hisat2-build} -p {cpu}"""+
                 """ --ss splice_sites.txt --exon known_exons.txt"""+
                 """ {genome} {basename}""").format(**Context)
-            samtoolsFaidx = ("""time -p samtools faidx"""+
+            samtoolsFaidx = ("""time -p {samtools} faidx"""+
                 """ {genome}""").format(**Context)
             os.chdir(self.Reference)
             with open(ppLog, 'w') as PPlog:
@@ -1099,7 +1112,7 @@ wait
         bins = self.GlobalArgs['EXECUTABLES']
         deseqCommand = ('''{{ time {Rscript} "makeReport.r";'''+
             ''' }} > makeDESeq2Time.log 2>&1''').format(
-                Rscript=checkMan("Rscript", bins["Rscript"]))
+                Rscript=self.checkMan("Rscript", bins["Rscript"]))
         subprocess.run(deseqCommand,
             shell=True,
             check=True,
@@ -1117,7 +1130,7 @@ wait
         bins = self.GlobalArgs['EXECUTABLES']
         edgeCommand = ('''{{ time {Rscript} "makeEdge.r";'''+
             ''' }} > makeEdgeRTime.log 2>&1''').format(
-                Rscript=checkMan("Rscript", bins["Rscript"]))
+                Rscript=self.checkMan("Rscript", bins["Rscript"]))
         subprocess.run(edgeCommand,
             shell=True,
             check=True,
@@ -1791,7 +1804,7 @@ wait
         bins = self.GlobalArgs['EXECUTABLES']
         ballgownCommand = ('''{{ time -p {Rscript} "runBallgown.r"; }}'''+
             ''' > runBallgownTime.log 2>&1''').format(
-                Rscript=checkMan("Rscript", bins["Rscript"]))
+                Rscript=self.checkMan("Rscript", bins["Rscript"]))
         subprocess.run(ballgownCommand,
             shell=True,
             check=True,
@@ -2156,7 +2169,7 @@ wait
         bins = self.GlobalArgs['EXECUTABLES']
         sleuthCommand = ('''{{ time -p {Rscript} "runSleuth.r";'''+
             ''' }} > runSleuthTime.log 2>&1''').format(
-                Rscript=checkMan("Rscript", bins["Rscript"]))
+                Rscript=self.checkMan("Rscript", bins["Rscript"]))
         subprocess.run(sleuthCommand,
             shell=True,
             check=True,
