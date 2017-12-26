@@ -19,3 +19,6 @@
 [submodule "src/hisat2"]
 	path = src/hisat2
 	url = https://github.com/infphilo/hisat2.git
+[submodule "src/GFF/gclib"]
+	path = src/GFF/gclib
+	url = https://github.com/gpertea/gclib
