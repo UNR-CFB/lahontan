@@ -1,18 +1,12 @@
 [submodule "src/seqtk"]
 	path = src/seqtk
 	url = https://github.com/lh3/seqtk.git
-[submodule "src/gclib"]
-	path = src/GFF/gclib
-    url = https://github.com/gpertea/gclib.git
 [submodule "src/gffread"]
 	path = src/GFF/gffread
     url = https://github.com/gpertea/gffread.git
 [submodule "src/kallisto"]
 	path = src/kallisto
 	url = https://github.com/pachterlab/kallisto.git
-[submodule "src/sleuth"]
-	path = src/sleuth
-	url = https://github.com/pachterlab/sleuth.git
 [submodule "src/stringtie"]
 	path = src/stringtie
 	url = https://github.com/gpertea/stringtie.git
