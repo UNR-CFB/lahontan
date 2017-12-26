@@ -30,6 +30,7 @@ Table of Contents
             * [clean](#clean)
             * [fo](#fo)
             * [prepref](#prepref)
+            * [gendef](#gendef)
             * [help](#help)
    * [Creating a Project and Running the Pipeline](#creating-a-project-and-running-the-pipeline)
       * [Requirements](#requirements)
