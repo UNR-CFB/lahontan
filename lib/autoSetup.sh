@@ -1,5 +1,26 @@
 #!/bin/bash
 
+Usage="Usage:
+    autoSetup.sh [-h] [-r]
+
+Options:
+    -h
+        Shows this message and exits
+    -r
+        Additionally get and install R"
+
+installR=false
+while getopts ':hrdaps:' option; do
+    case "$option" in
+        h) echo "${Usage}"; exit;;
+        r) installR=true; break;;
+        ?) 
+            printf "Invalid Argument: -%s\n" "${OPTARG}"
+            echo "${Usage}"; exit;;
+    esac
+done
+shift $(( OPTIND - 1 ));
+
 ################################################################
 # Assuming you're in lahontan/ directory
 ################################################################
@@ -21,6 +42,7 @@ TRIM_SRC="http://www.usadellab.org/cms/uploads/supplementary/Trimmomatic/Trimmom
 FASTQC_SRC="https://www.bioinformatics.babraham.ac.uk/projects/fastqc/fastqc_v0.11.6.zip"
 FCOUNTS_SRC="https://sourceforge.net/projects/subread/files/subread-1.6.0/subread-1.6.0-Linux-x86_64.tar.gz"
 SAMTOOLS_SRC="https://github.com/samtools/samtools/releases/download/1.6/samtools-1.6.tar.bz2"
+R_SRC="https://cran.r-project.org/src/base/R-3/R-3.4.3.tar.gz"
 
 ################################################################
 # Download Source Files not on Github
@@ -28,7 +50,9 @@ SAMTOOLS_SRC="https://github.com/samtools/samtools/releases/download/1.6/samtool
 
 cd "${Source}"
 
-mkdir "${Source}/ncbi-blast" && wget "${BLAST_SRC}" && tar -xzf "${Source}/ncbi-blast-2.7.1+-x64-linux.tar.gz" -C "${Source}/ncbi-blast" --strip-components 1
+if [ ! -d "${Source}/ncbi-blast" ]; then
+    mkdir "${Source}/ncbi-blast" && wget "${BLAST_SRC}" && tar -xzf "${Source}/ncbi-blast-2.7.1+-x64-linux.tar.gz" -C "${Source}/ncbi-blast" --strip-components 1
+fi
 
 if [ ! -d "${Source}/trimmomatic" ]; then
     wget "${TRIM_SRC}" && unzip "${Source}/Trimmomatic-0.36.zip" && mv "${Source}/Trimmomatic-0.36" "${Source}/trimmomatic"
@@ -38,9 +62,17 @@ if [ ! -d "${Source}/fastqc" ]; then
     wget "${FASTQC_SRC}" && unzip "${Source}/fastqc_v0.11.6.zip" && mv "${Source}/FastQC" "${Source}/fastqc"
 fi
 
-mkdir "${Source}/subread" && wget "${FCOUNTS_SRC}" && tar -xzf "${Source}/subread-1.6.0-Linux-x86_64.tar.gz" -C "${Source}/subread" --strip-components 1
+if [ ! -d "${Source}/subread" ]; then
+    mkdir "${Source}/subread" && wget "${FCOUNTS_SRC}" && tar -xzf "${Source}/subread-1.6.0-Linux-x86_64.tar.gz" -C "${Source}/subread" --strip-components 1
+fi
 
-mkdir "${Source}/samtools" && wget "${SAMTOOLS_SRC}" && tar -xjf "${Source}/samtools-1.6.tar.bz2" -C "${Source}/samtools" --strip-components 1
+if [ ! -d "${Source}/samtools" ]; then
+    mkdir "${Source}/samtools" && wget "${SAMTOOLS_SRC}" && tar -xjf "${Source}/samtools-1.6.tar.bz2" -C "${Source}/samtools" --strip-components 1
+fi
+
+if [ "${installR}" = true ] && [ ! -d "${Source}/R" ]; then
+    mkdir "${Source}/R" && wget "${R_SRC}" && tar -xzf "${Source}/R-3.4.3.tar.gz" -C "${Source}/R" --strip-components 1
+fi
 
 ################################################################
 # Installing Tools
@@ -152,10 +184,19 @@ ln -sr "${Source}/subread/bin/sublong" "${Bin}/"
 ln -sr "${Source}/subread/bin/subread-align" "${Bin}/"
 ln -sr "${Source}/subread/bin/subread-buildindex" "${Bin}/"
 
-
 # Installing Trimmomatic
 cd "${Source}/trimmomatic"
 ln -sr "${Source}/trimmomatic/trimmomatic-0.36.jar" "${Bin}/trimmomatic-0.36.jar"
+
+# Installing R
+if [ "${installR}" = true ]; then
+    cd "${Source}/R"
+    ./configure
+    make
+    ln -sr "${Source}/R/bin/R" "${Bin}/"
+    ln -sr "${Source}/R/bin/Rscript" "${Bin}/"
+    "${Source}/R" -e 'source("https://bioconductor.org/biocLite.R");biocLite(ask=FALSE);biocLite(c("devtools","DESeq2","edgeR","ReportingTools","regionReport","pachterlab/sleuth","ballgown","DT","pheatmap"));devtools::install_github(c("docopt/docopt.R","alyssafrazee/RSkittleBrewer"))'
+fi
 
 ################################################################
 # Adding to PATH

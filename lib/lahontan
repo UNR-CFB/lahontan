@@ -1425,7 +1425,7 @@ input file'''
     # Executables
     ############################################################
     config['EXECUTABLES'] = OD((
-            ('Rscript', '/usr/local/bin/Rscript'),
+            ('Rscript', '${rnaseqdir}/Rscript'),
             ('java', '/usr/bin/java'),
             ('rnaseqdir', RNASEQDIR),
             ('fastqc', '${rnaseqdir}/fastqc'),

@@ -34,6 +34,9 @@ MirrorURL: http://us.archive.ubuntu.com/ubuntu/
     echo 'export RNASEQDIR=/lahontan/bin' >> $SINGULARITY_ENVIRONMENT
     /lahontan/lib/autoSetup.sh
 
+    ln -s /usr/local/bin/R /lahontan/bin/R
+    ln -s /usr/local/bin/Rscript /lahontan/bin/Rscript
+
 %environment
     RNASEQDIR=/lahontan/bin
     PATH="${PATH}:/lahontan/bin:/lahontan/lib"

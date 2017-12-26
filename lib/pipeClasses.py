@@ -1096,7 +1096,10 @@ wait
 
             Runs DESeq2
         '''
-        deseqCommand = r'''{ time Rscript "makeReport.r"; } > makeDESeq2Time.log 2>&1'''
+        bins = self.GlobalArgs['EXECUTABLES']
+        deseqCommand = ('''{{ time {Rscript} "makeReport.r";'''+
+            ''' }} > makeDESeq2Time.log 2>&1''').format(
+                Rscript=checkMan("Rscript", bins["Rscript"]))
         subprocess.run(deseqCommand,
             shell=True,
             check=True,
@@ -1111,7 +1114,10 @@ wait
 
             Runs edgeR
         '''
-        edgeCommand = r'''{ time Rscript "makeEdge.r"; } > makeEdgeRTime.log 2>&1'''
+        bins = self.GlobalArgs['EXECUTABLES']
+        edgeCommand = ('''{{ time {Rscript} "makeEdge.r";'''+
+            ''' }} > makeEdgeRTime.log 2>&1''').format(
+                Rscript=checkMan("Rscript", bins["Rscript"]))
         subprocess.run(edgeCommand,
             shell=True,
             check=True,
@@ -1782,8 +1788,10 @@ wait
             Executes Ballgown R script
         '''
         os.chdir(self.Postprocessing)
-        ballgownCommand = (r'''{ time -p Rscript "runBallgown.r"; }'''+
-            ''' > runBallgownTime.log 2>&1''')
+        bins = self.GlobalArgs['EXECUTABLES']
+        ballgownCommand = ('''{{ time -p {Rscript} "runBallgown.r"; }}'''+
+            ''' > runBallgownTime.log 2>&1''').format(
+                Rscript=checkMan("Rscript", bins["Rscript"]))
         subprocess.run(ballgownCommand,
             shell=True,
             check=True,
@@ -1812,7 +1820,8 @@ wait
         print('[ {} ] Executing Stage 3...'.format(now()))
         self.makeNotifyFolder()
         self.GO(phases)
-        stringtieStatus = self.runStringtiePhase(phases,behavior='non-default')
+        stringtieStatus = self.runStringtiePhase(phases,
+            behavior='non-default')
         if stringtieStatus == 'DONE' or stringtieStatus == 'c':
             self.findPipeFinish()
 
@@ -2144,7 +2153,10 @@ wait
             Execute Sleuth script
         '''
         os.chdir(self.Postprocessing)
-        sleuthCommand = r'''{ time -p Rscript "runSleuth.r"; } > runSleuthTime.log 2>&1'''
+        bins = self.GlobalArgs['EXECUTABLES']
+        sleuthCommand = ('''{{ time -p {Rscript} "runSleuth.r";'''+
+            ''' }} > runSleuthTime.log 2>&1''').format(
+                Rscript=checkMan("Rscript", bins["Rscript"]))
         subprocess.run(sleuthCommand,
             shell=True,
             check=True,
