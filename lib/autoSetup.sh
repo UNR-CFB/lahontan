@@ -8,7 +8,9 @@ Bin="${RnaSeq}/bin"
 Source="${RnaSeq}/src"
 Lib="${RnaSeq}/lib"
 
-mkdir "${Bin}"
+if [ ! -d "${Bin}" ]; then
+    mkdir "${Bin}"
+fi
 
 ################################################################
 # Sources for tools not on Github
@@ -26,20 +28,19 @@ SAMTOOLS_SRC="https://github.com/samtools/samtools/releases/download/1.6/samtool
 
 cd "${Source}"
 
-wget "${BLAST_SRC}"
-mkdir "${Source}/ncbi-blast" && tar -xzf "${Source}/ncbi-blast-2.7.1+-x64-linux.tar.gz" -C "${Source}/ncbi-blast" --strip-components 1
+mkdir "${Source}/ncbi-blast" && wget "${BLAST_SRC}" && tar -xzf "${Source}/ncbi-blast-2.7.1+-x64-linux.tar.gz" -C "${Source}/ncbi-blast" --strip-components 1
 
-wget "${TRIM_SRC}"
-unzip "${Source}/Trimmomatic-0.36.zip" && mv "${Source}/Trimmomatic-0.36" "${Source}/trimmomatic"
+if [ ! -d "${Source}/trimmomatic" ]; then
+    wget "${TRIM_SRC}" && unzip "${Source}/Trimmomatic-0.36.zip" && mv "${Source}/Trimmomatic-0.36" "${Source}/trimmomatic"
+fi
 
-wget "${FASTQC_SRC}"
-unzip "${Source}/fastqc_v0.11.6.zip" && mv "${Source}/FastQC" "${Source}/fastqc"
+if [ ! -d "${Source}/fastqc" ]; then
+    wget "${FASTQC_SRC}" && unzip "${Source}/fastqc_v0.11.6.zip" && mv "${Source}/FastQC" "${Source}/fastqc"
+fi
 
-wget "${FCOUNTS_SRC}"
-mkdir "${Source}/subread" && tar -xzf "${Source}/subread-1.6.0-Linux-x86_64.tar.gz" -C "${Source}/subread" --strip-components 1
+mkdir "${Source}/subread" && wget "${FCOUNTS_SRC}" && tar -xzf "${Source}/subread-1.6.0-Linux-x86_64.tar.gz" -C "${Source}/subread" --strip-components 1
 
-wget "${SAMTOOLS_SRC}"
-mkdir "${Source}/samtools" && tar -xjf "${Source}/samtools-1.6.tar.bz2" -C "${Source}/samtools" --strip-components 1
+mkdir "${Source}/samtools" && wget "${SAMTOOLS_SRC}" && tar -xjf "${Source}/samtools-1.6.tar.bz2" -C "${Source}/samtools" --strip-components 1
 
 ################################################################
 # Installing Tools
@@ -54,6 +55,7 @@ ln -sr "${Source}/GFF/gffread/gffread" "${Bin}/gffread"
 cd "${Source}/stringtie"
 make release
 ln -sr "${Source}/stringtie/stringtie" "${Bin}/stringtie"
+ln -sr "${Source}/stringtie/prepDE.py" "${Bin}/prepDE.py"
 
 # Installing gffcompare
 cd "${Source}/GFF/gffcompare"
@@ -112,16 +114,45 @@ ln -sr "${Source}/hisat2/hisat2-build-l" "${Bin}/hisat2-build-l"
 ln -sr "${Source}/hisat2/hisat2-inspect" "${Bin}/hisat2-inspect"
 ln -sr "${Source}/hisat2/hisat2-inspect-s" "${Bin}/hisat2-inspect-s"
 ln -sr "${Source}/hisat2/hisat2-inspect-l" "${Bin}/hisat2-inspect-l"
-ln -sr "${Source}/hisat2/hisat2-extract_exons.py" "${Bin}/extract_exons.py"
-ln -sr "${Source}/hisat2/hisat2-extract_splice_sites.py" "${Bin}/extract_splice_sites.py"
+ln -sr "${Source}/hisat2/hisat2_extract_exons.py" "${Bin}/extract_exons.py"
+ln -sr "${Source}/hisat2/hisat2_extract_splice_sites.py" "${Bin}/extract_splice_sites.py"
 
 # Installing BLAST
 cd "${Source}/ncbi-blast"
-ln -sr "${Source}/ncbi-blast/*" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/blast_formatter" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/blastdb_aliastool" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/blastdbcheck" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/blastdbcmd" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/blastn" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/blastp" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/blastx" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/convert2blastmask" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/deltablast" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/dustmasker" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/legacy_blast.pl" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/makeblastdb" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/makembindex" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/makeprofiledb" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/psiblast" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/rpsblast" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/rpstblastn" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/segmasker" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/tblastn" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/tblastx" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/update_blastdb.pl" "${Bin}/"
+ln -sr "${Source}/ncbi-blast/bin/windowmasker" "${Bin}/"
 
 # Installing featureCounts
 cd "${Source}/subread"
 ln -sr "${Source}/subread/bin/featureCounts" "${Bin}/featureCounts"
+ln -sr "${Source}/subread/bin/exactSNP" "${Bin}/"
+ln -sr "${Source}/subread/bin/featureCounts" "${Bin}/"
+ln -sr "${Source}/subread/bin/subindel" "${Bin}/"
+ln -sr "${Source}/subread/bin/subjunc" "${Bin}/"
+ln -sr "${Source}/subread/bin/sublong" "${Bin}/"
+ln -sr "${Source}/subread/bin/subread-align" "${Bin}/"
+ln -sr "${Source}/subread/bin/subread-buildindex" "${Bin}/"
+
 
 # Installing Trimmomatic
 cd "${Source}/trimmomatic"
