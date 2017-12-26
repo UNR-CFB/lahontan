@@ -44,6 +44,16 @@ Table of Contents
 To install, please see the [Wiki](https://github.com/UNR-CFB/rna-seq/wiki) for
 detailed build instructions.
 
+To summarize the [Wiki](https://github.com/UNR-CFB/rna-seq/wiki):
+
+```
+git clone --recursive https://github.com/UNR-CFB/lahontan.git
+cd lahontan
+./lib/autoSetup.sh
+source ~/.bashrc
+```
+
+
 # Built With
 
 * [Python](https://www.python.org/) (>=3.5)
