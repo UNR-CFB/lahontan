@@ -29,7 +29,7 @@ Available lahontan commands:
 
 See 'lahontan help <command>' for more information on a specific
 command'''
-VERSION = 'v0.1.0'
+VERSION = 'v0.1.1'
 
 ################################################################
 # Importations
@@ -716,9 +716,15 @@ def updateArgs(arguments):
         specified, use command line argument, else default to manifest
     """
     # Generate a fallback defaults file
-    tmpDefaults = '.tmplahontanDefaults.ini'
-    generateDefaultInputFile({'--filename': tmpDefaults,'--mode': arguments['<command>']})
-    FALLBACK = readInputFile({'<input>': tmpDefaults})
+    while True:
+        counter=0
+        try:
+            tmpDefaults = '.tmplahontanDefaults{}.ini'.format(counter)
+            generateDefaultInputFile({'--filename': tmpDefaults,'--mode': arguments['<command>']})
+            FALLBACK = readInputFile({'<input>': tmpDefaults})
+            break
+        except:
+            counter += 1
     mode = arguments['<command>']
     updatedArgs = {}
     arguments.update({'tmpDefaults': tmpDefaults})
@@ -762,7 +768,10 @@ def updateArgs(arguments):
                     else:
                         updatedArgs[section][option] = FALLBACK[section].get(option)
     # Remove tmp fallback defaults file
-    os.remove(tmpDefaults)
+    try:
+        os.remove(tmpDefaults)
+    except FileNotFoundError:
+        pass
     return updatedArgs
 
 def generatePreprefInput(arguments):
@@ -1380,7 +1389,7 @@ input file'''
                 ('--batchjson', 'None'),
                 ('--edger', 'False'),
                 ('--deseq', 'False'),
-                ('--use-blacklist', RNASEQDIR+'../src/trimmomatic/adapters/TruSeq3-PE.fa'),
+                ('--use-blacklist', os.path.join(RNASEQDIR,'../src/trimmomatic/adapters/TruSeq3-PE.fa')),
                 ('--use-reference', 'False'),
                 ))
     elif arguments['--mode'] == 'string':
@@ -1391,7 +1400,7 @@ input file'''
                 ('--jsonfile', 'None'),
                 ('--maxcpu', 'None'),
                 ('--noconfirm', 'False'),
-                ('--use-blacklist', RNASEQDIR+'../src/trimmomatic/adapters/TruSeq3-PE.fa'),
+                ('--use-blacklist', os.path.join(RNASEQDIR,'../src/trimmomatic/adapters/TruSeq3-PE.fa')),
                 ('--use-reference', 'False'),
                 ('--makebatch', 'None'),
                 ('--batchjson', 'None'),
@@ -1403,7 +1412,7 @@ input file'''
                 ('--jsonfile', 'None'),
                 ('--maxcpu', 'None'),
                 ('--noconfirm', 'False'),
-                ('--use-blacklist', RNASEQDIR+'../src/trimmomatic/adapters/TruSeq3-PE.fa'),
+                ('--use-blacklist', os.path.join(RNASEQDIR,'../src/trimmomatic/adapters/TruSeq3-PE.fa')),
                 ('--use-reference', 'False'),
                 ('--makebatch', 'None'),
                 ('--batchjson', 'None'),
@@ -1417,7 +1426,7 @@ input file'''
                 ('--noconfirm', 'False'),
                 ('--makebatch', 'None'),
                 ('--batchjson', 'None'),
-                ('--use-blacklist', RNASEQDIR+'../src/trimmomatic/adapters/TruSeq3-PE.fa'),
+                ('--use-blacklist', os.path.join(RNASEQDIR,'../src/trimmomatic/adapters/TruSeq3-PE.fa')),
                 ('--use-reference', 'False'),
                 ))
 

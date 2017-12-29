@@ -1083,8 +1083,10 @@ wait
             Calls makeReportr.createRscript and makeEdgeReport.createEdgeR()
             to make DESeq2 R analysis program and edgeR analysis program
         '''
+        os.chdir(self.Postprocessing)
         makeReportr.createRscript(makeCols.readJSON(JSFI),
                 'makeReport.r')
+        os.chdir(self.Postprocessing)
         makeEdgeReport.createEdgeR(makeCols.readJSON(JSFI),
                 'makeEdge.r')
 
@@ -1109,10 +1111,13 @@ wait
 
             Runs DESeq2
         '''
+        os.chdir(self.Postprocessing)
         bins = self.GlobalArgs['EXECUTABLES']
-        deseqCommand = ('''{{ time {Rscript} "makeReport.r";'''+
-            ''' }} > makeDESeq2Time.log 2>&1''').format(
-                Rscript=self.checkMan("Rscript", bins["Rscript"]))
+        deseqCommand = ('''{{ time {Rscript} "{makeReportr}";'''+
+            ''' }} > {log} 2>&1''').format(
+                Rscript=self.checkMan("Rscript", bins["Rscript"]),
+                makeReportr=os.path.join(self.Postprocessing,'makeReport.r'),
+                log=os.path.join(self.Postprocessing,'makeDESeq2Time.log'))
         subprocess.run(deseqCommand,
             shell=True,
             check=True,
@@ -1127,10 +1132,13 @@ wait
 
             Runs edgeR
         '''
+        os.chdir(self.Postprocessing)
         bins = self.GlobalArgs['EXECUTABLES']
-        edgeCommand = ('''{{ time {Rscript} "makeEdge.r";'''+
-            ''' }} > makeEdgeRTime.log 2>&1''').format(
-                Rscript=self.checkMan("Rscript", bins["Rscript"]))
+        edgeCommand = ('''{{ time {Rscript} "{makeEdger}";'''+
+            ''' }} > {log} 2>&1''').format(
+                Rscript=self.checkMan("Rscript", bins["Rscript"]),
+                makeEdger=os.path.join(self.Postprocessing,'makeEdge.r'),
+                log=os.path.join(self.Postprocessing,'makeEdgeRTime.log'))
         subprocess.run(edgeCommand,
             shell=True,
             check=True,
@@ -1802,9 +1810,11 @@ wait
         '''
         os.chdir(self.Postprocessing)
         bins = self.GlobalArgs['EXECUTABLES']
-        ballgownCommand = ('''{{ time -p {Rscript} "runBallgown.r"; }}'''+
-            ''' > runBallgownTime.log 2>&1''').format(
-                Rscript=self.checkMan("Rscript", bins["Rscript"]))
+        ballgownCommand = ('''{{ time -p {Rscript} "{runBallgownr}"; }}'''+
+            ''' > {log} 2>&1''').format(
+                Rscript=self.checkMan("Rscript", bins["Rscript"]),
+                runBallgownr=os.path.join(self.Postprocessing,'runBallgown.r'),
+                log=os.path.join(self.Postprocessing,'runBallgownTime.log'))
         subprocess.run(ballgownCommand,
             shell=True,
             check=True,
@@ -2167,9 +2177,11 @@ wait
         '''
         os.chdir(self.Postprocessing)
         bins = self.GlobalArgs['EXECUTABLES']
-        sleuthCommand = ('''{{ time -p {Rscript} "runSleuth.r";'''+
-            ''' }} > runSleuthTime.log 2>&1''').format(
-                Rscript=self.checkMan("Rscript", bins["Rscript"]))
+        sleuthCommand = ('''{{ time -p {Rscript} "{runSleuthr}";'''+
+            ''' }} > {log} 2>&1''').format(
+                Rscript=self.checkMan("Rscript", bins["Rscript"]),
+                runSleuthr=os.path.join(self.Postprocessing,'runSleuth.r'),
+                log=os.path.join(self.Postprocessing,'runSleuthTime.log'))
         subprocess.run(sleuthCommand,
             shell=True,
             check=True,
