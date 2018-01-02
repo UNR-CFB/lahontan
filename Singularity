@@ -16,7 +16,7 @@ MirrorURL: http://us.archive.ubuntu.com/ubuntu/
 
     echo "Installing necessary packages..."
     echo "deb http://us.archive.ubuntu.com/ubuntu/ xenial universe" >> /etc/apt/sources.list
-    apt-get update && apt-get install --yes git cmake gcc g++ libncurses-dev libhdf5-cpp-11 libhdf5-dev python3-docopt vim unzip openjdk-8-jdk-headless wget gfortran libbz2-dev liblzma-dev libpcre++-dev libcurl4-openssl-dev libssl-dev pandoc texlive-latex-extra libxml2-dev libmariadb-client-lgpl-dev libreadline6-dev libreadline6 libtbb-dev
+    apt-get update && apt-get install --yes git cmake gcc g++ libncurses-dev libhdf5-cpp-11 libhdf5-dev python3-docopt vim unzip openjdk-8-jdk-headless wget gfortran libbz2-dev liblzma-dev libpcre++-dev libcurl4-openssl-dev libssl-dev pandoc texlive-latex-extra libxml2-dev libmariadb-client-lgpl-dev libreadline6-dev libreadline6 libtbb-dev bzip2
 
     cd /opt
     wget https://cran.r-project.org/src/base/R-3/R-3.4.3.tar.gz
