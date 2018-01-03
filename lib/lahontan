@@ -691,7 +691,7 @@ def readInputFile(arguments):
             inputFile = expandPath(arguments['-i'])
         except TypeError:
             # Mode is prepref -r
-            inputFile = expandPath(arguments['tmpDefaults'])
+            return arguments['tmpDefaults']
     testFile(inputFile)
     config = configparser.ConfigParser(interpolation=configparser.ExtendedInterpolation(),
             dict_type=OD)
@@ -716,18 +716,10 @@ def updateArgs(arguments):
         specified, use command line argument, else default to manifest
     """
     # Generate a fallback defaults file
-    while True:
-        counter=0
-        try:
-            tmpDefaults = '.tmplahontanDefaults{}.ini'.format(counter)
-            generateDefaultInputFile({'--filename': tmpDefaults,'--mode': arguments['<command>']})
-            FALLBACK = readInputFile({'<input>': tmpDefaults})
-            break
-        except:
-            counter += 1
+    FALLBACK = generateDefaultInputFile({'--write': False,'--mode': arguments['<command>']})
     mode = arguments['<command>']
     updatedArgs = {}
-    arguments.update({'tmpDefaults': tmpDefaults})
+    arguments.update({'tmpDefaults': FALLBACK})
     Manifest = readInputFile(arguments)
     try:
         manifestArgs = Manifest[mode]
@@ -767,11 +759,6 @@ def updateArgs(arguments):
                         updatedArgs[section][option] = True
                     else:
                         updatedArgs[section][option] = FALLBACK[section].get(option)
-    # Remove tmp fallback defaults file
-    try:
-        os.remove(tmpDefaults)
-    except FileNotFoundError:
-        pass
     return updatedArgs
 
 def generatePreprefInput(arguments):
@@ -908,8 +895,11 @@ def generatePreprefInput(arguments):
         ('other', 'None'),
         ))
     ############################################################
-    with open(arguments['--filename'], 'w') as configfile:
-        config.write(configfile)
+    if arguments['--write']:
+        with open(arguments['--filename'], 'w') as configfile:
+            config.write(configfile)
+    else:
+        return config
     ############################################################
 
 ################################################################
@@ -1759,8 +1749,11 @@ input file'''
             ))
 
     ############################################################
-    with open(arguments['--filename'], 'w') as configfile:
-        config.write(configfile)
+    if arguments['--write']:
+        with open(arguments['--filename'], 'w') as configfile:
+            config.write(configfile)
+    else:
+        return config
     ############################################################
 
 def otherStuff(arguments):
@@ -3719,6 +3712,7 @@ if __name__ == '__main__':
         referenceProcessing(updatedArgs)
     elif args['<command>'] == 'gendef':
         args.update(docopt(generateDefaultInputFile.__doc__, argv=argv))
+        args.update({'--write': True})
         generateDefaultInputFile(args)
     elif args['<command>'] == 'help':
         moreHelp(args)
