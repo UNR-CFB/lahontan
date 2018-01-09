@@ -1417,7 +1417,7 @@ wait
 
 # Stage 4
 {STAGE4}
-kait
+wait
 
 # Stage 5
 {STAGE5}
