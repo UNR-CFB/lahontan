@@ -1,13 +1,16 @@
 # Lahontan
 
 Lahontan is a set of tools built around an object-oriented pipeline used in
-qualifying and processing sets of paired-end next-gen RNA sequencing data. This
-pipeline uses trimmomatic and fastqc to perform quality control; BLAST to check
+qualifying and processing sets of paired-end next-gen RNA sequencing data. It
+takes fastq files from a high-throughput sequencer and performs quality control
+steps before performing a preliminary differential gene expression analysis.
+
+Lahontan uses trimmomatic and fastqc to perform quality control; BLAST to check
 the strandedness; and a choice of hisat2/featureCounts, hisat2/stringtie,
-bowtie2, or kallisto to analyze and quantify the experimental data.  This
-pipeline also provides some automated R scripts to begin a gene expression
-analysis. The pipeline is compatible with SLURM scheduled clusters for parallel
-execution and standard desktop computers.
+bowtie2, or kallisto to analyze and quantify the experimental data. Lahontan
+also automatically produces some R scripts to begin a gene expression analysis
+for certain modes. Lahontan is compatible with SLURM scheduled clusters for
+parallel execution as well as standard desktop computers.
 
 Table of Contents
 =================
@@ -15,6 +18,11 @@ Table of Contents
    * [Table of Contents](#table-of-contents)
    * [Installation](#installation)
    * [Built With](#built-with)
+   * [Creating a Project and Running the Pipeline](#creating-a-project-and-running-the-pipeline)
+      * [Requirements](#requirements)
+      * [Setup](#setup)
+      * [Quick Start](#quick-start)
+         * [Example Execution](#example-execution)
    * [Pipeline Specifications](#pipeline-specifications)
       * [Project Stages](#project-stages)
       * [Project Structure](#project-structure)
@@ -32,11 +40,6 @@ Table of Contents
             * [prepref](#prepref)
             * [gendef](#gendef)
             * [help](#help)
-   * [Creating a Project and Running the Pipeline](#creating-a-project-and-running-the-pipeline)
-      * [Requirements](#requirements)
-      * [Setup](#setup)
-      * [Quick Start](#quick-start)
-         * [Example Execution](#example-execution)
    * [Authors](#authors)
 
 # Installation
@@ -52,20 +55,173 @@ cd lahontan
 ./lib/autoSetup.sh
 source ~/.bashrc
 ```
-
+OR
+```
+singularity pull --name lahontan shub://UNR-CFB/lahontan
+```
 
 # Built With
 
 * [Python](https://www.python.org/) (>=3.5)
 * [Bash](https://www.gnu.org/software/bash/)
+* [R](https://www.r-project.org/)
 * [Kallisto](https://pachterlab.github.io/kallisto/)
 * [Stringtie](https://github.com/gpertea/stringtie)
 * [featureCounts](http://subread.sourceforge.net/)
+* [bowtie2](https://github.com/BenLangmead/bowtie2)
 * [hisat2](https://github.com/infphilo/hisat2)
 * [fastQC](https://www.bioinformatics.babraham.ac.uk/projects/fastqc/)
 * [trimmomatic](http://www.usadellab.org/cms/index.php?page=trimmomatic)
 * [samtools](https://github.com/samtools/samtools)
 * [BLAST](https://blast.ncbi.nlm.nih.gov/Blast.cgi)
+* [Seqtk](https://github.com/lh3/seqtk)
+* [gffcompare](https://github.com/gpertea/gffcompare)
+* [gffread](https://github.com/gpertea/gffread)
+
+# Creating a Project and Running the Pipeline
+
+## Requirements
+
+* Paired-end Illumina fastq files. This means 2 files per sample. One for
+  Read1, the other for Read2
+* A reference genome for the organism in study. All chromosomes in a single
+  FASTA format file
+* A GTF-format file for containing the gene and exon coordinates for your
+  reference genome
+* A reference transcriptome (or some set of known transcripts) for your
+  organism
+* The Pipeline directory should be in your `$PATH` environmental variable. This
+  can be accomplished by being in the main rna-seq directory and running:
+```
+$ cd scripts/Pipeline
+$ echo 'export PATH=$PATH:'`pwd` >> $HOME/.bashrc
+$ source $HOME/.bashrc
+```
+
+## Setup
+
+It is important that the Input file that you feed into the pipeline follow the
+format specified. You can use the `gendef` command to create a default input
+file for you, which at that point only requires you to fill in the Project,
+Reference, and Original variable directories. See the [`gendef` documentation](#prepref)
+for more help. An example Input file can be seen below:
+
+```
+ExampleInputFile
+-------------------------------------------------------------------------------
+[locations]
+Project = /home/user/Projects/ProjectName
+Reference = /home/user/References/ProjectName-Reference
+Original = /home/user/Datas/ProjectName-Data
+```
+
+Often times your data will be organized in a way that isn't accepted by
+lahontan.  In order to continue, your `Original` directory must be arranged such
+that each sample read is alphanumerically sorted in a single directory (Note:
+sorted by sample and by read)
+
+Example Original Directory:
+```
+/home/user/Data/ProjectName-Data/
+    SpeciesName.treament1_group1.read1.fq.gz
+    SpeciesName.treament1_group1.read2.fq.gz
+    SpeciesName.treament1_group2.read1.fq.gz
+    SpeciesName.treament1_group2.read2.fq.gz
+    SpeciesName.treament2_group1.read1.fq.gz
+    SpeciesName.treament2_group1.read2.fq.gz
+    SpeciesName.treament2_group2.read1.fq.gz
+    SpeciesName.treament2_group2.read2.fq.gz
+```
+
+Also, in order to limit errors, your filenames must only contain: letters,
+numbers, periods, hyphens, and underscores.
+
+Your reference filenames must also follow a few specific rules. Along with only
+using letters, numbers, periods, hyphens, and underscores:
+* Your GTF-format file must end with ".gtf" and it must be the only file within
+  your reference directory to do so
+* Your reference transcriptome must contain ".cdna." anywhere within the name
+  except for the end. It must also be the only file within your reference
+  directory to do so
+* Your reference genome must contain ".dna." anywhere within the name except
+  for the extension.  It must also be the only file within your reference
+  directory to do so
+
+Example Reference Directory:
+```
+/home/user/Reference/ProjectName-Reference/
+    SpeciesName.cdna.all.fa.gz
+    SpeciesName.dna.toplevel.fa.gz
+    SpeciesName.gtf
+```
+
+## Quick Start
+
+1. Create an Input file with `lahontan gendef` for your desired pipeline using
+   the `-m` option. Then fill in the "[locations]" section.
+2. Make sure data and references are following format specified in Setup
+3. Prepare reference data with `lahontan prepref`. If you are using the `kall`
+   or `bowtie2` pipeline, be sure to add the `--kallisto` or `--bowtie2` flag
+   to make sure the appropriate indices get created.
+4. Run `lahontan mj` to make a metadata file
+5. Run `lahontan mb` to make a blacklist file
+6. Decide if you will be running the pipeline with SLURM or not
+    * If yes, then run `lahontan fo` with proper arguments to make optimal path
+      file
+    * If no, then you can skip this step
+    * The following steps will be denoted with a (s) if the step is for SLURM or
+      a (w) if the step is without SLURM
+7. (s) Make a batch file by adding the `--makebatch` option to any of the three
+   pipeline commands. You should also add the `--batchjson` option with the
+file you made with `lahontan fo`; the `--jsonfile` option with the file you made
+with  `lahontan mj`; the `--use-blacklist` option with the file you made with
+`lahontan mb`; and the `--use-reference` because the reference data has been
+prepared. So an example command to make a featureCounts batch file may look like:
+```
+$ lahontan fcounts --makebatch 48,48,32 --batchjson /path/to/OptimalPath.dat \
+--jsonfile /path/to/Metadata.json --use-blacklist /path/to/CustomBlacklist.fa \
+--use-reference /path/to/INPUT
+```
+7. (w) You can execute the entire pipeline with one command, but it's important
+   that the `--jsonfile`, `--use-blacklist`, and `--use-reference` options are
+added to the command. An example command may look like:
+```
+$ lahontan fcounts --jsonfile /path/to/Metadata.json \
+--use-blacklist /path/to/CustomBlacklist.fa --use-reference --maxcpu 24 \
+/path/to/INPUT
+```
+8. (s) Execute the batch file with `sbatch pipeBatch`
+
+Note: It may be a good idea to hold your input file, metadata file, blacklist
+file, batch file, and optimal path file in the same directory for easy tracking
+
+### Example Execution
+
+Assuming that the data and reference files have been appropriately organized,
+and are located at `/home/user/Data/MyDataFolder` and
+`/home/user/References/MyReferenceFolder`, run the following to obtain a
+default input file:
+```
+$ lahontan gendef -m fcounts -f MyFcountsProject.ini
+```
+At this point complete the "[locations]" section in `MyFcountsProject.ini`. So
+`MyFcountsProject.ini` at minimum contains:
+```
+MyFcountsProject.ini
+-------------------------------------------------------------------------------
+[locations]
+Project = /home/user/Projects/MyProjectFolder
+Reference = /home/user/References/MyReferenceFolder
+Original = /home/user/Datas/MyDataFolder
+```
+Then, execute the following:
+```
+$ lahontan prepref -r /home/user/References/MyReferenceFolder
+$ lahontan mj -j MyMetadata.json
+$ lahontan mb -t MyBlacklist.fa
+$ lahontan fcounts --use-reference --use-blacklist MyBlacklist.fa \
+--jsonfile MyMetadata.json MyFcountsProject.ini
+```
 
 # Pipeline Specifications
 
@@ -1213,151 +1369,6 @@ mj          Provoke questionnaire to make a Metadata file
 mb          Create trimmomatic blacklist
 clean       Clean any project directories
 fo          Finds optimal execution path for batch execution
-```
-
-# Creating a Project and Running the Pipeline
-
-## Requirements
-
-* Paired-end Illumina fastq files. This means 2 files per sample. One for
-  Read1, the other for Read2
-* A reference genome for the organism in study. All chromosomes in a single
-  FASTA format file
-* A GTF-format file for containing the gene and exon coordinates for your
-  reference genome
-* A reference transcriptome (or some set of known transcripts) for your
-  organism
-* The Pipeline directory should be in your `$PATH` environmental variable. This
-  can be accomplished by being in the main rna-seq directory and running:
-```
-$ cd scripts/Pipeline
-$ echo 'export PATH=$PATH:'`pwd` >> $HOME/.bashrc
-$ source $HOME/.bashrc
-```
-
-## Setup
-
-It is important that the Input file that you feed into the pipeline follow the
-format specified. You can use the `gendef` command to create a default input
-file for you, which at that point only requires you to fill in the Project,
-Reference, and Original variable directories. See the [`gendef` documentation](#prepref)
-for more help. An example Input file can be seen below:
-
-```
-ExampleInputFile
--------------------------------------------------------------------------------
-[locations]
-Project = /home/user/Projects/ProjectName
-Reference = /home/user/References/ProjectName-Reference
-Original = /home/user/Datas/ProjectName-Data
-```
-
-Often times your data will be organized in a way that isn't accepted by
-lahontan.  In order to continue, your `Original` directory must be arranged such
-that each sample read is alphanumerically sorted in a single directory (Note:
-sorted by sample and by read)
-
-Example Original Directory:
-```
-/home/user/Data/ProjectName-Data/
-    SpeciesName.treament1_group1.read1.fq.gz
-    SpeciesName.treament1_group1.read2.fq.gz
-    SpeciesName.treament1_group2.read1.fq.gz
-    SpeciesName.treament1_group2.read2.fq.gz
-    SpeciesName.treament2_group1.read1.fq.gz
-    SpeciesName.treament2_group1.read2.fq.gz
-    SpeciesName.treament2_group2.read1.fq.gz
-    SpeciesName.treament2_group2.read2.fq.gz
-```
-
-Also, in order to limit errors, your filenames must only contain: letters,
-numbers, periods, hyphens, and underscores.
-
-Your reference filenames must also follow a few specific rules. Along with only
-using letters, numbers, periods, hyphens, and underscores:
-* Your GTF-format file must end with ".gtf" and it must be the only file within
-  your reference directory to do so
-* Your reference transcriptome must contain ".cdna." anywhere within the name
-  except for the end. It must also be the only file within your reference
-  directory to do so
-* Your reference genome must contain ".dna." anywhere within the name except
-  for the extension.  It must also be the only file within your reference
-  directory to do so
-
-Example Reference Directory:
-```
-/home/user/Reference/ProjectName-Reference/
-    SpeciesName.cdna.all.fa.gz
-    SpeciesName.dna.toplevel.fa.gz
-    SpeciesName.gtf
-```
-
-## Quick Start
-
-1. Create an Input file with `lahontan gendef` for your desired pipeline using
-   the `-m` option. Then fill in the "[locations]" section.
-2. Make sure data and references are following format specified in Setup
-3. Prepare reference data with `lahontan prepref`. If you are using the `kall`
-   or `bowtie2` pipeline, be sure to add the `--kallisto` or `--bowtie2` flag
-   to make sure the appropriate indices get created.
-4. Run `lahontan mj` to make a metadata file
-5. Run `lahontan mb` to make a blacklist file
-6. Decide if you will be running the pipeline with SLURM or not
-    * If yes, then run `lahontan fo` with proper arguments to make optimal path
-      file
-    * If no, then you can skip this step
-    * The following steps will be denoted with a (s) if the step is for SLURM or
-      a (w) if the step is without SLURM
-7. (s) Make a batch file by adding the `--makebatch` option to any of the three
-   pipeline commands. You should also add the `--batchjson` option with the
-file you made with `lahontan fo`; the `--jsonfile` option with the file you made
-with  `lahontan mj`; the `--use-blacklist` option with the file you made with
-`lahontan mb`; and the `--use-reference` because the reference data has been
-prepared. So an example command to make a featureCounts batch file may look like:
-```
-$ lahontan fcounts --makebatch 48,48,32 --batchjson /path/to/OptimalPath.dat \
---jsonfile /path/to/Metadata.json --use-blacklist /path/to/CustomBlacklist.fa \
---use-reference /path/to/INPUT
-```
-7. (w) You can execute the entire pipeline with one command, but it's important
-   that the `--jsonfile`, `--use-blacklist`, and `--use-reference` options are
-added to the command. An example command may look like:
-```
-$ lahontan fcounts --jsonfile /path/to/Metadata.json \
---use-blacklist /path/to/CustomBlacklist.fa --use-reference --maxcpu 24 \
-/path/to/INPUT
-```
-8. (s) Execute the batch file with `sbatch pipeBatch`
-
-Note: It may be a good idea to hold your input file, metadata file, blacklist
-file, batch file, and optimal path file in the same directory for easy tracking
-
-### Example Execution
-
-Assuming that the data and reference files have been appropriately organized,
-and are located at `/home/user/Data/MyDataFolder` and
-`/home/user/References/MyReferenceFolder`, run the following to obtain a
-default input file:
-```
-$ lahontan gendef -m fcounts -f MyFcountsProject.ini
-```
-At this point complete the "[locations]" section in `MyFcountsProject.ini`. So
-`MyFcountsProject.ini` at minimum contains:
-```
-MyFcountsProject.ini
--------------------------------------------------------------------------------
-[locations]
-Project = /home/user/Projects/MyProjectFolder
-Reference = /home/user/References/MyReferenceFolder
-Original = /home/user/Datas/MyDataFolder
-```
-Then, execute the following:
-```
-$ lahontan prepref -r /home/user/References/MyReferenceFolder
-$ lahontan mj -j MyMetadata.ini
-$ lahontan mb -t MyBlacklist.ini
-$ lahontan fcounts --use-reference --use-blacklist MyBlacklist.init \
---jsonfile MyMetadata.ini MyFcountsProject.ini
 ```
 
 # Authors
